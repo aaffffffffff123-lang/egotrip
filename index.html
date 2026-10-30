@@ -2459,7 +2459,7 @@ class Person {
     }
     if (L.goatee) rig.add(G.sph(12, 8), L.beardColor || hair, Bn.jaw, M4([hc.x, hc.y - R * 0.82, hc.z + R * 0.66], 0, [R * 0.17, R * 0.2, R * 0.14]));
     // ----- 안경 -----
-    if (L.glasses) {
+    if (L.glasses && !L.movableGlasses) {
       for (const sx of [1, -1]) {
         rig.add(G.tor(1, 0.11, 18, 6), L.glasses, hb, M4([hw.x + sx * E.x, hw.y + E.y - E.r * 0.05, hw.z + E.z + E.r * 0.62], 0, [E.r * 1.4, E.r * 1.3, E.r]), 1);
         rig.add(G.cap(R * 0.9, R * 0.03, 6), L.glasses, hb, M4([hw.x + sx * R * 0.86, hw.y + E.y, hw.z + E.z - R * 0.35], [Math.PI / 2, 0, 0]), 1);
@@ -4580,6 +4580,7 @@ function setupCrowd(scene) {
   let seed = 101;
   for (const sp of spots) {
     const look = randomLook(seed++);
+    look.movableGlasses = !!look.glasses;
     const far = sp.pos.z < -9.5;
     const p = new Person(look, { seated: sp.kind !== 'stand', seatY: sp.seatY || 0.46, lod: far ? 2 : 1, feetFwd: sp.kind === 'bar' ? 0.3 : 0.42 });
     p.root.position.copy(sp.pos); p.root.rotation.y = sp.yaw;
@@ -4588,14 +4589,23 @@ function setupCrowd(scene) {
     const r = seeded(seed * 31);
     const m = { p, kind: sp.kind, spot: sp, watch: r(), wild: r(), act: null, nextAct: rand(0, 2), friend: null, far, standWish: 0, phase0: r() * 2 };
     p.c.phase = m.phase0; p.c.groove = 0.3; p.c.nod = 0.3; p.c.sway = 0.2;
+    const roles = ['mouthFreeze', 'phone', 'stankSlap', 'laughFold', 'filmPro', 'mouthFreeze', 'phone', 'riseStun'];
+    m.signature = sp.kind === 'stand' ? roles[CROWD.list.length % roles.length] : ['drinkFreeze', 'friendTap', 'convert', 'friendLean'][CROWD.list.length % 4];
+    if (look.glasses && CROWD.list.length % 2 === 0) m.signature = 'glassesDouble';
+    m.nextScene = 0; m.sceneCount = 0; m.pending = null; m.props = {};
+    m.reserved = m.signature === 'convert'; m.converted = false;
+    m.standDelay = r() * 1.65;
     CROWD.list.push(m);
+    if (look.movableGlasses) makeCrowdProp(m, 'glasses');
   }
   // 옆 사람이 친구
   for (const m of CROWD.list) { let best = null, bd = 2.2; for (const o of CROWD.list) { if (o === m) continue; const d = o.p.root.position.distanceTo(m.p.root.position); if (d < bd) { bd = d; best = o; } } m.friend = best; }
   if (V && V.bartender) {
     const bt = new Person({ name: 'bt', hair: 'pomp', hairColor: '#1e1a1e', mustache: true, skin: '#d79a6c', topStyle: 'jacket', jacket: '#2f5a42', shirt: '#fff4de', tie: '#ee4a2c', pants: '#22244a', h: 1.0 }, { lod: 1 });
     bt.root.position.copy(V.bartender.pos); bt.root.rotation.y = V.bartender.yaw; scene.add(bt.root);
-    CROWD.bartender = { p: bt, shaking: true };
+    CROWD.bartender = { p: bt, kind: 'bar', shaking: true, props: {}, act: null, pending: null, nextScene: 0, sceneCount: 0 };
+    makeCrowdProp(CROWD.bartender, 'cup');
+    makeCrowdProp(CROWD.bartender, 'cloth');
   }
 }
 // 몸 기준 틀 (가슴 위치, 앞·오른쪽·위)
@@ -4609,9 +4619,14 @@ function frameOf(p) {
 const at = (F, fw, rt, up) => F.c.clone().addScaledVector(F.f, fw).addScaledVector(F.r, rt).addScaledVector(UPY, up);
 
 // ---------- 동작 ----------
-function crowdAct(m, k, dur, extra = {}) { m.act = { k, t0: NOW.t, until: NOW.t + dur, ...extra }; }
+function crowdAct(m, k, dur, extra = {}) {
+  // A musical accent must not cut a person's little scene in half.
+  if (m.act && m.act.story && NOW.t < m.act.until) return;
+  m.act = { k, t0: NOW.t, until: NOW.t + dur, ...extra };
+}
 function runCrowdAct(m, t, beat) {
   const p = m.p, a = m.act, F = frameOf(p), h = p.h;
+  if (a.story) { runCrowdScene(m, t, beat); return; }
   switch (a.k) {
     case 'clap': {
       const ph = a.onBeat ? (((beat + 1) % 2 + 2) % 2) / 2 * 2 : (t - a.t0) * (a.rate || 4.6);
@@ -4660,6 +4675,268 @@ function runCrowdAct(m, t, beat) {
     default: p.rest('L'); p.rest('R');
   }
 }
+// Short, staggered audience scenes; their clocks stop with the game.
+const CROWD_SCENES = {
+  mouthFreeze: 6.8, phone: 8.4, filmPro: 8.8, friendTap: 5.8, friendLean: 6.2,
+  stankSlap: 5.5, drinkFreeze: 7.4, riseStun: 6.5, convert: 8.1,
+  glassesDouble: 7.8, laughFold: 6.1, buddy: 6.2,
+};
+function sceneFor(m, f) {
+  if (m.reserved && !m.converted && f > 0.5) return 'convert';
+  if (m.sceneCount % 3 !== 2) return m.signature;
+  return pick(m.kind === 'seat' ? ['mouthFreeze', 'drinkFreeze', 'riseStun', 'laughFold'] : ['mouthFreeze', 'stankSlap', 'laughFold', 'phone']);
+}
+function queueCrowdScene(m, k, delay = 0, extra = {}) {
+  const t = NOW.t;
+  if (m.pending || (m.act && m.act.story) || t < m.nextScene) return false;
+  const busy = CROWD.list.filter(o => o.pending || (o.act && o.act.story && o.act.k !== 'reserved')).length;
+  if (busy >= 14) return false;
+  if ((k === 'phone' || k === 'filmPro') && CROWD.list.filter(o => /^(phone|filmPro)$/.test(o.pending?.k || o.act?.k)).length >= 4) k = 'mouthFreeze';
+  if (k === 'glassesDouble' && !m.p.look.movableGlasses) k = 'mouthFreeze';
+  if (k === 'friendTap' || k === 'friendLean') {
+    const friend = m.friend;
+    if (!friend || friend.p.root.position.distanceTo(m.p.root.position) > 0.98 || friend.pending || (friend.act && friend.act.story)) k = 'mouthFreeze';
+    else extra.friend = friend;
+  }
+  m.pending = { k, at: t + delay, dur: CROWD_SCENES[k] || 6, extra };
+  return true;
+}
+function startCrowdScene(m, k, dur = CROWD_SCENES[k], extra = {}) {
+  const t = NOW.t;
+  if (extra.friend && (extra.friend.pending || extra.friend.act?.story)) { k = 'mouthFreeze'; extra = {}; dur = CROWD_SCENES[k]; }
+  m.act = { k, t0: t, until: t + dur, story: true, seat: m.p.s.stand, ...extra };
+  m.sceneCount++; m.nextScene = t + dur + rand(7, 15);
+  if (extra.friend) {
+    const f = extra.friend;
+    f.act = { k: 'buddy', t0: t, until: t + dur, story: true, friend: m, source: k, seat: f.p.s.stand };
+    f.nextScene = t + dur + rand(6, 12);
+  }
+}
+function finishCrowdScene(m, t) {
+  if (m.act?.k === 'convert') m.converted = true;
+  m.act = null; m.nextAct = t + rand(0.8, 2.4);
+  m.p.exUntil = 0; m.p.express('smile', 0.4);
+  if (m.props) for (const [k, prop] of Object.entries(m.props)) if (k !== 'glasses') prop.visible = false;
+}
+function resetCrowdScenes() {
+  for (const m of [...CROWD.list, CROWD.bartender].filter(Boolean)) {
+    m.pending = null; m.nextScene = 0; m.sceneCount = 0; m.converted = false;
+    m.standWish = 0; m.standNow = 0; m.standAt = 0;
+    finishCrowdScene(m, NOW.t); m.p.c.headShake = 0; m.p.c.headTilt = 0; m.p.c.side = 0;
+  }
+}
+function crowdStill(p, groove = 0) {
+  p.c.groove = groove; p.c.nod = 0; p.c.sway = 0; p.c.bounce = 0; p.c.jump = 0; p.c.headBang = 0; p.c.headShake = 0;
+}
+function sceneFace(p, k) { if (p.curFace !== k || p.exUntil < NOW.t + 0.2) p.express(k, 0.6); }
+function facePoint(p, x, y, z = 0) {
+  const hb = p.bones[BONE.head]; hb.updateWorldMatrix(true, false);
+  return V3(x, p.headC.y + y, p.headC.z + z).applyMatrix4(hb.matrixWorld);
+}
+function palmQ(p, side, up = false) {
+  const F = frameOf(p);
+  return handQuat(up ? UPY : UPY.clone().negate(), F.f.clone().negate(), side);
+}
+function mouthHands(p, one = false) {
+  for (const side of one ? ['R'] : ['L', 'R']) {
+    const sx = side === 'L' ? 1 : -1;
+    const pt = facePoint(p, sx * p.R * 0.24, -p.R * 0.75, p.R * 1.14);
+    p.reach(side, pt, p.local(sx * 0.4, 1.12 * p.h, 0.22), palmQ(p, side, true), 'flat');
+  }
+}
+function sceneClap(p, F, t, high = false) {
+  const sep = 0.028 + Math.max(0, Math.cos(t * 27)) * 0.13;
+  p.reach('L', at(F, 0.27, -sep, high ? 0.62 : 0.12), null, null, 'flat');
+  p.reach('R', at(F, 0.27, sep, high ? 0.62 : 0.12), null, null, 'flat');
+}
+function makeCrowdProp(m, kind) {
+  if (m.props[kind]) return m.props[kind];
+  const g = new THREE.Group(); g.name = 'audience-' + kind; g.visible = false;
+  const add = (geo, col, pos = [0, 0, 0], basic = false) => {
+    const mesh = new THREE.Mesh(geo, basic ? new THREE.MeshBasicMaterial({ color: col }) : toonMat(col, { outline: 0.003 }));
+    mesh.position.set(...pos); g.add(mesh); return mesh;
+  };
+  if (kind === 'phone') {
+    add(rbox(0.105, 0.2, 0.022, 0.012, 2), '#221a2b');
+    add(new THREE.PlaneGeometry(0.082, 0.164), '#99d9ed', [0, 0, -0.012], true).rotation.y = Math.PI;
+    add(new THREE.SphereGeometry(0.013, 8, 6), '#11151d', [-0.03, 0.065, 0.014]);
+    add(new THREE.SphereGeometry(0.006, 6, 4), '#a8c8e0', [-0.03, 0.065, 0.025]);
+    add(new THREE.SphereGeometry(0.006, 6, 4), '#ee4a2c', [0.026, 0.064, -0.014]);
+  } else if (kind === 'cup') {
+    add(new THREE.CylinderGeometry(0.043, 0.034, 0.13, 10), '#d6e8e5');
+    add(new THREE.CylinderGeometry(0.038, 0.038, 0.008, 10), '#d68c36', [0, 0.064, 0]);
+    add(new THREE.TorusGeometry(0.041, 0.004, 4, 12), '#fffaf0', [0, 0.066, 0]).rotation.x = Math.PI / 2;
+  } else if (kind === 'cloth') {
+    add(rbox(0.16, 0.2, 0.012, 0.015, 2), '#fff4de');
+  } else if (kind === 'glasses') {
+    const p = m.p, E = p.eyeP, col = p.look.glasses;
+    for (const sx of [1, -1]) {
+      const rim = add(new THREE.TorusGeometry(E.r * 1.35, E.r * 0.1, 5, 14), col, [sx * E.x, 0, 0]); rim.scale.y = 0.95;
+      add(new THREE.CylinderGeometry(0.004, 0.004, p.R * 0.9, 5), col, [sx * p.R * 0.82, 0, -p.R * 0.4]).rotation.x = Math.PI / 2;
+    }
+    add(new THREE.CylinderGeometry(0.004, 0.004, E.x, 5), col).rotation.z = Math.PI / 2;
+  }
+  // Keep each small prop cheap on mobile, including the existing outline pass.
+  const solids = g.children.filter(o => o.isMesh && !o.material.isMeshBasicMaterial);
+  if (solids.length > 1) {
+    for (const o of solids) o.updateMatrix();
+    const packed = _vm(solids.map(o => [o.geometry, o.material.color, o.matrix]));
+    for (const o of solids) { g.remove(o); o.geometry.dispose(); o.material.dispose(); }
+    g.add(new THREE.Mesh(packed, toonVC({ outline: 0.003 })));
+  }
+  SC.scene.add(g); m.props[kind] = g; return g;
+}
+function phonePose(m, F, t, pro) {
+  const p = m.p, age = t - m.act.t0;
+  const lift = smoothstep(0, 1.1, age), drop = pro ? 0 : smoothstep(2.7, 5.2, age) * (1 - smoothstep(6, 6.65, age));
+  const roll = pro ? -Math.PI / 2 * smoothstep(1.8, 2.8, age) : -drop * 0.24;
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(drop * 0.8, p.root.rotation.y + p.s.twist, roll, 'YXZ'));
+  const pocket = smoothstep(m.act.until - m.act.t0 - 1.1, m.act.until - m.act.t0 - 0.15, age);
+  const center = at(F, lerp(0.3, 0.08, pocket), pro ? 0.02 : 0.13, lerp(-0.3, 0.3, lift) - drop * 0.48 - pocket * 0.6);
+  const turn = pro ? smoothstep(1.8, 2.8, age) : 0;
+  const gripR = V3(lerp(-0.052, 0, turn), lerp(-0.015, -0.085, turn), 0).applyQuaternion(q);
+  const gripL = V3(lerp(0.052, 0, turn), lerp(-0.015, 0.085, turn), 0).applyQuaternion(q);
+  p.reach('R', center.clone().add(gripR), null, q, 'grip');
+  if (pro && age > 1.3) p.reach('L', center.clone().add(gripL), null, q, 'grip'); else p.rest('L');
+  m.act.phoneQ = q;
+  m.act.phoneOffset = gripR.clone().negate();
+  m.act.phoneVisible = pocket < 0.98;
+  makeCrowdProp(m, 'phone').visible = m.act.phoneVisible;
+  crowdStill(p, 0.12); p.c.lean = pro && age > 3 ? 0.24 : 0.04;
+  if (pro && p.seated === false) p.c.stand = 1 - 0.13 * smoothstep(3, 4, age);
+  sceneFace(p, drop > 0.2 ? 'awe' : (age > 6 ? 'grin' : 'focus'));
+}
+function runCrowdScene(m, t, beat) {
+  const p = m.p, a = m.act, age = t - a.t0, F = frameOf(p), R = p.R;
+  crowdStill(p); p.c.look.copy(CROWD.me); p.c.lean = 0.04;
+  p.c.stand = m.kind === 'stand' ? 1 : a.seat;
+  p.rest('L'); p.rest('R');
+  switch (a.k) {
+    case 'reserved':
+      p.c.stand = 0; p.c.groove = 0.15; p.c.step = 0.5;
+      p.reach('L', at(F, 0.12, 0.14, 0.08), null, null, 'relax');
+      p.reach('R', at(F, 0.15, -0.14, 0.02), null, null, 'relax'); sceneFace(p, 'calm'); break;
+    case 'mouthFreeze':
+      sceneFace(p, age < 5.4 ? 'awe' : 'grin');
+      if (age > 0.25 && age < 5.5) mouthHands(p);
+      if (age > 5.5) { mouthHands(p, true); p.c.headTilt = 0.12; p.reach('L', at(F, 0.22, -0.3, 0.1), null, null, 'spread'); }
+      break;
+    case 'phone': case 'filmPro': phonePose(m, F, t, a.k === 'filmPro'); break;
+    case 'drinkFreeze': {
+      const lift = smoothstep(0, 1.0, age), lower = smoothstep(4.6, 6.5, age);
+      const from = at(F, 0.24, 0.16, -0.25), lip = facePoint(p, -R * 0.15, -R * 0.67, R * 1.22);
+      p.reach('R', from.lerp(lip, lift * (1 - lower)), null, palmQ(p, 'R'), 'grip');
+      makeCrowdProp(m, 'cup').visible = age < 6.6;
+      sceneFace(p, age > 0.9 && age < 5.8 ? 'awe' : 'focus'); p.c.lean = lower * 0.3;
+      break;
+    }
+    case 'friendTap': case 'friendLean': {
+      const friend = a.friend;
+      if (!friend) { mouthHands(p); sceneFace(p, 'awe'); break; }
+      const toward = friend.p.root.position.clone().sub(p.root.position), side = toward.dot(F.r) > 0 ? 'R' : 'L', sign = side === 'R' ? 1 : -1;
+      const ff = frameOf(friend.p), shoulder = at(ff, 0.04, p.root.position.clone().sub(ff.c).dot(ff.r) > 0 ? 0.16 : -0.16, 0.13);
+      if (a.k === 'friendTap') {
+        if (age > 0.45 && age < 3.7) {
+          const tap = Math.max(0, Math.sin((age - 0.45) * 12));
+          const hand = shoulder.clone().addScaledVector(toward.normalize(), -tap * 0.1);
+          p.reach(side, hand, null, null, 'flat');
+          p.reach(side === 'R' ? 'L' : 'R', at(F, 0.43, -sign * 0.12, 0.22), null, null, 'point');
+          p.c.look.copy(friend.p.headWorld()); p.c.side = sign * 0.12;
+        }
+        sceneFace(p, age < 4 ? 'wow' : 'grin');
+      } else {
+        const fold = smoothstep(0.6, 1.8, age) * (1 - smoothstep(4.1, 5.5, age));
+        p.c.side = sign * 0.5 * fold; p.c.lean = fold * 0.16;
+        if (fold > 0.1) { p.c.look.copy(shoulder); p.reach(side, shoulder, null, null, 'relax'); }
+        p.c.headShake = age > 2 && age < 4 ? 0.25 : 0; sceneFace(p, age < 4.5 ? 'laugh' : 'awe');
+      }
+      break;
+    }
+    case 'buddy': {
+      if (age > 0.85 && age < 3.6) p.c.look.copy(a.friend.p.headWorld());
+      sceneFace(p, age < 2 ? 'wow' : 'grin');
+      if (a.source === 'friendLean' && age > 1 && age < 4.6) {
+        const target = a.friend.p.chestWorld().add(V3(0, 0.12 + Math.sin(age * 10) * 0.025, -0.08));
+        const side = target.clone().sub(F.c).dot(F.r) > 0 ? 'R' : 'L';
+        p.reach(side, target, null, null, 'flat');
+      }
+      break;
+    }
+    case 'stankSlap':
+      sceneFace(p, age < 3.5 ? 'stank' : 'grin'); p.c.lean = age < 2 ? -0.23 : 0.12;
+      p.c.headShake = age > 0.5 && age < 3.4 ? 0.65 : 0;
+      if (age > 0.9 && age < 2.2) p.reach('R', p.local(-0.12, (p.s.stand > 0.7 ? 0.72 * p.h : p.seatY + 0.14) + 0.18 * Math.abs(Math.sin((age - 0.9) * 6)), 0.22), null, null, 'flat');
+      else if (age > 3.5) sceneClap(p, F, t);
+      break;
+    case 'riseStun':
+      p.c.stand = 1; sceneFace(p, age < 3.6 ? 'wow' : 'grin');
+      if (age < 3.7) { p.reach('L', at(F, 0.18, -0.34, 0.06), null, null, 'spread'); p.reach('R', at(F, 0.18, 0.34, 0.06), null, null, 'spread'); }
+      else { p.reach('L', at(F, 0.03, -0.2, -0.23), null, null, 'relax'); p.reach('R', at(F, 0.03, 0.2, -0.23), null, null, 'relax'); p.c.groove = 0.7; p.c.nod = 0.75; }
+      break;
+    case 'convert':
+      p.c.stand = age < 3 ? 0 : 1;
+      if (age < 2) { p.reach('L', at(F, 0.13, 0.14, 0.08), null, null, 'relax'); p.reach('R', at(F, 0.15, -0.14, 0.02), null, null, 'relax'); p.c.step = 0.7; sceneFace(p, 'focus'); }
+      else if (age < 4.2) { p.c.lean = 0.32; sceneFace(p, 'wow'); }
+      else { sceneFace(p, 'ecstasy'); sceneClap(p, F, t, true); }
+      break;
+    case 'glassesDouble': {
+      const off = smoothstep(0.5, 1.4, age) * (1 - smoothstep(5.1, 6.4, age));
+      a.glassesOff = off;
+      const eye = facePoint(p, -p.eyeP.x * 1.4, p.eyeP.y - p.headC.y, p.eyeP.z - p.headC.z + 0.02);
+      if (age < 6.5) p.reach('R', eye.lerp(at(F, 0.28, 0.23, 0.02), off), null, palmQ(p, 'R'), 'pinch');
+      if (age > 2.2 && age < 4.1) p.reach('L', facePoint(p, R * 0.24, R * 0.05, R * 1.1), null, palmQ(p, 'L', true), 'fist');
+      sceneFace(p, age > 6 ? 'focus' : 'awe'); p.c.lean = age > 6 ? 0.3 : -0.05;
+      break;
+    }
+    case 'laughFold':
+      sceneFace(p, age < 0.8 ? 'wow' : 'laugh');
+      p.c.lean = 0.48 * smoothstep(0.7, 1.4, age) * (1 - smoothstep(3.6, 4.5, age));
+      p.c.headTilt = age < 4 ? 0.16 : 0;
+      if (age > 1 && age < 4) p.reach('R', facePoint(p, -R * 0.2, R * 0.62, R * 0.82), null, palmQ(p, 'R', true), 'flat');
+      if (age > 4) { p.c.look.copy(CROWD.me); sceneClap(p, F, t); }
+      break;
+  }
+}
+function updateCrowdProps(m, t) {
+  const p = m.p, a = m.act, props = m.props;
+  const hand = side => p.bones[BONE['hand' + side]].getWorldPosition(new THREE.Vector3());
+  if (props.phone) {
+    props.phone.visible = !!(a && (a.k === 'phone' || a.k === 'filmPro') && a.phoneQ && a.phoneVisible);
+    if (props.phone.visible) { props.phone.position.copy(hand('R')).add(a.phoneOffset); props.phone.quaternion.copy(a.phoneQ); }
+  }
+  if (props.cup && props.cup.visible) { props.cup.position.copy(hand('R')).add(V3(0, 0.025, 0)); props.cup.rotation.set(0, p.root.rotation.y, 0); }
+  if (props.glasses) {
+    const hb = p.bones[BONE.head]; hb.updateWorldMatrix(true, false);
+    const home = V3(0, p.eyeP.y - p.eyeP.r * 0.05, p.eyeP.z + p.eyeP.r * 0.62).applyMatrix4(hb.matrixWorld);
+    const q = hb.getWorldQuaternion(new THREE.Quaternion()), off = a?.glassesOff || 0;
+    props.glasses.visible = true;
+    props.glasses.position.copy(home).lerp(hand('R').add(V3(0.07, 0, 0)), off);
+    props.glasses.quaternion.copy(q).slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2, p.root.rotation.y, -0.2)), off);
+  }
+}
+function updateBartender(dt, t, beat, f, burst) {
+  const m = CROWD.bartender, p = m.p;
+  if (m.pending && t >= m.pending.at) { m.pending = null; m.act = { k: 'barFreeze', t0: t, until: t + 8, story: true }; m.nextScene = t + rand(20, 32); }
+  if (m.act && t >= m.act.until) finishCrowdScene(m, t);
+  if (!m.act && !m.pending && REACT.meSolo && f > 0.65 && t > m.nextScene) m.pending = { at: t + rand(1, 2) };
+  const age = m.act ? t - m.act.t0 : -1;
+  p.c.lean = 0; crowdStill(p, 0.2); p.c.look.copy(age >= 0 ? CROWD.me : p.local(0, 1.3, 1.5));
+  m.props.cup.visible = age < 4.4; m.props.cloth.visible = age < 4.4;
+  if (age < 0) {
+    const ph = t * 5;
+    p.reach('R', p.local(-0.11, 1.3, 0.3), null, null, 'grip');
+    p.reach('L', p.local(0.03, 1.32 + Math.sin(ph) * 0.035, 0.31), null, null, 'flat'); sceneFace(p, 'smile');
+  } else if (age < 4.4) {
+    p.reach('R', p.local(-0.11, 1.3, 0.3), null, null, 'grip');
+    p.reach('L', p.local(0.03, 1.34, 0.31), null, null, 'flat'); sceneFace(p, 'awe');
+  } else {
+    p.c.lean = 0.27;
+    p.reach('L', p.local(0.22, 1.14, 0.43), null, null, 'flat'); p.reach('R', p.local(-0.22, 1.14, 0.43), null, null, 'flat'); sceneFace(p, 'grin');
+  }
+  p.update(dt, t, beat); updateCrowdProps(m, t);
+  if (m.props.cloth.visible) { m.props.cloth.position.copy(p.bones[BONE.handL].getWorldPosition(new THREE.Vector3())).add(V3(0, -0.06, 0)); m.props.cloth.rotation.set(0, p.root.rotation.y, -0.15); }
+}
+
 // 표정 고르기
 function moodFace(m, f) {
   if (f < 0.25) return m.watch < 0.4 ? 'smile' : 'calm';
@@ -4677,9 +4954,17 @@ function crowdUpdate(dt, t, beat) {
   for (const ev of R.events) { if (ev._crowd) continue; ev._crowd = true; crowdOnEvent(ev); }
   for (const m of CROWD.list) {
     const p = m.p;
+    p.c.headTilt = 0; p.c.headShake = 0; p.c.side = 0; p.c.twist = 0; p.c.step = 0;
+    if (m.act && t >= m.act.until) finishCrowdScene(m, t);
+    if (m.pending && t >= m.pending.at && !(m.act && m.act.story)) {
+      const q = m.pending; m.pending = null;
+      startCrowdScene(m, q.k, q.dur, q.extra);
+    }
     // 서 있기 (앉은 사람): 광기·박수 세례
     const standNow = m.kind === 'stand' ? 1 : ((f > 0.68 - m.wild * 0.18) || (burst && (burst.kind === 'ovation' || (burst.k > 0.85 && m.wild > 0.4))) ? 1 : (f < 0.42 ? 0 : m.standWish));
-    m.standWish = standNow; p.c.stand = m.kind === 'stand' ? 1 : standNow;
+    if (standNow !== m.standWish) { m.standAt = t + m.standDelay; m.standWish = standNow; }
+    if (t >= (m.standAt || 0)) m.standNow = standNow;
+    p.c.stand = m.kind === 'stand' ? 1 : (m.reserved && !m.converted ? 0 : (m.standNow || 0));
     // 그루브
     const watching = m.watch < 0.2 + f * 0.95;
     p.c.groove = 0.35 + f * 0.75;
@@ -4690,7 +4975,7 @@ function crowdUpdate(dt, t, beat) {
     // 달아오르면 서 있는 사람들이 무대 쪽으로 몰려듦
     if (m.kind === 'stand') {
       const rush = smoothstep(0.55, 1, f) * (0.25 + m.wild * 0.3);
-      m.rush = damp(m.rush || 0, rush, 1.2, dt);
+      if (!m.act?.story) m.rush = damp(m.rush || 0, rush, 1.2, dt);
       const sp = m.spot.pos, dz = -2.6 - sp.z, dx = -sp.x * 0.25, dl = Math.hypot(dx, dz) || 1;
       p.root.position.set(sp.x + dx / dl * m.rush, sp.y, Math.min(sp.z + dz / dl * m.rush, Math.max(sp.z, LAYOUT.stage.zFront - 0.38)));
     }
@@ -4704,24 +4989,23 @@ function crowdUpdate(dt, t, beat) {
     // 표정
     if (!p.exUntil) p.setBase(burst ? (burst.k > 0.8 ? pick(['scream', 'grin', 'laugh']) : 'smile') : (watching ? moodFace(m, f) : (f > 0.5 ? 'smile' : 'calm')));
     // 동작
-    if (m.act && t > m.act.until) m.act = null;
-    if (!m.act && t > m.nextAct) chooseAct(m, f, burst, watching, t);
+    if (!m.act && !m.pending && t > m.nextAct) chooseAct(m, f, burst, watching, t);
     if (m.act) runCrowdAct(m, t, beat); else { p.rest('L'); p.rest('R'); }
     p.update(dt, t, beat);
+    updateCrowdProps(m, t);
   }
-  if (CROWD.bartender) {
-    const B = CROWD.bartender, p = B.p;
-    B.shaking = f < 0.45 && !burst;
-    if (B.shaking) { const ph = t * 8.5; p.reach('R', p.local(-0.12, 1.35 + Math.sin(ph) * 0.07, 0.32), null, null, 'grip'); p.reach('L', p.local(0.06, 1.33 + Math.sin(ph) * 0.07, 0.34), null, null, 'flat'); p.c.look.copy(p.local(0, 1.3, 1.5)); if (AE.decoded && MUS.running && Math.floor(ph / Math.PI) !== B.lastShake) { B.lastShake = Math.floor(ph / Math.PI); if (B.lastShake % 2 === 0) playBuf(AE.syn.shaker, AE.ctx.currentTime + 0.01, 0.04, AE.buses.room, { pan: 0.5 }); } }
-    else { p.c.look.copy(CROWD.me); if (burst) { const ph = (t * 4.5) % 1; const sep = 0.04 + Math.max(0, Math.cos(ph * Math.PI * 2)) * 0.1; p.reach('L', p.local(sep, 1.32, 0.32), null, null, 'flat'); p.reach('R', p.local(-sep, 1.32, 0.32), null, null, 'flat'); } else { p.rest('L'); p.rest('R'); } }
-    p.c.groove = 0.3 + f * 0.5; p.setBase(f > 0.6 ? 'grin' : 'smile');
-    p.update(dt, t, beat);
-  }
+  if (CROWD.bartender) updateBartender(dt, t, beat, f, burst);
   crowdSound(dt, t, f, burst);
 }
 function chooseAct(m, f, burst, watching, t) {
   const p = m.p, standing = p.s.stand > 0.7;
   m.nextAct = t + rand(0.4, 1.4);
+  if (m.reserved && !m.converted && f < 0.55 && !(burst && burst.k > 0.7)) {
+    crowdAct(m, 'reserved', rand(3.5, 5), { story: true }); return;
+  }
+  if ((REACT.meSolo || (burst && burst.kind !== 'polite')) && f > 0.25 && t >= m.nextScene && Math.random() < 0.46) {
+    if (queueCrowdScene(m, sceneFor(m, f), rand(0.1, 1.6))) return;
+  }
   if (burst) {
     const k = burst.kind;
     if (k === 'polite') { if (Math.random() < 0.6) crowdAct(m, 'clap', rand(1.6, 2.6), { rate: rand(3.8, 4.8), sound: m.p.root.position.z > -7 && Math.random() < 0.3 ? 0.08 : 0 }); return; }
@@ -4768,11 +5052,20 @@ function chooseAct(m, f, burst, watching, t) {
 function crowdOnEvent(ev) {
   const W = CROWD.list.filter(m => m.watch < 0.25 + REACT.frenzy);
   const some = n => shuffle(W.slice()).slice(0, n);
+  if (ev.kind === 'meSolo' || ev.kind === 'takeover') {
+    for (const m of CROWD.list.filter(m => m.signature === 'phone' || m.signature === 'filmPro').slice(0, 4)) queueCrowdScene(m, m.signature, rand(0.35, 2.1));
+  }
+  if (ev.kind === 'awe' || ev.kind === 'breakOn' || ev.kind === 'breakOff' || ev.kind === 'ovation' || (ev.kind === 'gesture' && ['high', 'run', 'fall', 'shake', 'gliss'].includes(ev.g))) {
+    const n = ev.kind === 'gesture' ? 4 : 7;
+    for (const m of some(n)) queueCrowdScene(m, sceneFor(m, Math.max(0.55, REACT.frenzy)), rand(0.08, 1.9));
+    const b = CROWD.bartender;
+    if (b && NOW.t > b.nextScene && ev.kind !== 'gesture') b.pending = { at: NOW.t + rand(0.8, 1.8) };
+  }
   switch (ev.kind) {
     case 'gesture': {
       const g = ev.g, k = REACT.heat / 100;
       if (g === 'high') { for (const m of some(3 + Math.round(k * 7))) { m.p.express(pick(['awe', 'wow', 'scream']), 1.8); if (Math.random() < 0.5) crowdAct(m, 'armsUp', 1.6); } crowdWhoops(2 + Math.round(k * 5)); }
-      else if (g === 'run') { for (const m of some(2 + Math.round(k * 5))) { m.p.express('grin', 1.6); m.p.c.headShake = 1; setTimeout(() => m.p.c.headShake = 0, 1400); } }
+      else if (g === 'run') { for (const m of some(2 + Math.round(k * 5))) { m.p.express('grin', 1.6); if (!m.act || !m.act.story) queueCrowdScene(m, 'stankSlap', rand(0.1, 0.8)); } }
       else if (g === 'riff') { for (const m of W) m.p.c.nod = 1.2; crowdWhoops(1 + Math.round(k * 3)); }
       else if (g === 'fall') { for (const m of some(3 + Math.round(k * 4))) m.p.express('stank', 1.6); crowdWhoops(Math.round(k * 3), 'hoo'); }
       else if (g === 'shake' || g === 'gliss') { for (const m of some(3 + Math.round(k * 4))) m.p.express(pick(['wow', 'laugh']), 1.5); crowdWhoops(1 + Math.round(k * 3)); }
@@ -5027,6 +5320,7 @@ async function startGame() {
   UI.el.controls.classList.remove('off'); UI.el.pause.style.display = 'flex'; UI.el.hudMode.style.display = 'inline-flex';
   releaseAllInput(); TP.notes.length = 0; TP.lastSoundT = -9; TP.cur = null;
   REACT.reset();
+  resetCrowdScenes();
   setBed('room', 0.05); setBed('applause', 0);
   startSet();
   UI.playing = true; GAME.state = 'play';
@@ -5366,3 +5660,4 @@ if (/shot/.test(location.search)) { window.__step(1.5); }
 </script>
 </body>
 </html>
+
