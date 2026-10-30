@@ -124,7 +124,7 @@ h2{margin:4px 0 6px;font:900 clamp(32px,9vw,44px)/1.05 var(--fd);color:var(--ver
     <div id="loadbar"><i></i></div>
     <ul class="guide">
       <li><svg viewBox="0 0 38 38"><rect x="12" y="2" width="14" height="34" rx="7" fill="#f2b531" stroke="#1c1f33" stroke-width="2.5"/><rect x="12" y="2" width="14" height="8" rx="4" fill="#fff3c7" stroke="#1c1f33" stroke-width="2.5"/><rect x="12" y="28" width="14" height="8" rx="4" fill="#8a4b1f" stroke="#1c1f33" stroke-width="2.5"/></svg><span><b>왼쪽 띠</b> — 위아래로 음의 높낮이를 정합니다. 누르고 떼는 타이밍이 리듬이고, 실제 음은 진행에 맞게 자동으로 나옵니다.</span></li>
-      <li><svg viewBox="0 0 38 38"><circle cx="19" cy="7" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="19" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="31" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/></svg><span><b>오른쪽 키</b> — 밸브는 그대로 눌립니다. 실제 음은 운지와 상관없이 진행에 맞춰 나옵니다.</span></li>
+      <li><svg viewBox="0 0 38 38"><circle cx="19" cy="7" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="19" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="31" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/></svg><span><b>오른쪽 키</b> — 누를 때마다 현재 코드에 맞는 다음 음으로 바뀝니다.</span></li>
       <li><svg viewBox="0 0 38 38"><path d="M6 10c6 0 6 6 12 6s6-6 12-6" fill="none" stroke="#2346b8" stroke-width="3" stroke-linecap="round"/><path d="M8 24c8 0 14 2 22 10" fill="none" stroke="#e2452b" stroke-width="3" stroke-linecap="round"/></svg><span>띠를 누른 채 위아래로 빠르게 떨면 <b>셰이크</b>, 떼면서 아래로 쓸어내리면 <b>폴</b>.</span></li>
       <li><svg viewBox="0 0 38 38"><path d="M5 22h12l5-4h7c3 0 5-3 5-6v16c0-3-2-6-5-6h-7l-5 3H5z" fill="#d6a033" stroke="#1c1f33" stroke-width="2.2" stroke-linejoin="round"/></svg><span><b>오른쪽 위</b> — 플루겔혼으로 바꾸거나 뮤트를 끼웁니다.</span></li>
     </ul>
@@ -610,7 +610,7 @@ function distanceToChordTone(m, ch) {
   return best;
 }
 // 사용자는 높낮이 방향만 정한다. 실제 음은 박·화음·앞뒤 선율을 보고 자동으로 고른다.
-// o: {time, legato, zonePrev, outPrev}
+// o: {time, legato, zonePrev, outPrev, forceChange}
 function harmonize(zone, o) {
   const ch = chordAtTime(o.time), strong = isStrongTime(o.time), fin = ch.q === '69';
   const key = (strong || fin) ? 'S' : 'W';
@@ -621,9 +621,10 @@ function harmonize(zone, o) {
   const dir = prevZone == null ? 0 : Math.sign(z - prevZone);
   const next = chordAtTime(o.time + MUS.spb * 0.55);
   const approachingChange = next.name !== ch.name;
-  let out = target, best = Infinity;
+  let out = null, best = Infinity;
   for (let m = 38; m <= 96; m++) {
     if (!inSet(m, ch, key)) continue;
+    if (o.forceChange && prev != null && m === prev) continue;
     const rel = mod12(m - ch.root);
     let score = Math.abs(m - target) * 1.18;
     if (strong && isChordTone(m, ch)) score -= 3.0;
@@ -642,7 +643,8 @@ function harmonize(zone, o) {
     }
     if (score < best) { best = score; out = m; }
   }
-  return out;
+  // S/W 음 집합은 이 범위에 항상 여러 개가 있지만, 비정상 데이터에서도 소리는 유지한다.
+  return out == null ? (prev != null ? prev : target) : out;
 }
 
 // ===== 30_music.js =====
@@ -1247,12 +1249,12 @@ function noteOn(kind = 'breath') {
   tpEmit('attack', { t, m: out, raw, zone: TP.zone, kind });
 }
 // 소리를 끊지 않고 높낮이 의도만 바꿈
-function legato(kind, forceHarmony = false) {
+function legato(kind, forceHarmony = false, forceChange = false) {
   if (!TP.blowing || !TP.voice || TP.shake) return;
   const t = AE.ctx.currentTime + 0.003;
   const raw = TP.zone;
   if (!forceHarmony && raw === TP.raw) return;
-  const out = clamp(harmonize(raw, { time: t, legato: true, zonePrev: TP.raw, outPrev: TP.cur }), 38, 96);
+  const out = clamp(harmonize(raw, { time: t, legato: true, zonePrev: TP.raw, outPrev: TP.cur, forceChange }), 38, 96);
   TP.raw = raw;
   TP.chord = chordAtTime(t).name;
   if (out === TP.cur) return;
@@ -1387,14 +1389,24 @@ function airUp() {
   else if (sp > 9) flick = 'doit';
   noteOff(flick);
 }
-// 밸브는 연주 동작과 화면 애니메이션만 담당한다. 자동 음 선택에는 관여하지 않는다.
+// 밸브 조합은 음정을 정하지 않는다. 새로 누를 때마다 현재 코드 안의 다른 음으로 이동한다.
 function setValve(i, down, source = 'direct') {
   const holds = TP.valveHolds[i - 1];
   if (!holds) return;
-  if (down) holds.add(source); else holds.delete(source);
+  const fresh = down && !holds.has(source);
+  if (down) {
+    if (!fresh) return;
+    holds.add(source);
+  } else {
+    if (!holds.delete(source)) return;
+  }
   const bit = 1 << (i - 1);
   TP.valveMask = holds.size ? (TP.valveMask | bit) : (TP.valveMask & ~bit);
   if (UI.syncValves) UI.syncValves();
+  if (fresh && TP.blowing && TP.voice && canPlay()) {
+    if (TP.shake) endShake(AE.ctx.currentTime + 0.002);
+    legato('valve', true, true);
+  }
 }
 function releaseAllInput() {
   if (TP.blowing) { TP.blowing = false; noteOff(null); }
