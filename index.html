@@ -39,7 +39,7 @@ button{font-family:inherit;color:inherit}
 #marks i.tk.c{width:20px;height:3px;background:#5d5670}
 #headKnob{position:absolute;left:50%;bottom:-52px;width:72px;height:56px;margin-left:-36px;pointer-events:none;
   border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a4462,#1b1828 70%);box-shadow:0 0 0 3px var(--ink),0 5px 0 3px rgba(34,26,43,.3);transform:rotate(-14deg)}
-#finger{position:absolute;left:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;display:none;pointer-events:none;
+#finger{position:absolute;left:50%;top:0;will-change:transform;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;display:none;pointer-events:none;
   background:radial-gradient(circle,rgba(255,255,255,.95) 0%,rgba(255,215,106,.75) 32%,rgba(255,215,106,0) 70%)}
 #finger.on{display:block}
 
@@ -655,6 +655,7 @@ function playOne(sample, midi, when, vel, dest, o = {}) {
     g.gain.setValueAtTime(vel, end); g.gain.setTargetAtTime(0, end, rel / 3);
     src.start(when, offset); src.stop(end + rel * 2.5 + 0.05);
   } else src.start(when, offset);
+  src.onended = () => { src.disconnect(); if (tail !== src) tail.disconnect(); g.disconnect(); if (out !== g) out.disconnect(); };
   return { src, g };
 }
 function playBuf(buf, when, vel, dest, o = {}) {
@@ -666,6 +667,7 @@ function playBuf(buf, when, vel, dest, o = {}) {
   if (o.pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = clamp(o.pan, -1, 1); g.connect(p); out = p; }
   out.connect(dest);
   src.start(when, o.offset || 0);
+  src.onended = () => { src.disconnect(); g.disconnect(); if (out !== g) out.disconnect(); };
   return { src, g };
 }
 
@@ -693,6 +695,12 @@ class SusVoice {
     const off = o.offset != null ? o.offset : (sample.start || 0);
     src.start(when, Math.min(off, (sample.le || sample.buf.duration) - 0.05)); lfo.start(when);
     Object.assign(this, { src, g, lfo, lg, t0: when, level: lvl, dead: false });
+    src.onended = () => {
+      this.dead = true;
+      try { lfo.stop(); } catch (e) { }
+      try { tail.disconnect(g); } catch (e) { }
+      src.disconnect(); g.disconnect(); lfo.disconnect(); lg.disconnect();
+    };
   }
   glideTo(midi, when, time = 0.03) {
     if (this.dead) return;
@@ -1231,9 +1239,10 @@ function _buildAudience(VENUE, root, add) {
     }
     drink(x - 0.17, z + 0.08, rnd.int(0, 3)); drink(x + 0.19, z - 0.05, rnd.int(0, 3));
   }
-  // 서 있는 자리: 두 줄 엇갈림 (16)
-  for (const x of [-4.55, -3.25, -1.95, -0.65, 0.65, 1.95, 3.25, 4.55]) VENUE.standSpots.push({ pos: V3(x + rnd.range(-0.08, 0.08), 0, -5.0 + rnd.range(-0.12, 0.12)), yaw: yawTo(x, -5.0) });
-  for (const x of [-3.9, -2.6, -1.3, 0, 1.3, 2.6, 3.9, -5.1]) VENUE.standSpots.push({ pos: V3(x + rnd.range(-0.08, 0.08), 0, -6.15 + rnd.range(-0.12, 0.12)), yaw: yawTo(x, -6.15) });
+  // 앞줄도 의자에서 시작. 내 솔로가 달아오른 뒤에만 일어난다.
+  const frontSeat = (x, z, yaw) => { chair(x, z, yaw); VENUE.standSpots.push({ pos: V3(x, 0, z), yaw, seatY: 0.47 }); };
+  for (const x of [-4.55, -3.25, -1.95, -0.65, 0.65, 1.95, 3.25, 4.55]) frontSeat(x + rnd.range(-0.08, 0.08), -5.0 + rnd.range(-0.12, 0.12), yawTo(x, -5.0));
+  for (const x of [-3.9, -2.6, -1.3, 0, 1.3, 2.6, 3.9, -5.1]) frontSeat(x + rnd.range(-0.08, 0.08), -6.15 + rnd.range(-0.12, 0.12), yawTo(x, -6.15));
   // --- 바 카운터 (오른쪽 뒤): 월넛 앞판 + 검정 상판 + 놋쇠 발걸이·상판 테두리
   const bz = C.barZ, bx0 = 0.5, bx1 = 6.1, bw = bx1 - bx0, bcx = (bx0 + bx1) / 2, bd = 0.66, bzc = bz - 0.1;    // 앞면 z = bz + 0.23
   furn.push([rbox(bw, 1.05, bd, 0.03, 3).translate(bcx, 0.525, bzc), pal.walnut]);
@@ -4062,6 +4071,7 @@ const TP = {
   pos: 0.4, target: 66, blowing: false, voice: null, cur: null, curF: null, chord: null,
   noteT0: 0, pitchT0: 0, lastAttackT: -9, lastSoundT: -9, lastMoveT: 0, alt: false, rr: 1,
   notes: [], listeners: [], air: [], shake: null, vibOn: false, in: null, still: 0,
+  pendingMove: false, lastPitchUpdate: -99, lastRevoiceT: -99, revoiceDue: false,
 };
 const tpEmit = (type, d) => { for (const f of TP.listeners) f(type, d); };
 const posToPitch = p => TP.lo + clamp(p, 0, 1) * (TP.hi - TP.lo);
@@ -4109,7 +4119,7 @@ function noteOn(kind = 'touch') {
   }
   const v = new SusVoice(s, out, t, TP.in, { level: lvl, fadeIn, offset: Math.min(offset, s.ls != null ? s.ls - 0.05 : offset) });
   TP.voice = v; TP.cur = out; TP.curF = out; TP.chord = chordAtTime(t).name; TP.noteT0 = t; TP.pitchT0 = t; TP.lastAttackT = t; TP.vibOn = false;
-  TP.lastSoundT = t;
+  TP.lastSoundT = t; TP.lastRevoiceT = t; TP.revoiceDue = false; TP.lastRec = out;
   recordNote(t, out, kind);
   dlog('note', { m: +out.toFixed(2), mode: TP.mode, ch: TP.chord, strong: isStrongTime(t) });
   tpEmit('attack', { t, m: out, kind });
@@ -4120,27 +4130,37 @@ function moveTo(out, kind, t) {
   const v = TP.voice; if (!v || v.dead) return;
   const prev = TP.cur;
   if (TP.mode === 'free') {
-    // 연속: 재생 속도만 따라감. 원본에서 너무 멀어지면 가까운 녹음으로 갈아탐
-    if (Math.abs(out - v.s.m) > 5.5) {
-      const s = nearestSample('T', out);
-      if (s !== v.s) {
-        const nv = new SusVoice(s, out, t, TP.in, { level: levelFor(out), fadeIn: 0.03, offset: Math.min(s.start + 0.15, s.ls != null ? s.ls - 0.05 : 1) });
-        v.release(t, 0.04); TP.voice = nv;
-      } else v.glideTo(out, t, 0.02);
-    } else { v.midi = out; v.rate = rateFor(v.s, out); const p = v.src.playbackRate; p.cancelScheduledValues(t); p.setTargetAtTime(v.rate, t, 0.012); }
-    v.setLevel(levelFor(out), t, 0.05);
+    // Pitch follows immediately; rebasing the sample is limited to ten crossfades/s.
+    let voice = v;
+    const distant = Math.abs(out - v.s.m) > 7;
+    TP.revoiceDue = distant;
+    if (distant && t - TP.lastRevoiceT >= 0.1) {
+      const sample = nearestSample('T', out);
+      if (sample && sample !== v.s) {
+        voice = new SusVoice(sample, out, t, TP.in, { level: levelFor(out), fadeIn: 0.025, offset: Math.min(sample.start + 0.15, sample.ls != null ? sample.ls - 0.05 : 1) });
+        v.release(t, 0.03); TP.voice = voice; TP.lastRevoiceT = t;
+        TP.vibOn = false;
+      }
+      TP.revoiceDue = false;
+    }
+    voice.glideTo(out, t, 0.025);
+    voice.setLevel(levelFor(out), t, 0.05);
     TP.cur = out; TP.curF = out;
-    if (Math.abs(out - (TP.lastRec || 0)) >= 1) { TP.lastRec = out; recordNote(t, out, kind); tpEmit('legato', { t, m: out, prev, kind }); }
+    if (Math.abs(out - prev) >= 0.75) { TP.pitchT0 = t; if (TP.vibOn) voice.vibrato(0, t, 0.025); TP.vibOn = false; }
+    if (Math.abs(out - (TP.lastRec ?? out)) >= 1) { TP.lastRec = out; recordNote(t, out, kind); tpEmit('legato', { t, m: out, prev, kind }); }
     return;
   }
-  if (out === TP.cur) return;
-  const s = nearestSample('T', out);
-  if (v.s === s && Math.abs(out - prev) <= 4) { v.glideTo(out, t, kind === 'chord' ? 0.06 : 0.032); v.vibrato(0, t, 0.02); }
-  else {
-    const nv = new SusVoice(s, out, t, TP.in, { level: levelFor(out), fadeIn: 0.02, offset: Math.min(s.start + 0.12, s.ls != null ? s.ls - 0.05 : 1), scoop: clamp(prev - out, -3, 3) * 0.45, scoopTime: 0.045 });
-    v.release(t, 0.035); TP.voice = nv;
-  }
-  TP.cur = out; TP.curF = out; TP.pitchT0 = t; TP.vibOn = false;
+  if (out === TP.cur && !TP.revoiceDue) return;
+  const sample = nearestSample('T', out);
+  const rebase = sample !== v.s && Math.abs(out - v.s.m) > 3;
+  TP.revoiceDue = rebase;
+  if (rebase && t - TP.lastRevoiceT >= 0.08) {
+    const nv = new SusVoice(sample, out, t, TP.in, { level: levelFor(out), fadeIn: 0.02, offset: Math.min(sample.start + 0.12, sample.ls != null ? sample.ls - 0.05 : 1), scoop: clamp(prev - out, -3, 3) * 0.45, scoopTime: 0.045 });
+    v.release(t, 0.03); TP.voice = nv; TP.lastRevoiceT = t; TP.revoiceDue = false;
+  } else { v.glideTo(out, t, kind === 'chord' ? 0.06 : 0.032); v.vibrato(0, t, 0.02); }
+  TP.cur = out; TP.curF = out; TP.vibOn = false;
+  if (out === prev) return;
+  TP.pitchT0 = t;
   recordNote(t, out, kind);
   dlog('note', { m: out, art: kind, ch: chordAtTime(t).name });
   tpEmit('legato', { t, m: out, prev, kind });
@@ -4180,34 +4200,45 @@ function endShake(t) {
 // ---------- 입력 (0~1 위치) ----------
 function ribbonDown(pos) {
   if (!AE.ctx) return;
-  TP.air = [{ t: performance.now(), pos }];
+  TP.air = [{ t: performance.now(), pos }]; TP.pendingMove = false; TP.lastPitchUpdate = -99; TP.lastPos = pos; TP.lastAirT = performance.now();
   TP.pos = pos; TP.target = posToPitch(pos); TP.lastMoveT = performance.now();
   TP.blowing = true;
   noteOn('touch');
 }
 function ribbonMove(pos) {
   const tn = performance.now();
-  TP.air.push({ t: tn, pos }); while (TP.air.length > 50) TP.air.shift();
+  // Keep a time window for gestures; raw device polling rate must not grow the work.
+  const last = TP.air[TP.air.length - 1];
+  if (last && tn - TP.lastAirT < 8) TP.air[TP.air.length - 1] = { t: tn, pos };
+  else { TP.air.push({ t: tn, pos }); TP.lastAirT = tn; }
+  while (TP.air.length > 96 || (TP.air.length && tn - TP.air[0].t > 750)) TP.air.shift();
   TP.pos = pos; TP.target = posToPitch(pos);
-  if (Math.abs(pos - (TP.lastPos || pos)) > 0.004) TP.lastMoveT = tn;
-  TP.lastPos = pos;
-  if (!TP.blowing || !TP.voice) return;
-  const t = AE.ctx.currentTime + 0.003;
+  if (Math.abs(pos - (TP.lastPos ?? pos)) > 0.0005) TP.lastMoveT = tn;
+  TP.lastPos = pos; TP.pendingMove = true;
+  flushRibbonMove();
+}
+function flushRibbonMove(force = false) {
+  if (!TP.pendingMove || !TP.blowing || !TP.voice || !AE.ctx) return;
+  const now = AE.ctx.currentTime;
+  if (!force && now - TP.lastPitchUpdate < 1 / 60) return;
+  TP.pendingMove = false; TP.lastPitchUpdate = now;
+  const t = now + 0.003;
   if (TP.mode === 'free') { moveTo(TP.target, 'slide', t); return; }
-  detectShake(tn);
+  detectShake(performance.now());
   if (TP.shake) return;
   const out = snapNow(t, Math.round(TP.cur));
   if (out !== TP.cur) moveTo(out, 'slur', t);
 }
 function ribbonUp() {
+  flushRibbonMove(true);
   const sp = ribbonSpeed(110);
-  TP.blowing = false;
+  TP.blowing = false; TP.pendingMove = false; TP.revoiceDue = false;
   let flick = null;
   if (sp < -2.2 && TP.cur > 60) flick = 'fall'; else if (sp > 2.6) flick = 'doit';
   noteOff(flick);
 }
 function ribbonSpeed(ms) {   // 띠 길이/초
-  const a = TP.air; if (a.length < 2) return 0;
+  const a = TP.air; if (a.length < 2 || performance.now() - a[a.length - 1].t > ms) return 0;
   const tn = a[a.length - 1].t; let i = a.length - 1;
   while (i > 0 && tn - a[i - 1].t < ms) i--;
   const dt = (tn - a[i].t) / 1000; if (dt < 0.012) return 0;
@@ -4226,10 +4257,13 @@ function detectShake(tn) {
   if (!TP.shake && recent.length >= 4 && hi - lo < 0.09 && TP.cur >= 62) startShake(AE.ctx.currentTime + 0.003);
   else if (TP.shake && (rev.length === 0 || tn - rev[rev.length - 1] > 240)) endShake(AE.ctx.currentTime + 0.003);
 }
-function releaseAllInput() { if (TP.blowing) { TP.blowing = false; noteOff(null); } }
+function releaseAllInput() { TP.pendingMove = false; TP.revoiceDue = false; if (TP.blowing) { TP.blowing = false; noteOff(null); } if (UI.cancelInput) UI.cancelInput(); }
 
 function trumpetTick() {
-  const now = AE.ctx.currentTime, v = TP.voice;
+  flushRibbonMove();
+  const now = AE.ctx.currentTime;
+  if (TP.blowing && TP.revoiceDue && now + 0.003 - TP.lastRevoiceT >= (TP.mode === 'free' ? 0.1 : 0.08)) moveTo(pitchNow(now + 0.003, Math.round(TP.cur)), 'slide', now + 0.003);
+  let v = TP.voice;
   if (TP.blowing) TP.lastSoundT = now;
   if (!TP.blowing || !v || v.dead || TP.shake) return;
   // 화음이 바뀌면 (보정 모드) 맞는 음으로 미끄러짐
@@ -4237,6 +4271,7 @@ function trumpetTick() {
     const ch = chordAtTime(now + 0.01);
     if (TP.chord !== ch.name) { TP.chord = ch.name; const out = snapPitch(TP.target, ch, { strong: true, cur: inSet(Math.round(TP.cur), ch, 'S') ? Math.round(TP.cur) : null, lo: TP.lo, hi: TP.hi }); if (out !== TP.cur) moveTo(out, 'chord', now + 0.003); }
   }
+  v = TP.voice; if (!v || v.dead) return;
   // 오래 끌면 비브라토
   const still = performance.now() - TP.lastMoveT > 250;
   if (!TP.vibOn && still && now - TP.pitchT0 > 0.4) { TP.vibOn = true; v.vibrato(TP.cur >= 76 ? 17 : 13, now, 0.35); }
@@ -4570,11 +4605,11 @@ function setupCrowd(scene) {
   const spots = [];
   const V = (typeof VENUE !== 'undefined' && VENUE) ? VENUE : null;
   if (V) {
-    for (const s of V.standSpots) spots.push({ kind: 'stand', pos: s.pos.clone(), yaw: s.yaw });
+    for (const s of V.standSpots) spots.push({ kind: 'front', pos: s.pos.clone(), yaw: s.yaw, seatY: s.seatY || 0.47 });
     for (const s of V.seats) spots.push({ kind: 'seat', pos: s.pos.clone(), yaw: s.yaw, seatY: s.seatY, table: s.table });
     for (const s of (V.barSpots || [])) spots.push({ kind: 'bar', pos: s.pos.clone(), yaw: s.yaw, seatY: s.stoolY });
   } else {
-    for (let i = 0; i < 14; i++) spots.push({ kind: 'stand', pos: V3(-4.5 + (i % 7) * 1.5 + rand(-0.3, 0.3), 0, -4.8 - Math.floor(i / 7) * 1.1), yaw: 0 });
+    for (let i = 0; i < 14; i++) spots.push({ kind: 'front', seatY: 0.47, pos: V3(-4.5 + (i % 7) * 1.5 + rand(-0.3, 0.3), 0, -4.8 - Math.floor(i / 7) * 1.1), yaw: 0 });
     for (let i = 0; i < 16; i++) spots.push({ kind: 'seat', pos: V3(-5 + (i % 8) * 1.4, 0, -8 - Math.floor(i / 8) * 2), yaw: 0, seatY: 0.46 });
   }
   let seed = 101;
@@ -4582,19 +4617,21 @@ function setupCrowd(scene) {
     const look = randomLook(seed++);
     look.movableGlasses = !!look.glasses;
     const far = sp.pos.z < -9.5;
-    const p = new Person(look, { seated: sp.kind !== 'stand', seatY: sp.seatY || 0.46, lod: far ? 2 : 1, feetFwd: sp.kind === 'bar' ? 0.3 : 0.42 });
+    const p = new Person(look, { seated: true, seatY: sp.seatY || 0.46, lod: far ? 2 : 1, feetFwd: sp.kind === 'bar' ? 0.3 : 0.42 });
     p.root.position.copy(sp.pos); p.root.rotation.y = sp.yaw;
     p.mesh.castShadow = false;
     scene.add(p.root);
     const r = seeded(seed * 31);
     const m = { p, kind: sp.kind, spot: sp, watch: r(), wild: r(), act: null, nextAct: rand(0, 2), friend: null, far, standWish: 0, phase0: r() * 2 };
-    p.c.phase = m.phase0; p.c.groove = 0.3; p.c.nod = 0.3; p.c.sway = 0.2;
+    p.c.phase = m.phase0; p.c.groove = 0.035; p.c.nod = 0.04; p.c.sway = 0.025;
     const roles = ['mouthFreeze', 'phone', 'stankSlap', 'laughFold', 'filmPro', 'mouthFreeze', 'phone', 'riseStun'];
-    m.signature = sp.kind === 'stand' ? roles[CROWD.list.length % roles.length] : ['drinkFreeze', 'friendTap', 'convert', 'friendLean'][CROWD.list.length % 4];
+    m.signature = sp.kind === 'front' ? roles[CROWD.list.length % roles.length] : ['drinkFreeze', 'friendTap', 'convert', 'friendLean'][CROWD.list.length % 4];
     if (look.glasses && CROWD.list.length % 2 === 0) m.signature = 'glassesDouble';
     m.nextScene = 0; m.sceneCount = 0; m.pending = null; m.props = {};
     m.reserved = m.signature === 'convert'; m.converted = false;
-    m.standDelay = r() * 1.65;
+    m.standDelay = r() * 1.65; m.standThreshold = 0.65 + r() * 0.2;
+    m.animDt = r() / 30;
+    p.update(0, NOW.t, 0);
     CROWD.list.push(m);
     if (look.movableGlasses) makeCrowdProp(m, 'glasses');
   }
@@ -4682,13 +4719,16 @@ const CROWD_SCENES = {
   glassesDouble: 7.8, laughFold: 6.1, buddy: 6.2,
 };
 function sceneFor(m, f) {
+  if (f < 0.3) return null;
+  if (f < 0.55) return /^(phone|filmPro)$/.test(m.signature) ? 'phone' : null;
+  if (f < 0.72 && /^(convert|riseStun|friendLean|filmPro)$/.test(m.signature)) return 'stankSlap';
   if (m.reserved && !m.converted && f > 0.5) return 'convert';
   if (m.sceneCount % 3 !== 2) return m.signature;
   return pick(m.kind === 'seat' ? ['mouthFreeze', 'drinkFreeze', 'riseStun', 'laughFold'] : ['mouthFreeze', 'stankSlap', 'laughFold', 'phone']);
 }
 function queueCrowdScene(m, k, delay = 0, extra = {}) {
   const t = NOW.t;
-  if (m.pending || (m.act && m.act.story) || t < m.nextScene) return false;
+  if (!k || m.pending || (m.act && m.act.story) || t < m.nextScene) return false;
   const busy = CROWD.list.filter(o => o.pending || (o.act && o.act.story && o.act.k !== 'reserved')).length;
   if (busy >= 14) return false;
   if ((k === 'phone' || k === 'filmPro') && CROWD.list.filter(o => /^(phone|filmPro)$/.test(o.pending?.k || o.act?.k)).length >= 4) k = 'mouthFreeze';
@@ -4704,11 +4744,11 @@ function queueCrowdScene(m, k, delay = 0, extra = {}) {
 function startCrowdScene(m, k, dur = CROWD_SCENES[k], extra = {}) {
   const t = NOW.t;
   if (extra.friend && (extra.friend.pending || extra.friend.act?.story)) { k = 'mouthFreeze'; extra = {}; dur = CROWD_SCENES[k]; }
-  m.act = { k, t0: t, until: t + dur, story: true, seat: m.p.s.stand, ...extra };
+  m.act = { k, t0: t, until: t + dur, story: true, seat: m.p.s.stand > 0.7 ? 1 : 0, ...extra };
   m.sceneCount++; m.nextScene = t + dur + rand(7, 15);
   if (extra.friend) {
     const f = extra.friend;
-    f.act = { k: 'buddy', t0: t, until: t + dur, story: true, friend: m, source: k, seat: f.p.s.stand };
+    f.act = { k: 'buddy', t0: t, until: t + dur, story: true, friend: m, source: k, seat: f.p.s.stand > 0.7 ? 1 : 0 };
     f.nextScene = t + dur + rand(6, 12);
   }
 }
@@ -4723,6 +4763,8 @@ function resetCrowdScenes() {
     m.pending = null; m.nextScene = 0; m.sceneCount = 0; m.converted = false;
     m.standWish = 0; m.standNow = 0; m.standAt = 0;
     finishCrowdScene(m, NOW.t); m.p.c.headShake = 0; m.p.c.headTilt = 0; m.p.c.side = 0;
+    m.animElapsed = 0;
+    if (m.p.seated) { m.p.c.stand = 0; m.p.s.stand = 0; m.rush = 0; if (m.spot) m.p.root.position.copy(m.spot.pos); m.p.update(0, NOW.t, 0); }
   }
 }
 function crowdStill(p, groove = 0) {
@@ -4788,7 +4830,7 @@ function makeCrowdProp(m, kind) {
 }
 function phonePose(m, F, t, pro) {
   const p = m.p, age = t - m.act.t0;
-  const lift = smoothstep(0, 1.1, age), drop = pro ? 0 : smoothstep(2.7, 5.2, age) * (1 - smoothstep(6, 6.65, age));
+  const lift = smoothstep(0, 1.1, age), drop = pro || REACT.frenzy < 0.55 ? 0 : smoothstep(2.7, 5.2, age) * (1 - smoothstep(6, 6.65, age));
   const roll = pro ? -Math.PI / 2 * smoothstep(1.8, 2.8, age) : -drop * 0.24;
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(drop * 0.8, p.root.rotation.y + p.s.twist, roll, 'YXZ'));
   const pocket = smoothstep(m.act.until - m.act.t0 - 1.1, m.act.until - m.act.t0 - 0.15, age);
@@ -4803,13 +4845,13 @@ function phonePose(m, F, t, pro) {
   m.act.phoneVisible = pocket < 0.98;
   makeCrowdProp(m, 'phone').visible = m.act.phoneVisible;
   crowdStill(p, 0.12); p.c.lean = pro && age > 3 ? 0.24 : 0.04;
-  if (pro && p.seated === false) p.c.stand = 1 - 0.13 * smoothstep(3, 4, age);
+  if (pro && p.s.stand > 0.8) p.c.stand = 1 - 0.13 * smoothstep(3, 4, age);
   sceneFace(p, drop > 0.2 ? 'awe' : (age > 6 ? 'grin' : 'focus'));
 }
 function runCrowdScene(m, t, beat) {
   const p = m.p, a = m.act, age = t - a.t0, F = frameOf(p), R = p.R;
   crowdStill(p); p.c.look.copy(CROWD.me); p.c.lean = 0.04;
-  p.c.stand = m.kind === 'stand' ? 1 : a.seat;
+  p.c.stand = a.seat;
   p.rest('L'); p.rest('R');
   switch (a.k) {
     case 'reserved':
@@ -4953,6 +4995,10 @@ function crowdUpdate(dt, t, beat) {
   // 새로 일어난 일 처리
   for (const ev of R.events) { if (ev._crowd) continue; ev._crowd = true; crowdOnEvent(ev); }
   for (const m of CROWD.list) {
+    m.animDt = (m.animDt || 0) + dt; m.animElapsed = (m.animElapsed || 0) + dt;
+    const interval = m.far ? 1 / 20 : 1 / 30;
+    if (m.animDt + 1e-6 < interval) continue;
+    const actorDt = Math.min(m.animElapsed, 0.1); m.animElapsed = 0; m.animDt %= interval;
     const p = m.p;
     p.c.headTilt = 0; p.c.headShake = 0; p.c.side = 0; p.c.twist = 0; p.c.step = 0;
     if (m.act && t >= m.act.until) finishCrowdScene(m, t);
@@ -4961,26 +5007,26 @@ function crowdUpdate(dt, t, beat) {
       startCrowdScene(m, q.k, q.dur, q.extra);
     }
     // 서 있기 (앉은 사람): 광기·박수 세례
-    const standNow = m.kind === 'stand' ? 1 : ((f > 0.68 - m.wild * 0.18) || (burst && (burst.kind === 'ovation' || (burst.k > 0.85 && m.wild > 0.4))) ? 1 : (f < 0.42 ? 0 : m.standWish));
+    const standNow = f > m.standThreshold ? 1 : (f < 0.38 ? 0 : m.standWish);
     if (standNow !== m.standWish) { m.standAt = t + m.standDelay; m.standWish = standNow; }
     if (t >= (m.standAt || 0)) m.standNow = standNow;
-    p.c.stand = m.kind === 'stand' ? 1 : (m.reserved && !m.converted ? 0 : (m.standNow || 0));
+    p.c.stand = m.reserved && !m.converted ? 0 : (m.standNow || 0);
     // 그루브
-    const watching = m.watch < 0.2 + f * 0.95;
-    p.c.groove = 0.35 + f * 0.75;
-    p.c.nod = 0.3 + f * 0.7 + (watching ? 0.1 : 0);
-    p.c.sway = 0.25 + f * 0.6;
-    p.c.bounce = m.kind === 'stand' || p.s.stand > 0.8 ? 0.3 + f * 0.9 : 0;
-    p.c.jump = (p.s.stand > 0.85 && f > 0.74 && m.wild > 0.3) || (burst && burst.kind === 'ovation' && m.wild > 0.45) ? (0.5 + m.wild * 0.7) : 0;
+    const watching = R.meSolo && m.watch < smoothstep(1, 8, R.soloTime) * (0.35 + f * 0.65);
+    p.c.groove = 0.035 + f * 1.0;
+    p.c.nod = 0.045 + f * 0.8 + (watching ? 0.1 : 0);
+    p.c.sway = 0.035 + f * 0.8;
+    p.c.bounce = p.s.stand > 0.8 ? smoothstep(0.6, 1, f) * 1.1 : 0;
+    p.c.jump = p.s.stand > 0.9 && f > 0.9 && m.wild > 0.5 ? (0.5 + m.wild * 0.7) : 0;
     // 달아오르면 서 있는 사람들이 무대 쪽으로 몰려듦
-    if (m.kind === 'stand') {
-      const rush = smoothstep(0.55, 1, f) * (0.25 + m.wild * 0.3);
-      if (!m.act?.story) m.rush = damp(m.rush || 0, rush, 1.2, dt);
+    if (m.kind === 'front') {
+      const rush = p.s.stand > 0.9 ? smoothstep(0.8, 1, f) * (0.25 + m.wild * 0.3) : 0;
+      if (!m.act?.story || f < 0.38) m.rush = damp(m.rush || 0, rush, f < 0.38 ? 6 : 1.2, actorDt);
       const sp = m.spot.pos, dz = -2.6 - sp.z, dx = -sp.x * 0.25, dl = Math.hypot(dx, dz) || 1;
       p.root.position.set(sp.x + dx / dl * m.rush, sp.y, Math.min(sp.z + dz / dl * m.rush, Math.max(sp.z, LAYOUT.stage.zFront - 0.38)));
     }
     p.c.headBang = f > 0.85 && m.wild > 0.75 ? 0.6 : 0;
-    p.c.lean = watching ? 0.08 + f * 0.12 : 0;
+    p.c.lean = watching ? 0.03 + f * 0.17 : 0;
     // 시선
     if (m.lookFriend && t < m.lookFriend && m.friend) p.c.look.copy(m.friend.p.headWorld(_cv2));
     else if (watching || (burst && burst.kind !== 'polite')) p.c.look.copy(CROWD.me);
@@ -4991,24 +5037,27 @@ function crowdUpdate(dt, t, beat) {
     // 동작
     if (!m.act && !m.pending && t > m.nextAct) chooseAct(m, f, burst, watching, t);
     if (m.act) runCrowdAct(m, t, beat); else { p.rest('L'); p.rest('R'); }
-    p.update(dt, t, beat);
+    p.update(actorDt, t, beat);
     updateCrowdProps(m, t);
   }
-  if (CROWD.bartender) updateBartender(dt, t, beat, f, burst);
+  if (CROWD.bartender) {
+    const b = CROWD.bartender; b.animDt = (b.animDt || 0) + dt; b.animElapsed = (b.animElapsed || 0) + dt;
+    if (b.animDt >= 1 / 20) { const step = Math.min(b.animElapsed, 0.1); b.animElapsed = 0; b.animDt %= 1 / 20; updateBartender(step, t, beat, f, burst); }
+  }
   crowdSound(dt, t, f, burst);
 }
 function chooseAct(m, f, burst, watching, t) {
   const p = m.p, standing = p.s.stand > 0.7;
   m.nextAct = t + rand(0.4, 1.4);
-  if (m.reserved && !m.converted && f < 0.55 && !(burst && burst.k > 0.7)) {
+  if (m.reserved && !m.converted && f < 0.72 && !(burst && burst.k > 0.7)) {
     crowdAct(m, 'reserved', rand(3.5, 5), { story: true }); return;
   }
-  if ((REACT.meSolo || (burst && burst.kind !== 'polite')) && f > 0.25 && t >= m.nextScene && Math.random() < 0.46) {
+  if ((REACT.meSolo || (burst && burst.owner === 'me')) && f > 0.3 && t >= m.nextScene && Math.random() < 0.46) {
     if (queueCrowdScene(m, sceneFor(m, f), rand(0.1, 1.6))) return;
   }
   if (burst) {
     const k = burst.kind;
-    if (k === 'polite') { if (Math.random() < 0.6) crowdAct(m, 'clap', rand(1.6, 2.6), { rate: rand(3.8, 4.8), sound: m.p.root.position.z > -7 && Math.random() < 0.3 ? 0.08 : 0 }); return; }
+    if (k === 'polite' || burst.k < 0.3) { if (Math.random() < 0.22) crowdAct(m, 'clap', rand(0.7, 1.2), { rate: 2.2, sound: 0 }); return; }
     const r = Math.random();
     if (k === 'ovation' || burst.k > 0.85) {
       if (r < 0.45) crowdAct(m, 'clap', rand(2, 4), { rate: rand(4.6, 6), high: Math.random() < 0.5, sound: Math.random() < 0.2 ? 0.12 : 0 });
@@ -5027,9 +5076,9 @@ function chooseAct(m, f, burst, watching, t) {
   }
   const r = Math.random();
   if (f < 0.3) {
-    if (!watching && m.friend && r < 0.3) { crowdAct(m, 'talk', rand(1.5, 3)); m.lookFriend = t + 2; m.p.express('smile', 2.5); }
-    else if (r < 0.5 && m.kind !== 'stand') crowdAct(m, 'sip', 2.3);
-    else if (r < 0.6) crowdAct(m, 'chin', rand(2, 4));
+    if (!watching && m.friend && r < 0.12) { crowdAct(m, 'talk', rand(1.5, 3)); m.lookFriend = t + 2; m.p.express('smile', 2.5); }
+    else if (r < 0.25 && m.kind !== 'front') crowdAct(m, 'sip', 2.3);
+    else if (r < 0.32) crowdAct(m, 'chin', rand(2, 4));
     else m.nextAct = t + rand(1, 3);
   } else if (f < 0.6) {
     if (r < 0.3) crowdAct(m, 'snap', rand(3, 7));
@@ -5052,12 +5101,17 @@ function chooseAct(m, f, burst, watching, t) {
 function crowdOnEvent(ev) {
   const W = CROWD.list.filter(m => m.watch < 0.25 + REACT.frenzy);
   const some = n => shuffle(W.slice()).slice(0, n);
-  if (ev.kind === 'meSolo' || ev.kind === 'takeover') {
-    for (const m of CROWD.list.filter(m => m.signature === 'phone' || m.signature === 'filmPro').slice(0, 4)) queueCrowdScene(m, m.signature, rand(0.35, 2.1));
+  if (ev.kind === 'tuneStart' || ev.kind === 'bandSolo') {
+    for (const m of [...CROWD.list, CROWD.bartender].filter(Boolean)) {
+      m.pending = null;
+      if (m.act?.story) m.act.until = Math.min(m.act.until, NOW.t + 0.9);
+    }
   }
+  if (!REACT.meSolo && !['myApplause', 'ovation', 'endApplause'].includes(ev.kind)) return;
+  if (REACT.meSolo && REACT.frenzy < 0.3) return;
   if (ev.kind === 'awe' || ev.kind === 'breakOn' || ev.kind === 'breakOff' || ev.kind === 'ovation' || (ev.kind === 'gesture' && ['high', 'run', 'fall', 'shake', 'gliss'].includes(ev.g))) {
     const n = ev.kind === 'gesture' ? 4 : 7;
-    for (const m of some(n)) queueCrowdScene(m, sceneFor(m, Math.max(0.55, REACT.frenzy)), rand(0.08, 1.9));
+    for (const m of some(n)) queueCrowdScene(m, sceneFor(m, REACT.frenzy), rand(0.08, 1.9));
     const b = CROWD.bartender;
     if (b && NOW.t > b.nextScene && ev.kind !== 'gesture') b.pending = { at: NOW.t + rand(0.8, 1.8) };
   }
@@ -5077,10 +5131,17 @@ function crowdOnEvent(ev) {
     case 'awe': for (const m of some(6)) m.p.express('awe', 1.6); crowdWhoops(3); break;
     case 'breakOn': for (const m of CROWD.list) { m.p.express('awe', 4); m.p.c.lean = 0.35; } break;
     case 'breakOff': for (const m of CROWD.list) { m.p.express(pick(['scream', 'laugh', 'ecstasy']), 2.5); if (Math.random() < 0.5) crowdAct(m, 'armsUp', 2); } crowdWhoops(8); break;
-    case 'myApplause': crowdWhoops(Math.round(ev.k * 6)); if (ev.k > 0.8) for (let i = 0; i < 2; i++) setTimeout(() => whistleCall(AE.ctx.currentTime + 0.02), 300 + i * 500); break;
-    case 'ovation': crowdWhoops(10); for (let i = 0; i < 4; i++) setTimeout(() => whistleCall(AE.ctx.currentTime + 0.02), 200 + i * 650); break;
-    case 'endApplause': crowdWhoops(3); break;
+    case 'myApplause': crowdWhoops(Math.round(ev.k * 6)); if (ev.k > 0.8) crowdWhistles(2); break;
+    case 'ovation': crowdWhoops(10); crowdWhistles(4); break;
+    case 'endApplause': if (REACT.songPeak > 15) crowdWhoops(2); break;
   }
+}
+function crowdWhistles(n) {
+  const burst = REACT.burst;
+  if (!burst || burst.owner !== 'me') return;
+  for (let i = 0; i < n; i++) REACT.later(0.3 + i * 0.6, () => {
+    if (AE.decoded && REACT.burst === burst && NOW.t < burst.until) whistleCall(AE.ctx.currentTime + 0.02);
+  });
 }
 // 환호 소리 몇 개 흩뿌림
 function crowdWhoops(n, kind) {
@@ -5115,10 +5176,10 @@ const REACT = {
   heat: 0, peak: 0, songPeak: 0, soloPeak: 0, frenzy: 0, frenzyT: 0, awes: 0, lastAwe: -99, aweOrder: ['pn', 'bs', 'dr', 'tb'], aweIdx: 0, lastAweWho: null,
   kinds: [], hist: [], lastG: {}, breakUsed: false, inBreak: false,
   onsets: [], phrase: null, prevPhrase: null, riffN: 0, highFlag: false, pedalFlag: false, glissFlag: 0,
-  lastOff: 0, timers: [], burst: null, events: [], floor: null, phase: 'title', meSolo: false,
+  lastOff: 0, timers: [], burst: null, events: [], floor: null, phase: 'title', meSolo: false, soloTime: 0, lastHeatNote: -99, lastLegatoEvent: -99,
   reset() {
     Object.assign(this, { heat: 0, peak: 0, songPeak: 0, soloPeak: 0, frenzy: 0, frenzyT: 0, awes: 0, lastAwe: -99, aweIdx: 0, lastAweWho: null, kinds: [], hist: [], lastG: {}, breakUsed: false, inBreak: false,
-      onsets: [], phrase: null, prevPhrase: null, riffN: 0, highFlag: false, pedalFlag: false, lastOff: 0, timers: [], burst: null, events: [], floor: null, phase: 'head', meSolo: false });
+      onsets: [], phrase: null, prevPhrase: null, riffN: 0, highFlag: false, pedalFlag: false, lastOff: 0, timers: [], burst: null, events: [], floor: null, phase: 'head', meSolo: false, soloTime: 0, lastHeatNote: -99, lastLegatoEvent: -99 });
   },
   later(sec, fn) { this.timers.push({ t: NOW.t + sec, fn }); },
 };
@@ -5130,6 +5191,8 @@ function reactEvent(kind, data = {}) { REACT.events.push({ kind, t: NOW.t, ...da
 TP.listeners.push((type, d) => {
   const R = REACT, now = meNow();
   if (type === 'attack' || type === 'legato') {
+    if (type === 'legato' && now - R.lastLegatoEvent < 0.045) return;
+    if (type === 'legato') R.lastLegatoEvent = now;
     R.onsets.push(now); while (R.onsets.length && R.onsets[0] < now - 1.7) R.onsets.shift();
     R.highFlag = false; R.pedalFlag = false;
     if (type === 'attack') {
@@ -5137,9 +5200,9 @@ TP.listeners.push((type, d) => {
       if (R.meSolo && now - R.lastOff > curSpb() * 3.6 && R.lastOff > 0 && off < 0.18 && Math.round(p) % 4 === 0) gesture('space');
       if (!R.phrase || now - R.lastOff > 0.32) { closePhrase(); R.phrase = { t0: now, notes: [] }; }
     }
-    if (R.phrase) R.phrase.notes.push({ t: now - R.phrase.t0, m: d.m });
+    if (R.phrase && R.phrase.notes.length < 64) R.phrase.notes.push({ t: now - R.phrase.t0, m: d.m });
     if (R.onsets.length >= 7 && now - (R.lastG.run || -9) > 4) gesture('run');
-    if (R.meSolo && R.heat < 58) addHeat(TP.mode === 'free' ? 0.4 : 0.45);
+    if (R.meSolo && now - R.lastHeatNote >= 0.15) { R.lastHeatNote = now; addHeat(0.28); }
   } else if (type === 'release') {
     R.lastOff = now;
     if (d.flick === 'fall' && d.m >= 64) gesture('fall');
@@ -5173,14 +5236,14 @@ function catchRiff(a, b) {
   bandAccents(times, true);
   reactEvent('riffCatch', { at: t3, times });
 }
-function addHeat(v) { const R = REACT; R.heat = clamp(R.heat + v, 0, 100); R.peak = Math.max(R.peak, R.heat); R.songPeak = Math.max(R.songPeak, R.heat); R.soloPeak = Math.max(R.soloPeak, R.heat); }
+function addHeat(v) { const R = REACT, cap = R.meSolo ? Math.min(100, 4 + R.soloTime * 4.5) : 100; R.heat = clamp(R.heat + v, 0, cap); R.peak = Math.max(R.peak, R.heat); R.songPeak = Math.max(R.songPeak, R.heat); R.soloPeak = Math.max(R.soloPeak, R.heat); }
 function gesture(kind) {
   const R = REACT, now = meNow();
   R.lastG[kind] = now;
   dlog('gesture', { g: kind, heat: Math.round(R.heat), solo: R.meSolo });
   if (!R.meSolo) { reactEvent('small', { g: kind }); return; }
   const last3 = R.kinds.slice(-3);
-  let g = GAIN[kind] || 6;
+  let g = (GAIN[kind] || 6) * 0.6;
   if (R.kinds[R.kinds.length - 1] === kind) g *= 0.45; else if (!last3.includes(kind)) g *= 1.25;
   while (R.hist.length && now - R.hist[0].t > 24) R.hist.shift();
   const same = R.hist.filter(h => h.k === kind).length;
@@ -5190,9 +5253,9 @@ function gesture(kind) {
   reactEvent('gesture', { g: kind, heat: R.heat });
   // 경이 순간: 달아오른 상태에서 '새로운' 큰 행동, 8마디에 한 번까지
   const barsSince = (now - R.lastAwe) / (4 * curSpb());
-  if (BIG.has(kind) && same <= 1 && R.heat >= 50 && barsSince >= 8 && !R.inBreak) aweMoment();
+  if (BIG.has(kind) && same <= 1 && R.heat >= 60 && R.soloTime >= 10 && barsSince >= 8 && !R.inBreak) aweMoment();
   // 절정: 열기 최고에서 초고음 길게 → 밴드가 2마디 멈춤 (곡마다 한 번)
-  if (kind === 'high' && R.heat >= 88 && !R.breakUsed) { if (requestBreak()) R.breakUsed = true; }
+  if (kind === 'high' && R.heat >= 88 && R.soloTime >= 18 && !R.breakUsed) { if (requestBreak()) R.breakUsed = true; }
 }
 function aweMoment() {
   const R = REACT;
@@ -5206,24 +5269,29 @@ function aweMoment() {
 }
 
 // ---------- 곡 진행 이벤트 ----------
+function beginPlayerReaction() {
+  const R = REACT;
+  R.soloTime = 0; R.soloPeak = 0; R.heat = 0; R.burst = null; R.lastHeatNote = -99;
+  R.lastLegatoEvent = -99;
+}
 function reactOnSong(e) {
   const R = REACT;
-  if (e.type === 'tuneStart') { R.songPeak = 0; R.breakUsed = false; R.awes = 0; R.aweIdx = randi(0, 3); R.phase = 'head'; R.meSolo = false; R.soloPeak = 0; reactEvent('tuneStart', { first: e.first }); }
+  if (e.type === 'tuneStart') { R.songPeak = 0; R.breakUsed = false; R.awes = 0; R.aweIdx = randi(0, 3); R.phase = 'head'; R.meSolo = false; R.soloPeak = 0; R.heat = 0; R.soloTime = 0; R.burst = null; reactEvent('tuneStart', { first: e.first }); }
   else if (e.type === 'seg') {
     const wasMe = R.meSolo;
     R.phase = e.phase; R.floor = e.floor;
     R.meSolo = e.phase === 'solo' && e.player === 'me';
-    if (R.meSolo && !wasMe) { R.soloPeak = R.heat; R.heat = Math.max(R.heat, 8); reactEvent('meSolo', {}); }
+    if (R.meSolo && !wasMe) { beginPlayerReaction(); reactEvent('meSolo', {}); }
     if (wasMe && !R.meSolo) myApplause();
   } else if (e.type === 'takeover') {
     const wasMe = R.meSolo;
-    R.meSolo = true; R.phase = 'solo'; R.floor = 'me'; if (!wasMe) { R.soloPeak = R.heat; R.heat = Math.max(R.heat, 12); }
+    R.meSolo = true; R.phase = 'solo'; R.floor = 'me'; if (!wasMe) beginPlayerReaction();
     reactEvent('takeover', { from: e.from });
   } else if (e.type === 'solo') {
     if (R.meSolo) { R.meSolo = false; myApplause(); }
-    R.floor = e.player; reactEvent('bandSolo', { player: e.player, trade: e.trade });
+    R.floor = e.player; R.burst = null; R.heat = 0; reactEvent('bandSolo', { player: e.player, trade: e.trade });
   } else if (e.type === 'soloEnd') {
-    if (e.player && e.player !== 'dr') { R.burst = { kind: 'polite', t: NOW.t, until: NOW.t + 2.6, k: 0.3 }; reactEvent('politeApplause', { player: e.player }); }
+    if (e.player && e.player !== 'dr') { R.burst = { kind: 'polite', t: NOW.t, until: NOW.t + 1.2, k: 0.08 }; reactEvent('politeApplause', { player: e.player }); }
   } else if (e.type === 'break') {
     R.inBreak = e.on; reactEvent(e.on ? 'breakOn' : 'breakOff', {});
   } else if (e.type === 'cue') reactEvent('cue', { kind: e.kind, player: e.player });
@@ -5232,15 +5300,15 @@ function reactOnSong(e) {
   else if (e.type === 'gap') reactEvent('gap', {});
 }
 function myApplause() {
-  const R = REACT, k = clamp(0.3 + R.soloPeak / 100 * 0.9, 0.3, 1.2);
-  R.burst = { kind: 'solo', t: NOW.t, until: NOW.t + 2.4 + k * 2.2, k };
+  const R = REACT, k = clamp(R.soloPeak / 100 * 1.1, 0.08, 1.1);
+  R.burst = { kind: 'solo', owner: 'me', t: NOW.t, until: NOW.t + 2.4 + k * 2.2, k };
   reactEvent('myApplause', { k });
   dlog('myApplause', { k: +k.toFixed(2), peak: Math.round(R.soloPeak) });
 }
 function ovation() {
   const R = REACT, big = R.songPeak >= 62 || R.awes >= 2;
-  const k = big ? clamp(0.9 + R.songPeak / 200, 0.9, 1.4) : clamp(0.45 + R.songPeak / 140, 0.45, 0.85);
-  R.burst = { kind: big ? 'ovation' : 'applause', t: NOW.t, until: NOW.t + (big ? 7.5 : 4.5), k };
+  const k = big ? clamp(0.9 + R.songPeak / 200, 0.9, 1.4) : clamp(R.songPeak / 140, 0.08, 0.6);
+  R.burst = { kind: big ? 'ovation' : 'applause', owner: R.songPeak > 15 ? 'me' : 'band', t: NOW.t, until: NOW.t + (big ? 7.5 : 4.5), k };
   reactEvent(big ? 'ovation' : 'endApplause', { k });
   dlog('ovation', { big, k: +k.toFixed(2), peak: Math.round(R.songPeak), awes: R.awes });
 }
@@ -5251,16 +5319,18 @@ function reactUpdate(dt, t) {
   for (let i = R.timers.length - 1; i >= 0; i--) if (R.timers[i].t <= t) { const f = R.timers[i].fn; R.timers.splice(i, 1); f(); }
   const now = meNow();
   if (MUS.running && AE.ctx) {
+    const active = TP.blowing || now - TP.lastSoundT < 1.1;
+    if (R.meSolo && active) { R.soloTime += dt; addHeat(dt * 3.2); }
     if (TP.blowing && TP.voice) {
       const held = now - TP.pitchT0;
       if (!R.highFlag && ((TP.cur >= 79 && held > 0.9) || (TP.cur >= 75 && held > 1.6))) { R.highFlag = true; gesture('high'); }
       if (!R.pedalFlag && TP.cur <= 55 && held > 0.7) { R.pedalFlag = true; gesture('pedal'); }
       // 자유 모드: 크게 쭉 미끄러지기 / 빠르게 떨기
       if (TP.mode === 'free' && now - (R.lastG.gliss || -9) > 3) {
-        const a = TP.air; if (a.length > 3) { const tn = a[a.length - 1].t; let lo = 9, hi = -9; for (const s of a) if (tn - s.t < 450) { lo = Math.min(lo, s.pos); hi = Math.max(hi, s.pos); } if ((hi - lo) * (TP.hi - TP.lo) >= 9) gesture('gliss'); }
+        const a = TP.air; if (a.length > 3) { const tn = performance.now(); let lo = 9, hi = -9; for (const s of a) if (tn - s.t < 450) { lo = Math.min(lo, s.pos); hi = Math.max(hi, s.pos); } if ((hi - lo) * (TP.hi - TP.lo) >= 9) gesture('gliss'); }
       }
       if (TP.mode === 'free' && now - (R.lastG.shake || -9) > 3) {
-        const a = TP.air, tn = a.length ? a[a.length - 1].t : 0; let rev = 0, dir = 0, prev = null;
+        const a = TP.air, tn = performance.now(); let rev = 0, dir = 0, prev = null;
         for (const s of a) { if (tn - s.t > 700) continue; if (prev != null) { const d = Math.sign(s.pos - prev); if (d && dir && d !== dir) rev++; if (d) dir = d; } prev = s.pos; }
         if (rev >= 6 && TP.cur >= 62) gesture('shake');
       }
@@ -5268,23 +5338,23 @@ function reactUpdate(dt, t) {
     if (R.phrase && !TP.blowing && now - R.lastOff > 0.34) closePhrase();
     // 열기 식기
     const silent = !TP.blowing && now - TP.lastSoundT > 4;
-    if (R.meSolo) R.heat = clamp(R.heat - dt * (silent ? 2.4 : 0.45), 0, 100);
+    if (R.meSolo) { if (silent) R.heat = Math.max(0, R.heat - dt * 3.2); }
     else R.heat = Math.max(0, R.heat - dt * (R.phase === 'outhead' || R.phase === 'tag' ? 0.4 : 1.5));
   }
-  // 관객 광기 단계 (0~1)
-  let ft;
-  if (R.meSolo) ft = smoothstep(6, 86, R.heat);
-  else if (R.phase === 'outhead' || R.phase === 'tag' || R.phase === 'final') ft = clamp(0.25 + R.songPeak / 140, 0.25, 0.85);
-  else if (R.phase === 'solo' || R.phase === 'trades') ft = 0.3;
-  else ft = 0.22;
-  if (R.burst && t < R.burst.until) ft = Math.max(ft, clamp(R.burst.k * 0.9, 0, 1));
+  // Others stay subdued. My solo opens the reaction range gradually over ~20 s.
+  let ft = 0.025;
+  if (R.meSolo) ft = smoothstep(4, 90, R.heat) * smoothstep(0, 18, R.soloTime);
+  if (R.burst && t < R.burst.until) {
+    const afterglow = R.burst.owner === 'me' ? clamp(R.burst.k * 0.9, 0, 1) : 0.06;
+    ft = Math.max(ft, afterglow);
+  }
   R.frenzyT = ft;
-  R.frenzy = damp(R.frenzy, ft, ft > R.frenzy ? 2.2 : 0.6, dt);
+  R.frenzy = damp(R.frenzy, ft, ft > R.frenzy ? 1.5 : 2.4, dt);
 }
 
 // ===== 80_ui.js =====
 // ===================== 화면 조작 =====================
-const UI = { el: {}, playing: false, marksKey: '', kbPos: null };
+const UI = { el: {}, playing: false, marksKey: '', kbPos: null, inputRect: null, fingerPos: null, fingerDirty: false, cancelInput: null };
 function initUI() {
   const $ = id => document.getElementById(id);
   Object.assign(UI.el, { stem: $('stem'), ribbon: $('ribbon'), marks: $('marks'), finger: $('finger'), controls: $('controls'), title: $('title'), start: $('start'), loadbar: document.querySelector('#loadbar i'), paused: $('paused'), pause: $('pause'), hudMode: $('hudMode') });
@@ -5323,6 +5393,7 @@ async function startGame() {
   resetCrowdScenes();
   setBed('room', 0.05); setBed('applause', 0);
   startSet();
+  UI.inputRect = null;
   UI.playing = true; GAME.state = 'play';
 }
 function pauseGame() {
@@ -5335,27 +5406,39 @@ function pauseGame() {
 async function resumeGame() {
   UI.el.paused.classList.add('hide');
   try { await AE.ctx.resume(); } catch (e) { }
+  UI.inputRect = null;
   UI.playing = true; GAME.state = 'play';
 }
-function fingerVisual(pos) {
-  const f = UI.el.finger;
-  if (pos == null) { f.classList.remove('on'); return; }
-  const r = UI.el.ribbon.getBoundingClientRect(), s = UI.el.stem.getBoundingClientRect();
-  f.classList.add('on'); f.style.top = (r.top - s.top + (1 - pos) * r.height) + 'px';
+function measureRibbon() {
+  const r = UI.el.ribbon.getBoundingClientRect(), stem = UI.el.stem.getBoundingClientRect();
+  UI.inputRect = { bottom: r.bottom, height: r.height, offset: r.top - stem.top };
+  return UI.inputRect;
 }
-function ribbonPos(clientY) { const r = UI.el.ribbon.getBoundingClientRect(); return clamp((r.bottom - clientY) / r.height, 0, 1); }
+function fingerVisual(pos) {
+  UI.fingerPos = pos; UI.fingerDirty = pos != null;
+  if (pos == null) UI.el.finger.classList.remove('on');
+}
+function flushFingerVisual() {
+  if (!UI.fingerDirty) return;
+  const r = UI.inputRect || measureRibbon(), f = UI.el.finger;
+  f.classList.add('on');
+  f.style.transform = 'translate3d(0,' + (r.offset + (1 - UI.fingerPos) * r.height) + 'px,0)';
+  UI.fingerDirty = false;
+}
+function ribbonPos(clientY) { const r = UI.inputRect || measureRibbon(); return clamp((r.bottom - clientY) / r.height, 0, 1); }
 function bindInput() {
   const st = UI.el.stem; let pid = null;
   st.addEventListener('pointerdown', e => {
     e.preventDefault(); if (!UI.playing || pid != null) return;
-    pid = e.pointerId; try { st.setPointerCapture(e.pointerId); } catch (x) { }
+    measureRibbon(); pid = e.pointerId; try { st.setPointerCapture(e.pointerId); } catch (x) { }
     const p = ribbonPos(e.clientY); fingerVisual(p); ribbonDown(p);
   });
-  st.addEventListener('pointermove', e => { if (e.pointerId !== pid) return; const p = ribbonPos(e.clientY); fingerVisual(p); ribbonMove(p); });
-  const end = e => { if (e.pointerId !== pid) return; pid = null; fingerVisual(null); ribbonUp(); };
+  st.addEventListener('pointermove', e => { if (!UI.playing || e.pointerId !== pid) return; const p = ribbonPos(e.clientY); fingerVisual(p); ribbonMove(p); });
+  const end = e => { if (e.pointerId !== pid) return; pid = null; fingerVisual(null); if (e.type === 'pointerup') ribbonUp(); else releaseAllInput(); };
   st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end); st.addEventListener('lostpointercapture', end);
   // 키보드
   let space = false;
+  UI.cancelInput = () => { pid = null; space = false; };
   const stepKey = d => {
     let p = UI.kbPos != null ? UI.kbPos : TP.pos;
     if (TP.mode === 'free') p = pitchToPos(Math.round(posToPitch(p)) + d);
@@ -5376,6 +5459,7 @@ function bindInput() {
 }
 // 줄기 표시: 보정 모드는 지금 화음의 음 자리, 자유 모드는 반음 눈금
 function uiTick() {
+  flushFingerVisual();
   if (!UI.playing && UI.marksKey) return;
   const now = AE.ctx ? AE.ctx.currentTime : 0;
   let key;
@@ -5571,6 +5655,8 @@ function initScene() {
   window.addEventListener('resize', onResize);
 }
 function onResize() {
+  UI.inputRect = null;
+  if (UI.fingerPos != null) UI.fingerDirty = true;
   const w = window.innerWidth, h = window.innerHeight;
   SC.W = w; SC.H = h; SC.portrait = h > w;
   SC.renderer.setSize(w, h, false);
