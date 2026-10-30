@@ -1,0 +1,3277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f6ead2">
+<title>인정욕구 채우기</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎺</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@600;800;900&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#fbf1dc; --paper:#fff8ea; --ink:#1c1f33; --cobalt:#2346b8; --vermilion:#e2452b; --mustard:#f2b531;
+  --brass:#d6a033; --brass-d:#9b6a14; --teal:#11806f;
+  --fd:"Hahmlet","Noto Serif KR",serif; --ft:"IBM Plex Sans KR","Noto Sans KR",sans-serif;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px); --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--cream);color:var(--ink);font-family:var(--ft);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;touch-action:none}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block}
+button{font-family:inherit}
+
+/* ---------- 조작부 ---------- */
+#controls{position:fixed;inset:0;pointer-events:none;z-index:5}
+#controls.off{display:none}
+#air{position:absolute;left:calc(8px + var(--sal));bottom:calc(10px + var(--sab));top:calc(24% + var(--sat));width:min(21vw,92px);
+  pointer-events:auto;border-radius:22px;touch-action:none;
+  background:rgba(255,248,234,.30);box-shadow:0 0 0 2px rgba(255,248,234,.85),0 6px 18px rgba(28,31,51,.28);overflow:hidden;
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#air .seg{position:absolute;left:5px;right:5px;border-radius:12px;transition:transform .08s,filter .08s,opacity .08s;opacity:.78}
+#air .seg.on{filter:brightness(1.35) saturate(1.15);transform:scaleX(1.04);opacity:1}
+#air .tick{position:absolute;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:rgba(255,255,255,.75)}
+#thumb{position:absolute;left:-6px;right:-6px;height:30px;margin-top:-15px;border-radius:15px;display:none;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,.95),rgba(255,236,170,.55) 55%,rgba(255,236,170,0) 75%)}
+#valves{position:absolute;right:calc(8px + var(--sar));bottom:calc(10px + var(--sab));display:flex;flex-direction:column-reverse;gap:12px;pointer-events:none}
+.valve{pointer-events:auto;width:min(22vw,96px);height:min(22vw,96px);border-radius:50%;position:relative;touch-action:none;
+  background:radial-gradient(circle at 34% 30%,#fff 0%,#f6eef7 22%,#e7dcf0 48%,#d6e7ef 70%,#efe4d4 100%);
+  box-shadow:0 0 0 5px var(--brass),0 0 0 7px var(--brass-d),0 7px 0 7px rgba(28,31,51,.28),inset 0 -6px 12px rgba(120,90,140,.25);
+  transition:transform .05s, box-shadow .05s}
+.valve span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 22px var(--fd);color:rgba(155,106,20,.75)}
+.valve.on{transform:translateY(5px) scale(.94);box-shadow:0 0 0 5px #f0c255,0 0 0 7px var(--brass-d),0 2px 0 7px rgba(28,31,51,.28),inset 0 6px 14px rgba(120,90,140,.35)}
+#tongue{position:absolute;bottom:calc(10px + var(--sab));left:calc(min(21vw,92px) + 22px + var(--sal));right:calc(min(22vw,96px) + 30px + var(--sar));
+  height:min(10vh,74px);pointer-events:auto;border-radius:37px;touch-action:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,rgba(255,248,234,.92),rgba(246,226,196,.92));box-shadow:0 0 0 2px var(--ink),0 5px 0 2px rgba(28,31,51,.3);
+  font:700 15px var(--ft);color:var(--ink);letter-spacing:.06em;transition:transform .05s}
+#tongue.on{transform:translateY(4px);box-shadow:0 0 0 2px var(--ink),0 1px 0 2px rgba(28,31,51,.3);background:linear-gradient(180deg,#ffe2a8,#f6c768)}
+#stand{position:absolute;right:calc(10px + var(--sar));top:calc(10px + var(--sat));display:flex;flex-direction:row;gap:7px;pointer-events:none}
+.item{pointer-events:auto;width:min(17vw,70px);height:min(15vw,62px);border-radius:16px;border:none;padding:4px;position:relative;
+  background:rgba(255,248,234,.9);box-shadow:0 0 0 2px var(--ink),0 4px 0 2px rgba(28,31,51,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.item svg{width:78%;height:62%}
+.item b{font:700 10.5px var(--ft);color:var(--ink);white-space:nowrap}
+.item.on{background:var(--mustard)}
+.item.busy{opacity:.45}
+
+/* ---------- 상단 ---------- */
+#pause{position:fixed;left:calc(10px + var(--sal));top:calc(10px + var(--sat));z-index:6;width:46px;height:46px;border-radius:50%;border:none;
+  background:rgba(255,248,234,.92);box-shadow:0 0 0 2px var(--ink),0 3px 0 2px rgba(28,31,51,.25);display:none;align-items:center;justify-content:center;gap:5px}
+#pause i{display:block;width:5px;height:16px;border-radius:2px;background:var(--ink)}
+#banner{position:fixed;left:0;right:0;top:calc(13% + var(--sat));z-index:6;text-align:center;pointer-events:none;opacity:0;transform:translateY(-10px);transition:opacity .45s,transform .45s}
+#banner.show{opacity:1;transform:none}
+#banner span{display:inline-block;font:900 clamp(34px,10vw,60px)/1 var(--fd);color:var(--paper);padding:12px 26px 15px;border-radius:16px;
+  background:var(--vermilion);box-shadow:0 0 0 3px var(--ink),0 6px 0 3px rgba(28,31,51,.35);letter-spacing:.02em}
+
+/* ---------- 덮개 화면 ---------- */
+.screen{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:calc(16px + var(--sat)) 16px calc(16px + var(--sab));
+  background:rgba(251,241,220,.18)}
+.screen.hide{display:none}
+.card{width:min(440px,100%);max-height:100%;overflow:auto;background:var(--paper);border-radius:22px;padding:22px 22px 18px;
+  box-shadow:0 0 0 3px var(--ink),0 10px 0 3px rgba(28,31,51,.32);position:relative}
+.card .stripe{position:absolute;left:0;right:0;top:0;height:12px;border-radius:22px 22px 0 0;
+  background:repeating-linear-gradient(90deg,var(--cobalt) 0 26px,var(--mustard) 26px 52px,var(--vermilion) 52px 78px)}
+.kicker{margin-top:8px;font:700 13px var(--ft);color:var(--cobalt);letter-spacing:.12em}
+h1{margin:4px 0 2px;font:900 clamp(40px,12vw,58px)/1.02 var(--fd);color:var(--ink);letter-spacing:-.01em}
+h1 em{font-style:normal;color:var(--vermilion)}
+.sub{margin:6px 0 14px;font:400 15px/1.5 var(--ft);color:#4a4e66}
+.big{display:block;width:100%;border:none;border-radius:16px;padding:16px 0 17px;font:800 22px var(--fd);color:var(--paper);
+  background:var(--vermilion);box-shadow:0 0 0 3px var(--ink),0 6px 0 3px rgba(28,31,51,.3);cursor:pointer}
+.big:active{transform:translateY(3px);box-shadow:0 0 0 3px var(--ink),0 3px 0 3px rgba(28,31,51,.3)}
+.big:disabled{background:#c9b9a2;color:#fff8ea}
+.small{display:block;width:100%;margin-top:12px;border:none;border-radius:14px;padding:12px 0 13px;font:700 16px var(--ft);color:var(--ink);
+  background:var(--cream);box-shadow:0 0 0 2px var(--ink),0 4px 0 2px rgba(28,31,51,.25);cursor:pointer}
+.guide{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:9px}
+.guide li{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center;font:400 14px/1.45 var(--ft)}
+.guide svg{width:38px;height:38px}
+.guide b{font-weight:700}
+h2{margin:4px 0 6px;font:900 clamp(32px,9vw,44px)/1.05 var(--fd);color:var(--vermilion)}
+.res{margin:6px 0 0;font:400 15px/1.5 var(--ft);color:var(--ink)}
+.res b{font-weight:700}
+.res.dim{color:#6a6e84;font-size:14px}
+.pc{margin:12px 0 0;font:400 12.5px/1.5 var(--ft);color:#5a5e74}
+.credit{margin:12px 0 0;font:400 11px/1.4 var(--ft);color:#8a8c99}
+#loadbar{height:6px;border-radius:3px;background:#eadcc2;margin:10px 0 0;overflow:hidden}
+#loadbar i{display:block;height:100%;width:0;background:var(--teal);transition:width .2s}
+@media (min-aspect-ratio:1/1){
+  #air{top:calc(14% + var(--sat));width:84px}
+  .valve{width:84px;height:84px}
+  #tongue{height:64px;left:auto;right:calc(84px + 40px + var(--sar));width:min(34vw,360px)}
+}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="controls" class="off">
+  <div id="air"><div id="thumb"></div></div>
+  <div id="valves">
+    <div class="valve" data-v="1"><span>1</span></div>
+    <div class="valve" data-v="2"><span>2</span></div>
+    <div class="valve" data-v="3"><span>3</span></div>
+  </div>
+  <div id="tongue">텅잉</div>
+  <div id="stand">
+    <button class="item" data-item="flugel" aria-label="플루겔혼"><svg viewBox="0 0 64 40"><path d="M6 24h22l8-6h14c6 0 10-5 10-10v24c0-5-4-10-10-10H36l-8 4H6z" fill="#d6a033" stroke="#1c1f33" stroke-width="2.5" stroke-linejoin="round"/><circle cx="22" cy="20" r="3" fill="#fff8ea" stroke="#1c1f33" stroke-width="2"/><circle cx="29" cy="20" r="3" fill="#fff8ea" stroke="#1c1f33" stroke-width="2"/></svg><b>플루겔혼</b></button>
+    <button class="item" data-item="harmon" aria-label="하먼 뮤트"><svg viewBox="0 0 64 40"><path d="M8 20c0-10 14-14 26-14s22 6 22 14-10 14-22 14S8 30 8 20z" fill="#cfd6de" stroke="#1c1f33" stroke-width="2.5"/><ellipse cx="34" cy="20" rx="8" ry="8" fill="#8b929c" stroke="#1c1f33" stroke-width="2.5"/><rect x="4" y="15" width="8" height="10" rx="3" fill="#c48a52" stroke="#1c1f33" stroke-width="2.5"/></svg><b>하먼</b></button>
+    <button class="item" data-item="straight" aria-label="스트레이트 뮤트"><svg viewBox="0 0 64 40"><path d="M6 14l44-8c5 0 9 6 9 14s-4 14-9 14L6 26z" fill="#e9ecef" stroke="#1c1f33" stroke-width="2.5" stroke-linejoin="round"/><path d="M12 13v14M20 12v16" stroke="#c48a52" stroke-width="4"/></svg><b>스트레이트</b></button>
+  </div>
+</div>
+
+<button id="pause" aria-label="멈춤"><i></i><i></i></button>
+<div id="banner"><span>내 차례</span></div>
+
+<div id="title" class="screen">
+  <div class="card">
+    <div class="stripe"></div>
+    <div class="kicker">재즈 트럼펫 솔로</div>
+    <h1>인정욕구<br><em>채우기</em></h1>
+    <p class="sub">밴드랑 블루스 한 곡. 피아노 솔로가 끝나면 내 차례입니다.</p>
+    <button id="start" class="big" disabled>소리 준비 중…</button>
+    <div id="loadbar"><i></i></div>
+    <ul class="guide">
+      <li><svg viewBox="0 0 38 38"><rect x="12" y="2" width="14" height="34" rx="7" fill="#f2b531" stroke="#1c1f33" stroke-width="2.5"/><rect x="12" y="2" width="14" height="8" rx="4" fill="#fff3c7" stroke="#1c1f33" stroke-width="2.5"/><rect x="12" y="28" width="14" height="8" rx="4" fill="#8a4b1f" stroke="#1c1f33" stroke-width="2.5"/></svg><span><b>왼쪽 띠</b> — 누르고 있으면 소리가 납니다. 위로 갈수록 높은 음, 맨 아래는 페달, 맨 위 두 칸은 초고음.</span></li>
+      <li><svg viewBox="0 0 38 38"><circle cx="19" cy="7" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="19" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="31" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/></svg><span><b>오른쪽 동그라미</b> — 밸브. 아래부터 1·2·3번입니다.</span></li>
+      <li><svg viewBox="0 0 38 38"><rect x="3" y="12" width="32" height="14" rx="7" fill="#fff8ea" stroke="#1c1f33" stroke-width="2.5"/><path d="M12 19h4M22 19h4" stroke="#1c1f33" stroke-width="2.5" stroke-linecap="round"/></svg><span><b>텅잉</b> — 띠를 누른 채로 치면 바람은 그대로 두고 혀로 음을 끊습니다.</span></li>
+      <li><svg viewBox="0 0 38 38"><path d="M6 10c6 0 6 6 12 6s6-6 12-6" fill="none" stroke="#2346b8" stroke-width="3" stroke-linecap="round"/><path d="M8 24c8 0 14 2 22 10" fill="none" stroke="#e2452b" stroke-width="3" stroke-linecap="round"/></svg><span>띠를 누른 채 위아래로 빠르게 떨면 <b>셰이크</b>, 떼면서 아래로 쓸어내리면 <b>폴</b>.</span></li>
+      <li><svg viewBox="0 0 38 38"><path d="M5 22h12l5-4h7c3 0 5-3 5-6v16c0-3-2-6-5-6h-7l-5 3H5z" fill="#d6a033" stroke="#1c1f33" stroke-width="2.2" stroke-linejoin="round"/></svg><span><b>오른쪽 위</b> — 플루겔혼으로 바꾸거나 뮤트를 끼웁니다.</span></li>
+    </ul>
+    <p class="pc">음은 밴드 화음에 맞게 자동으로 다듬어집니다. 소리를 켜고 하세요(무음 모드에서는 안 들릴 수 있습니다).<br>PC: 스페이스 불기 · W/S 음 높이 · J K L 밸브 · D 텅잉 · R 셰이크 · F 폴 · Q 플루겔혼 · E 뮤트 · Esc 멈춤</p>
+    <p class="credit">소리: VSCO 2 Community Edition (CC0), Sonatina Symphonic Orchestra (CC Sampling+ 1.0)</p>
+  </div>
+</div>
+
+<div id="paused" class="screen hide">
+  <div class="card">
+    <div class="stripe"></div>
+    <div class="kicker">잠깐 멈춤</div>
+    <button id="resume" class="big" style="margin-top:14px">계속</button>
+    <button id="toTitle" class="small">처음으로</button>
+  </div>
+</div>
+
+<div id="ended" class="screen hide">
+  <div class="card">
+    <div class="stripe"></div>
+    <div class="kicker">끝</div>
+    <h2 id="resTitle"></h2>
+    <p id="resLine" class="res"></p>
+    <p id="resDid" class="res"></p>
+    <p id="resNot" class="res dim"></p>
+    <button id="again" class="big" style="margin-top:16px">다시 하기</button>
+    <button id="toTitle2" class="small">처음으로</button>
+  </div>
+</div>
+
+<script>
+// 소리 묶음은 따로 불러온다 (2MB 넘음)
+(function(){
+  var s=document.createElement('script'); s.src='audio.js'; s.async=true;
+  s.onload=function(){ window.__audioReady=true; window.dispatchEvent(new Event('audiopack')); };
+  s.onerror=function(){ window.__audioFailed=true; window.dispatchEvent(new Event('audiopack')); };
+  document.head.appendChild(s);
+})();
+</script>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+// ===== 00_util.js =====
+// ===================== 공용 도구 =====================
+const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth01 = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const smoothstep = (a, b, x) => smooth01((x - a) / (b - a));
+const mod12 = x => ((x % 12) + 12) % 12;
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// 프레임 독립 감쇠 보간
+const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
+const NOTE_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const noteName = m => NOTE_NAMES[mod12(Math.round(m))] + (Math.floor(Math.round(m) / 12) - 1);
+const DEBUG = { log: [], on: /debug/.test(location.search) };
+function dlog(kind, data) { if (DEBUG.on) { DEBUG.log.push({ kind, t: (AE && AE.ctx) ? +AE.ctx.currentTime.toFixed(3) : 0, ...data }); if (DEBUG.log.length > 20000) DEBUG.log.splice(0, 5000); } }
+
+// ===== 10_audio.js =====
+// ===================== 소리 엔진 =====================
+const AE = { ctx: null, ready: false, decoded: false, buses: {}, sets: {}, syn: {}, noise: null, master: null, startedAt: 0 };
+
+function makeIR(ctx, dur, decay, pre = 0.012) {
+  const sr = ctx.sampleRate, n = Math.floor(sr * dur), b = ctx.createBuffer(2, n, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = b.getChannelData(c);
+    let lp = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      if (t < pre) { d[i] = 0; continue; }
+      const e = Math.pow(1 - (t - pre) / (dur - pre), decay);
+      const w = Math.random() * 2 - 1;
+      // 시간이 갈수록 어두워지는 잔향
+      const k = 0.18 + 0.75 * Math.exp(-(t - pre) * 2.2);
+      lp += (w - lp) * k;
+      d[i] = lp * e * (t < pre + 0.004 ? (t - pre) / 0.004 : 1);
+    }
+    // 초기 반사 몇 개
+    for (let r = 0; r < 7; r++) {
+      const idx = Math.floor((pre + rand(0.004, 0.035)) * sr);
+      if (idx < n) d[idx] += rand(-0.6, 0.6);
+    }
+  }
+  return b;
+}
+
+// ----- 간단한 바이쿼드 (버퍼 합성용) -----
+function biquadCoef(type, f, Q, sr, gainDb = 0) {
+  const w = 2 * Math.PI * f / sr, cs = Math.cos(w), sn = Math.sin(w), al = sn / (2 * Q), A = Math.pow(10, gainDb / 40);
+  let b0, b1, b2, a0, a1, a2;
+  if (type === 'lp') { b0 = (1 - cs) / 2; b1 = 1 - cs; b2 = (1 - cs) / 2; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; }
+  else if (type === 'hp') { b0 = (1 + cs) / 2; b1 = -(1 + cs); b2 = (1 + cs) / 2; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; }
+  else if (type === 'bp') { b0 = al; b1 = 0; b2 = -al; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; }
+  else { b0 = 1 + al * A; b1 = -2 * cs; b2 = 1 - al * A; a0 = 1 + al / A; a1 = -2 * cs; a2 = 1 - al / A; } // peak
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function filt(x, type, f, Q, sr, g) {
+  const [b0, b1, b2, a1, a2] = biquadCoef(type, f, Q, sr, g);
+  const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; }
+  return y;
+}
+function noiseArr(n) { const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = Math.random() * 2 - 1; return a; }
+function toBuf(ctx, arr, peak = 0.9, arr2 = null) {
+  let m = 0; for (const v of arr) m = Math.max(m, Math.abs(v)); if (arr2) for (const v of arr2) m = Math.max(m, Math.abs(v));
+  const g = m > 0 ? peak / m : 1, b = ctx.createBuffer(arr2 ? 2 : 1, arr.length, ctx.sampleRate);
+  const d = b.getChannelData(0); for (let i = 0; i < arr.length; i++) d[i] = arr[i] * g;
+  if (arr2) { const e = b.getChannelData(1); for (let i = 0; i < arr2.length; i++) e[i] = arr2[i] * g; }
+  return b;
+}
+
+// ----- 합성 효과음 -----
+function synthKick(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(0.42 * sr), x = new Float32Array(n);
+  let ph = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / sr, f = 46 + 70 * Math.exp(-t * 32);
+    ph += 2 * Math.PI * f / sr;
+    x[i] = Math.sin(ph) * Math.exp(-t * 9) + (i < sr * 0.004 ? (Math.random() * 2 - 1) * 0.25 * (1 - i / (sr * 0.004)) : 0);
+  }
+  return toBuf(ctx, filt(x, 'lp', 900, 0.7, sr), 0.9);
+}
+function synthHat(ctx, open = false) {
+  const sr = ctx.sampleRate, n = Math.floor((open ? 0.5 : 0.09) * sr);
+  let x = noiseArr(n);
+  // 금속성: 고주파 사각파 몇 개 섞기
+  const fs = [3270, 4710, 5550, 6790, 8410, 9960];
+  for (let i = 0; i < n; i++) { let s = 0; for (const f of fs) s += Math.sign(Math.sin(2 * Math.PI * f * i / sr)); x[i] = x[i] * 0.6 + s * 0.08; }
+  x = filt(filt(x, 'hp', 6500, 0.7, sr), 'peak', 9000, 1.2, sr, 6);
+  for (let i = 0; i < n; i++) { const t = i / sr; x[i] *= Math.exp(-t * (open ? 7 : 55)) * (t < 0.0015 ? t / 0.0015 : 1); }
+  return toBuf(ctx, x, 0.85);
+}
+function synthBrushSweep(ctx) {
+  // 원을 그리는 브러시: 부드럽게 커졌다 줄어드는 두 번의 봉우리
+  const sr = ctx.sampleRate, n = Math.floor(0.48 * sr);
+  let x = noiseArr(n);
+  x = filt(filt(x, 'bp', 3200, 0.55, sr), 'hp', 900, 0.7, sr);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const e = Math.sin(Math.PI * clamp(t / 0.46, 0, 1)) ** 1.6 * (0.75 + 0.25 * Math.sin(2 * Math.PI * t / 0.46 * 2 - 1));
+    x[i] *= e;
+  }
+  return toBuf(ctx, x, 0.7);
+}
+function synthBrushTap(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(0.22 * sr);
+  let nz = filt(noiseArr(n), 'bp', 2600, 0.6, sr);
+  const x = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const t = i / sr; x[i] = nz[i] * Math.exp(-t * 28) + Math.sin(2 * Math.PI * 190 * t) * Math.exp(-t * 30) * 0.35; }
+  return toBuf(ctx, x, 0.8);
+}
+function synthTom(ctx, f0) {
+  const sr = ctx.sampleRate, n = Math.floor(0.6 * sr), x = new Float32Array(n), nz = filt(noiseArr(n), 'bp', 1800, 0.8, sr);
+  let ph = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / sr, f = f0 * (1 + 0.35 * Math.exp(-t * 25)); ph += 2 * Math.PI * f / sr;
+    x[i] = Math.sin(ph) * Math.exp(-t * 7) + nz[i] * Math.exp(-t * 45) * 0.4;
+  }
+  return toBuf(ctx, x, 0.85);
+}
+function synthStickClick(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(0.12 * sr);
+  let x = noiseArr(n);
+  x = filt(filt(x, 'bp', 2400, 3, sr), 'peak', 1150, 6, sr, 10);
+  for (let i = 0; i < n; i++) x[i] *= Math.exp(-i / sr * 60);
+  return toBuf(ctx, x, 0.85);
+}
+function synthClap(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(0.14 * sr), x = new Float32Array(n);
+  const bursts = [[0, 1], [rand(0.002, 0.005), rand(0.5, 0.8)], [rand(0.007, 0.012), rand(0.25, 0.45)]];
+  const nz = noiseArr(n);
+  for (const [o, a] of bursts) { const s = Math.floor(o * sr); for (let i = s; i < n; i++) x[i] += nz[i] * a * Math.exp(-(i - s) / sr * 70); }
+  return toBuf(ctx, filt(filt(x, 'bp', rand(1100, 1700), 0.9, sr), 'hp', 400, 0.7, sr), 0.9);
+}
+function synthSnap(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(0.07 * sr);
+  let x = noiseArr(n);
+  x = filt(filt(x, 'bp', rand(2300, 3100), 2.5, sr), 'peak', 1200, 3, sr, 8);
+  for (let i = 0; i < n; i++) x[i] *= Math.exp(-i / sr * 95);
+  return toBuf(ctx, x, 0.9);
+}
+function synthClink(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(0.9 * sr), x = new Float32Array(n);
+  const base = rand(2600, 3600), fs = [1, 2.32, 3.7, 5.1].map(k => base * k);
+  for (let i = 0; i < n; i++) { const t = i / sr; let s = 0; fs.forEach((f, j) => s += Math.sin(2 * Math.PI * f * t) * Math.exp(-t * (6 + j * 5)) / (j + 1)); x[i] = s; }
+  return toBuf(ctx, x, 0.5);
+}
+function synthShake(ctx) {
+  // 칵테일 셰이커 한 번 흔들기 (얼음 부딪힘)
+  const sr = ctx.sampleRate, n = Math.floor(0.28 * sr), x = new Float32Array(n);
+  for (let k = 0; k < 26; k++) {
+    const s = Math.floor(rand(0, 0.22) * sr), f = rand(2500, 6000), d = rand(0.006, 0.02);
+    for (let i = s; i < Math.min(n, s + d * sr * 4); i++) { const t = (i - s) / sr; x[i] += Math.sin(2 * Math.PI * f * t) * Math.exp(-t / d) * rand(0.3, 1); }
+  }
+  const nz = filt(noiseArr(n), 'bp', 5000, 0.7, sr);
+  for (let i = 0; i < n; i++) { const t = i / sr; x[i] = x[i] * 0.8 + nz[i] * 0.3 * Math.sin(Math.PI * clamp(t / 0.26, 0, 1)); }
+  return toBuf(ctx, x, 0.6);
+}
+function synthTableSlap(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(0.3 * sr), x = new Float32Array(n), nz = filt(noiseArr(n), 'lp', 1400, 0.7, sr);
+  for (let i = 0; i < n; i++) { const t = i / sr; x[i] = Math.sin(2 * Math.PI * 105 * t) * Math.exp(-t * 18) + nz[i] * Math.exp(-t * 40) * 0.7; }
+  return toBuf(ctx, x, 0.85);
+}
+// 관중 박수 바탕 (스테레오, 길게) — density: 1초당 박수 수
+function synthApplause(ctx, dur, density) {
+  const sr = ctx.sampleRate, n = Math.floor(dur * sr), L = new Float32Array(n), R = new Float32Array(n);
+  const clapN = Math.floor(0.12 * sr), nz = noiseArr(clapN * 8);
+  const people = Math.floor(density / 4.5);
+  for (let p = 0; p < people; p++) {
+    const rate = rand(3.6, 5.6), pan = rand(-1, 1), gl = Math.sqrt((1 - pan) / 2), gr = Math.sqrt((1 + pan) / 2), amp = rand(0.35, 1);
+    const fc = rand(900, 2400), off = Math.floor(rand(0, clapN * 7));
+    let t = rand(0, 0.3);
+    while (t < dur) {
+      const s = Math.floor(t * sr);
+      for (let i = 0; i < clapN && s + i < n; i++) {
+        const v = nz[off + i] * Math.exp(-i / sr * (60 + fc / 40)) * amp;
+        L[s + i] += v * gl; R[s + i] += v * gr;
+      }
+      t += (1 / rate) * rand(0.92, 1.08);
+    }
+  }
+  const fL = filt(filt(L, 'bp', 1500, 0.5, sr), 'hp', 300, 0.7, sr), fR = filt(filt(R, 'bp', 1500, 0.5, sr), 'hp', 300, 0.7, sr);
+  // 고리 처리를 위해 앞뒤 0.3초 교차
+  const xf = Math.floor(0.3 * sr);
+  for (let i = 0; i < xf; i++) { const a = i / xf; fL[i] = fL[i] * a + fL[n - xf + i] * (1 - a); fR[i] = fR[i] * a + fR[n - xf + i] * (1 - a); }
+  return toBuf(ctx, fL.subarray(0, n - xf), 0.8, fR.subarray(0, n - xf));
+}
+function synthRoomTone(ctx) {
+  const sr = ctx.sampleRate, n = Math.floor(6 * sr);
+  let a = noiseArr(n), b = noiseArr(n);
+  a = filt(filt(a, 'lp', 500, 0.5, sr), 'hp', 60, 0.7, sr); b = filt(filt(b, 'lp', 520, 0.5, sr), 'hp', 60, 0.7, sr);
+  const xf = Math.floor(0.5 * sr);
+  for (let i = 0; i < xf; i++) { const k = i / xf; a[i] = a[i] * k + a[n - xf + i] * (1 - k); b[i] = b[i] * k + b[n - xf + i] * (1 - k); }
+  return toBuf(ctx, a.subarray(0, n - xf), 0.5, b.subarray(0, n - xf));
+}
+
+function b64ToAB(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+function decodeAB(ctx, ab) { return new Promise((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); }); }
+
+function createAudio() {
+  if (AE.ctx) return AE.ctx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AC({ latencyHint: 'interactive' });
+  AE.ctx = ctx;
+  const glue = ctx.createDynamicsCompressor();
+  glue.threshold.value = -16; glue.knee.value = 10; glue.ratio.value = 2.6; glue.attack.value = 0.012; glue.release.value = 0.22;
+  const master = ctx.createGain(); master.gain.value = 0.9;
+  const lim = ctx.createDynamicsCompressor();
+  lim.threshold.value = -2.5; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
+  glue.connect(master); master.connect(lim); lim.connect(ctx.destination);
+  AE.master = master; AE.glue = glue; AE.lim = lim;
+  const rev = ctx.createConvolver(); rev.buffer = makeIR(ctx, 1.9, 3.4);
+  const revOut = ctx.createGain(); revOut.gain.value = 0.8;
+  rev.connect(revOut); revOut.connect(glue);
+  AE.rev = rev;
+  const bus = (gain, send, pan = 0) => {
+    const g = ctx.createGain(); g.gain.value = gain;
+    let tail = g;
+    if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); tail = p; }
+    tail.connect(glue);
+    const s = ctx.createGain(); s.gain.value = send; tail.connect(s); s.connect(rev);
+    g.send = s;
+    return g;
+  };
+  AE.buses = {
+    tp: bus(1.0, 0.24, 0),
+    tbn: bus(0.62, 0.26, 0.22),
+    pno: bus(0.5, 0.2, -0.32),
+    bass: bus(0.95, 0.08, 0.16),
+    drums: bus(0.6, 0.13, 0),
+    crowd: bus(0.55, 0.3, 0),
+    room: bus(0.4, 0.12, 0),
+  };
+  return ctx;
+}
+
+async function decodePack(onProgress) {
+  const ctx = createAudio(), P = window.JAZZ_AUDIO;
+  if (!P) throw new Error('소리 묶음을 못 불러왔습니다');
+  const keys = Object.keys(P.meta);
+  let done = 0;
+  const sets = {};
+  const worker = async (key) => {
+    const meta = P.meta[key];
+    const buf = await decodeAB(ctx, b64ToAB(P.data[key]));
+    const sr = buf.sampleRate, d0 = buf.getChannelData(0), lim = Math.min(d0.length, Math.floor(0.06 * sr));
+    let pk = 0, pi = 0;
+    for (let i = 0; i < lim; i++) { const a = Math.abs(d0[i]); if (a > pk) { pk = a; pi = i; } }
+    const onS = pi + Math.round(meta.on * sr);
+    const clearTo = Math.max(0, onS - Math.round(0.0025 * sr));
+    for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < clearTo; i++) d[i] = 0; }
+    const s = { key, buf, m: meta.m, c: meta.c || 0, start: clearTo / sr, on: onS / sr };
+    if (meta.ls != null) { s.ls = onS / sr + meta.ls; s.le = onS / sr + meta.le; }
+    const m = key.match(/^([A-Z])(\d+)(?:r(\d))?$/);
+    if (m) {
+      const set = m[1]; (sets[set] = sets[set] || []).push(s); s.rr = m[3] ? +m[3] : 0;
+    } else if (key[0] === 'D') { sets.D = sets.D || {}; sets.D[key.slice(1)] = s; }
+    done++; onProgress && onProgress(done / keys.length);
+  };
+  const queue = keys.slice();
+  await Promise.all(new Array(4).fill(0).map(async () => { while (queue.length) await worker(queue.shift()); }));
+  for (const k in sets) if (Array.isArray(sets[k])) sets[k].sort((a, b) => a.m - b.m || a.rr - b.rr);
+  AE.sets = sets;
+  // 합성 소리
+  const S = AE.syn;
+  S.kick = synthKick(ctx); S.hat = synthHat(ctx); S.hatOpen = synthHat(ctx, true);
+  S.brush = synthBrushSweep(ctx); S.btap = synthBrushTap(ctx);
+  S.tomHi = synthTom(ctx, 175); S.tomLo = synthTom(ctx, 105);
+  S.stick = synthStickClick(ctx);
+  S.claps = [0, 1, 2, 3, 4].map(() => synthClap(ctx));
+  S.snaps = [0, 1, 2].map(() => synthSnap(ctx));
+  S.clinks = [0, 1, 2].map(() => synthClink(ctx));
+  S.shaker = synthShake(ctx);
+  S.slap = synthTableSlap(ctx);
+  S.applause = synthApplause(ctx, 6.3, 160);
+  S.room = synthRoomTone(ctx);
+  const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  AE.noise = nb;
+  AE.decoded = true;
+}
+
+// 가장 가까운 샘플 (A세트는 라운드로빈)
+const RR = {};
+function nearestSample(set, midi, rr = 0) {
+  const arr = AE.sets[set]; if (!arr || !arr.length) return null;
+  let best = null, bd = 1e9;
+  for (const s of arr) { if (rr && s.rr && s.rr !== rr) continue; const d = Math.abs(s.m - midi) + (s.m < midi ? 0.01 : 0); if (d < bd) { bd = d; best = s; } }
+  return best;
+}
+const rateFor = (s, midi, cents = 0) => Math.pow(2, (midi - s.m) / 12 + ((s.c || 0) + cents) / 1200);
+
+// 한 번 치는 소리
+function playOne(sample, midi, when, vel, dest, o = {}) {
+  if (!sample) return null;
+  const ctx = AE.ctx, src = ctx.createBufferSource(); src.buffer = sample.buf;
+  src.playbackRate.value = midi == null ? (o.rate || 1) : rateFor(sample, midi, o.cents || 0);
+  const g = ctx.createGain();
+  const a = o.attack || 0.003;
+  g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(vel, when + a);
+  let tail = src;
+  if (o.lp) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; f.Q.value = 0.5; src.connect(f); tail = f; }
+  tail.connect(g);
+  let out = g;
+  if (o.pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = o.pan; g.connect(p); out = p; }
+  out.connect(dest);
+  const offset = (sample.start || 0) + (o.offset || 0);
+  if (o.dur != null) {
+    const rel = o.release || 0.08, end = when + Math.max(o.dur, a + 0.01);
+    g.gain.setValueAtTime(vel, end); g.gain.setTargetAtTime(0, end, rel / 3);
+    src.start(when, offset); src.stop(end + rel * 2.5 + 0.05);
+  } else src.start(when, offset);
+  return { src, g };
+}
+function playBuf(buf, when, vel, dest, o = {}) {
+  const ctx = AE.ctx, src = ctx.createBufferSource(); src.buffer = buf;
+  if (o.rate) src.playbackRate.value = o.rate;
+  const g = ctx.createGain(); g.gain.value = vel;
+  src.connect(g);
+  let out = g;
+  if (o.pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = clamp(o.pan, -1, 1); g.connect(p); out = p; }
+  out.connect(dest);
+  src.start(when, o.offset || 0);
+  return { src, g };
+}
+
+// 지속음 목소리 (트럼펫·트롬본 공용): 고리 샘플 + 음높이 미끄러짐 + 비브라토
+class SusVoice {
+  constructor(sample, midi, when, dest, o = {}) {
+    const ctx = AE.ctx;
+    this.s = sample; this.midi = midi; this.dest = dest;
+    const src = ctx.createBufferSource(); src.buffer = sample.buf;
+    if (sample.ls != null) { src.loop = true; src.loopStart = sample.ls; src.loopEnd = sample.le; }
+    this.rate = rateFor(sample, midi);
+    if (o.scoop) {
+      src.playbackRate.setValueAtTime(this.rate * Math.pow(2, o.scoop / 12), when);
+      src.playbackRate.setTargetAtTime(this.rate, when, (o.scoopTime || 0.03) / 2.5);
+    } else src.playbackRate.setValueAtTime(this.rate, when);
+    const g = ctx.createGain();
+    const lvl = o.level == null ? 1 : o.level, fi = o.fadeIn || 0.004;
+    g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(lvl, when + fi);
+    // 비브라토
+    const lfo = ctx.createOscillator(); lfo.frequency.value = o.vibRate || rand(5.0, 5.8);
+    const lg = ctx.createGain(); lg.gain.value = 0; lfo.connect(lg); lg.connect(src.playbackRate);
+    let tail = src;
+    if (o.filter) { tail.connect(o.filter); tail = o.filterOut || o.filter; }
+    tail.connect(g); g.connect(dest);
+    const off = o.offset != null ? o.offset : (sample.start || 0);
+    src.start(when, Math.min(off, (sample.le || sample.buf.duration) - 0.05)); lfo.start(when);
+    Object.assign(this, { src, g, lfo, lg, t0: when, level: lvl, dead: false });
+  }
+  glideTo(midi, when, time = 0.03) {
+    if (this.dead) return;
+    this.midi = midi; this.rate = rateFor(this.s, midi);
+    const p = this.src.playbackRate;
+    p.cancelScheduledValues(when); p.setTargetAtTime(this.rate, when, Math.max(0.004, time / 2.5));
+  }
+  bend(semis, when, time) {
+    if (this.dead) return;
+    const p = this.src.playbackRate;
+    p.cancelScheduledValues(when); p.setValueAtTime(this.rate, when);
+    p.exponentialRampToValueAtTime(this.rate * Math.pow(2, semis / 12), when + time);
+  }
+  vibrato(depthCents, when, ramp = 0.35) {
+    if (this.dead) return;
+    const d = this.rate * (Math.pow(2, depthCents / 1200) - 1);
+    this.lg.gain.cancelScheduledValues(when); this.lg.gain.setTargetAtTime(d, when, ramp);
+  }
+  setLevel(v, when, time = 0.03) { if (this.dead) return; this.level = v; this.g.gain.cancelScheduledValues(when); this.g.gain.setTargetAtTime(v, when, time / 2.5); }
+  release(when, time = 0.06) {
+    if (this.dead) return; this.dead = true;
+    const g = this.g.gain;
+    g.cancelScheduledValues(when);
+    // 현재 값 근사
+    g.setValueAtTime(when < this.t0 + 0.01 ? this.level * 0.5 : this.level, when);
+    g.setTargetAtTime(0, when, time / 3);
+    try { this.src.stop(when + time * 3 + 0.05); this.lfo.stop(when + time * 3 + 0.05); } catch (e) { }
+  }
+}
+
+// 지속 배경음 (방 소리, 박수 바탕)
+const BED = {};
+function startBeds() {
+  const ctx = AE.ctx;
+  const mk = (buf, dest, gain) => {
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const g = ctx.createGain(); g.gain.value = gain; src.connect(g); g.connect(dest); src.start();
+    return { src, g };
+  };
+  BED.room = mk(AE.syn.room, AE.buses.room, 0.05);
+  BED.applause = mk(AE.syn.applause, AE.buses.crowd, 0);
+}
+function setBed(name, v, time = 0.6) { const b = BED[name]; if (b) b.g.gain.setTargetAtTime(v, AE.ctx.currentTime, time / 3); }
+
+// ===== 20_harmony.js =====
+// ===================== 화성 =====================
+// 콘서트 F 재즈 블루스. S = 정박에 둘 수 있는 음, W = 엇박까지 허용하는 음 (근음 기준 반음 수)
+const PC = { C: 0, Db: 1, D: 2, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, Ab: 8, A: 9, Bb: 10, B: 11 };
+const QUAL = {
+  '7':    { tones: [0, 4, 7, 10], S: [0, 2, 4, 7, 9, 10], W: [0, 2, 3, 4, 5, 7, 9, 10], v: [[4, 9, 10, 14], [10, 14, 16, 21]] },
+  '7b9':  { tones: [0, 4, 7, 10], S: [0, 1, 4, 7, 10], W: [0, 1, 3, 4, 7, 8, 10], v: [[4, 8, 10, 13], [10, 13, 16, 20]] },
+  'm7':   { tones: [0, 3, 7, 10], S: [0, 2, 3, 7, 10], W: [0, 2, 3, 5, 7, 9, 10], v: [[3, 7, 10, 14], [10, 14, 15, 19]] },
+  'dim7': { tones: [0, 3, 6, 9], S: [0, 3, 6, 9], W: [0, 2, 3, 5, 6, 8, 9, 11], v: [[3, 6, 9, 12], [6, 9, 12, 15]] },
+  '69':   { tones: [0, 4, 7, 9], S: [0, 2, 4, 7, 9], W: [0, 2, 4, 7, 9], v: [[4, 7, 9, 14], [9, 14, 16, 19]] },
+};
+const CH = (r, q) => ({ root: PC[r], q, name: r + (q === 'm7' ? 'm7' : q === 'dim7' ? '°7' : q === '69' ? '6/9' : q === '7b9' ? '7♭9' : '7') });
+const FORM = [
+  [CH('F', '7')], [CH('Bb', '7')], [CH('F', '7')], [CH('C', 'm7'), CH('F', '7')],
+  [CH('Bb', '7')], [CH('B', 'dim7')], [CH('F', '7')], [CH('A', 'm7'), CH('D', '7b9')],
+  [CH('G', 'm7')], [CH('C', '7')], [CH('F', '7'), CH('D', '7b9')], [CH('G', 'm7'), CH('C', '7')],
+];
+const TAG = [[CH('A', 'm7'), CH('D', '7b9')], [CH('G', 'm7'), CH('C', '7')], [CH('A', 'm7'), CH('D', '7b9')], [CH('G', 'm7'), CH('C', '7')]];
+const FINAL = [CH('F', '69')];
+
+const inSet = (m, ch, key) => QUAL[ch.q][key].includes(mod12(m - ch.root));
+const isChordTone = (m, ch) => QUAL[ch.q].tones.includes(mod12(m - ch.root));
+
+// raw 근처에서 허용된 음 찾기 (같은 거리면 dir 쪽 우선)
+function nearestAllowed(raw, ch, key, dir = 1) {
+  for (let d = 0; d <= 7; d++) {
+    const c = d === 0 ? [raw] : (dir >= 0 ? [raw + d, raw - d] : [raw - d, raw + d]);
+    for (const m of c) if (inSet(m, ch, key)) return m;
+  }
+  return raw;
+}
+function stepAllowed(from, dir, ch, key) {
+  for (let d = 1; d <= 7; d++) { const m = from + dir * d; if (inSet(m, ch, key)) return m; }
+  return from + dir;
+}
+// 연주자가 낸 실제 음(raw)을 지금 화음에 맞는 음으로 바꾼다
+// o: {time, legato, rawPrev, outPrev}
+function harmonize(raw, o) {
+  const ch = chordAtTime(o.time), strong = isStrongTime(o.time), fin = ch.q === '69';
+  const key = (strong || fin) ? 'S' : 'W';
+  const dir = o.rawPrev != null ? Math.sign(raw - o.rawPrev) : 0;
+  let out = nearestAllowed(raw, ch, key, dir || 1);
+  if (o.legato && o.outPrev != null && o.rawPrev != null && raw !== o.rawPrev) {
+    // 손가락을 바꿨는데 같은 음이거나 반대 방향으로 가면, 누른 방향으로 한 칸
+    if (out === o.outPrev || Math.sign(out - o.outPrev) !== dir) {
+      const c = stepAllowed(o.outPrev, dir, ch, fin ? 'S' : 'W');
+      if (Math.abs(c - raw) <= 5) out = c;
+    }
+  }
+  return out;
+}
+
+// ===== 30_music.js =====
+// ===================== 곡 진행 · 밴드 =====================
+const MUS = {
+  bpm: 132, spb: 60 / 132, swing: 0.63, t0: 0, running: false, nextBar: -2, look: 0.34,
+  plan: [], dyn: 0.85, dynTarget: 0.85, brushes: false, energy: 0.35,
+  breakBars: null, soloDecision: {}, fermata: null, done: false, soloEnded: false,
+  timer: null, onSeg: null,
+};
+// 화면 쪽 이벤트 큐 (오디오 시간 기준)
+const VQ = [];
+const vq = (t, who, type, data = {}) => VQ.push({ t, who, type, ...data });
+
+function buildPlan() {
+  MUS.plan = [{ type: 'intro', bars: 4 }, { type: 'head', bars: 12 }, { type: 'pno', bars: 12 }, { type: 'me', bars: 12 }];
+}
+function segAt(bar) {
+  if (bar < 0) return { type: 'count', local: bar + 2, bars: 2, start: -2 };
+  let s = 0;
+  for (let i = 0; i < MUS.plan.length; i++) {
+    const p = MUS.plan[i];
+    if (bar < s + p.bars) return { type: p.type, local: bar - s, bars: p.bars, start: s, idx: i };
+    s += p.bars;
+  }
+  return { type: 'done', local: bar - s, bars: 1, start: s };
+}
+function chordsAtBar(bar) {
+  const sg = segAt(bar);
+  switch (sg.type) {
+    case 'count': return [FORM[0][0]];
+    case 'intro': return FORM[8 + sg.local];
+    case 'tag': return TAG[sg.local % 4];
+    case 'final': case 'done': return FINAL;
+    default: return FORM[sg.local % 12];
+  }
+}
+const barTime = bar => MUS.t0 + bar * 4 * MUS.spb;
+// 박 위치(0~4, .5는 스윙 8분) → 시간
+function pt(bar, pos) {
+  const w = Math.floor(pos + 1e-6), f = pos - w;
+  const ff = Math.abs(f - 0.5) < 1e-6 ? MUS.swing : f;
+  return barTime(bar) + (w + ff) * MUS.spb;
+}
+function songBeats(t) { return (t - MUS.t0) / MUS.spb; }
+function chordAtTime(t) {
+  const b = songBeats(t), bar = Math.floor(b / 4), bi = b - bar * 4;
+  const chs = chordsAtBar(bar);
+  return chs.length === 1 || bi < 2 ? chs[0] : chs[1];
+}
+function isStrongTime(t) { const b = songBeats(t), f = b - Math.floor(b); return f < 0.2 || f > 0.9; }
+function nearestPC(pc, near, lo, hi) {
+  let best = null, bd = 1e9;
+  for (let m = lo; m <= hi; m++) if (mod12(m) === pc && Math.abs(m - near) < bd) { bd = Math.abs(m - near); best = m; }
+  return best;
+}
+
+// ---------- 소리 내기 도우미 ----------
+const vel = v => clamp(v * MUS.dyn, 0, 1.2);
+function bassNote(t, midi, dur, v, ghost = false) {
+  const s = nearestSample('K', midi);
+  playOne(s, midi, t, vel(v) * (ghost ? 0.35 : 1), AE.buses.bass, { dur: ghost ? 0.06 : dur, release: ghost ? 0.03 : 0.12, lp: ghost ? 600 : 2600 });
+  vq(t, 'bass', 'pluck', { midi, ghost });
+}
+function pianoNotes(t, notes, dur, v, hand = 'L', roll = 0.012) {
+  notes.forEach((m, i) => {
+    const s = nearestSample('P', m);
+    playOne(s, m, t + i * roll * rand(0.6, 1.3), vel(v) * rand(0.88, 1.05), AE.buses.pno, { dur, release: 0.35 });
+  });
+  vq(t, 'pno', 'hit', { notes, hand, dur });
+}
+const DR = { ride: -0.28, ridebell: -0.28, crash: 0.25, snare: 0.04, ghost: 0.04, xstick: 0.04, hat: 0.22, kick: 0, tomHi: -0.05, tomLo: -0.18, brush: 0.05, btap: 0.04 };
+function drum(piece, t, v, limb) {
+  const D = AE.sets.D, S = AE.syn, bus = AE.buses.drums, pan = DR[piece] || 0;
+  const vv = vel(v);
+  switch (piece) {
+    case 'ride': playBuf(D.ride.buf, t, vv * 0.55, bus, { pan, offset: D.ride.start, rate: rand(0.985, 1.015) }); break;
+    case 'ridebell': playBuf(D.ridebell.buf, t, vv * 0.5, bus, { pan, offset: D.ridebell.start }); break;
+    case 'crash': playBuf(D.crash.buf, t, vv * 0.55, bus, { pan, offset: D.crash.start }); break;
+    case 'snare': playBuf(D.snare.buf, t, vv * 0.6, bus, { pan, offset: D.snare.start }); break;
+    case 'ghost': playBuf(D.ghost.buf, t, vv * 0.5, bus, { pan, offset: D.ghost.start, rate: rand(0.97, 1.03) }); break;
+    case 'xstick': playBuf(D.xstick.buf, t, vv * 0.5, bus, { pan, offset: D.xstick.start }); break;
+    case 'kick': playBuf(S.kick, t, vv * 0.85, bus, { pan }); break;
+    case 'hat': playBuf(S.hat, t, vv * 0.32, bus, { pan }); break;
+    case 'tomHi': playBuf(S.tomHi, t, vv * 0.55, bus, { pan }); break;
+    case 'tomLo': playBuf(S.tomLo, t, vv * 0.6, bus, { pan }); break;
+    case 'brush': playBuf(S.brush, t, vv * 0.32, bus, { pan: rand(-0.15, 0.2), rate: rand(0.92, 1.08) }); break;
+    case 'btap': playBuf(S.btap, t, vv * 0.45, bus, { pan }); break;
+    case 'stick': playBuf(S.stick, t, vv * 0.7, bus, { pan: 0 }); break;
+  }
+  vq(t, 'drums', 'hit', { piece, v, limb });
+}
+
+// ---------- 베이스 (워킹) ----------
+const BASS = { last: 41 };
+function genBass(bar, sg, chs, next) {
+  const t = b => pt(bar, b), dur = MUS.spb * 0.9;
+  const chAt = b => (chs.length === 1 || b < 2) ? chs[0] : chs[1];
+  const twoFeel = sg.type === 'head' && sg.local < 8;
+  const nextRoot = nearestPC(next[0].root, BASS.last, 29, 50);
+  if (twoFeel) {
+    const r = nearestPC(chAt(0).root, BASS.last, 29, 48);
+    bassNote(t(0), r, MUS.spb * 1.8, 0.95);
+    const c2 = chAt(2);
+    const n3 = chs.length > 1 ? nearestPC(c2.root, r, 29, 50) : (Math.random() < 0.5 ? r + 7 : r - 5);
+    const n3c = clamp(n3, 29, 52);
+    if (Math.random() < 0.35) bassNote(t(1.5), n3c, MUS.spb * 0.35, 0.7);
+    bassNote(t(2), n3c, MUS.spb * 1.4, 0.88);
+    if (Math.random() < 0.45) bassNote(t(3.5), nextRoot + (Math.random() < 0.5 ? 1 : -1), MUS.spb * 0.4, 0.75);
+    BASS.last = n3c;
+    return;
+  }
+  // 4비트 워킹: 박마다 한 음
+  const anchors = chs.length === 1 ? [[0, chs[0]]] : [[0, chs[0]], [2, chs[1]]];
+  const line = [];
+  for (let a = 0; a < anchors.length; a++) {
+    const [b0, ch] = anchors[a];
+    const len = (a + 1 < anchors.length ? anchors[a + 1][0] : 4) - b0;
+    const tgtRoot = a + 1 < anchors.length ? anchors[a + 1][1].root : next[0].root;
+    const prev = line.length ? line[line.length - 1] : BASS.last;
+    // 첫 음: 근음 (가끔 3도)
+    let first = nearestPC(ch.root, prev, 29, 50);
+    if (Math.random() < 0.12 && len === 4) first = nearestPC(mod12(ch.root + QUAL[ch.q].tones[1]), prev, 29, 50);
+    line.push(first);
+    const target = nearestPC(tgtRoot, first, 29, 52);
+    const appr = Math.random() < 0.7 ? target + (target > first ? -1 : 1) : (Math.random() < 0.5 ? target + 7 : target - 5);
+    if (len === 4) {
+      // 가운데 두 음: 화음음/스케일음으로 approach 쪽을 향해
+      const dir = Math.sign(appr - first) || (Math.random() < 0.5 ? 1 : -1);
+      const tones = [];
+      for (let m = 28; m <= 55; m++) if (inSet(m, ch, Math.random() < 0.6 ? 'S' : 'W')) tones.push(m);
+      let cur = first;
+      for (let k = 0; k < 2; k++) {
+        const cand = tones.filter(m => dir > 0 ? m > cur && m < cur + 6 : m < cur && m > cur - 6);
+        let n = cand.length ? (dir > 0 ? cand[Math.min(cand.length - 1, randi(0, 1))] : cand[Math.max(0, cand.length - 1 - randi(0, 1))]) : cur + dir * 2;
+        if (n === appr) n = cur + dir;
+        line.push(clamp(n, 28, 55)); cur = n;
+      }
+      line.push(clamp(appr, 28, 55));
+    } else {
+      line.push(clamp(appr, 28, 55));
+    }
+  }
+  line.forEach((m, b) => {
+    const acc = b === 0 ? 1.0 : (b === 2 ? 0.92 : 0.86);
+    bassNote(t(b), m, dur, acc * rand(0.92, 1.04));
+    // 가끔 셋잇단 '떠는' 고스트음
+    if ((b === 1 || b === 3) && Math.random() < 0.09) bassNote(pt(bar, b + 2 / 3), m, 0.05, 0.5, true);
+  });
+  BASS.last = line[line.length - 1];
+}
+
+// ---------- 피아노 ----------
+const PNO = { voicing: null, line: null };
+function voicingFor(ch, prev) {
+  const forms = QUAL[ch.q].v, cands = [];
+  for (const f of forms) for (let base = 48; base <= 60; base++) {
+    if (mod12(base) !== ch.root) continue;
+    const v = f.map(i => base + i);
+    if (v[0] < 50 || v[v.length - 1] > 76) continue;
+    cands.push(v);
+  }
+  if (!cands.length) return forms[0].map(i => 53 + mod12(ch.root - 5) + i);
+  if (!prev) return pick(cands);
+  let best = cands[0], bd = 1e9;
+  for (const v of cands) { let d = 0; for (let i = 0; i < 4; i++) d += Math.abs(v[i] - prev[i]); d += Math.random() * 2.5; if (d < bd) { bd = d; best = v; } }
+  return best;
+}
+function compHit(bar, pos, ch, durBeats, v) {
+  PNO.voicing = voicingFor(ch, PNO.voicing);
+  pianoNotes(pt(bar, pos), PNO.voicing, durBeats * MUS.spb, v, 'L');
+}
+const COMP1 = [[[0, 1.6]], [[1.5, 0.45]], [[2.5, 1.2]], [[0, 0.5], [1.5, 0.45]], [[1, 0.45], [2.5, 0.45]], [[0.5, 0.4], [2.5, 1.0]], [[1.5, 0.4], [3, 0.6]]];
+function genComp(bar, sg, chs, next, density) {
+  const chAt = b => (chs.length === 1 || b < 2) ? chs[0] : chs[1];
+  const v = 0.42 + MUS.energy * 0.12;
+  if (chs.length > 1) {
+    const a = pick([[0, 1.0], [0.5, 0.45], [1.5, 0.45]]), b = pick([[2, 0.9], [2.5, 0.45], [3, 0.6]]);
+    compHit(bar, a[0], chs[0], a[1], v);
+    if (Math.random() < 0.3 + density * 0.6) compHit(bar, b[0], chs[1], b[1], v * 0.95);
+    else compHit(bar, b[0], chs[1], b[1], v * 0.9);
+    return;
+  }
+  let pat = pick(COMP1);
+  if (density < 0.35 && Math.random() < 0.6) pat = [pick(pat)];
+  if (density > 0.7 && Math.random() < 0.5) pat = pat.concat([[3.5, 0.4, 'a']]);
+  for (const [pos, d, ant] of pat) compHit(bar, pos, ant ? next[0] : chAt(pos), d, v * rand(0.9, 1.05));
+}
+// 즉흥 선율 (피아노 솔로, 빈자리 채우기)
+class LineGen {
+  constructor(lo, hi) { this.lo = lo; this.hi = hi; this.last = Math.round((lo + hi) / 2); this.dir = 1; this.left = 0; this.rest = 0; }
+  bar(bar, chs, busy = 0.6, onlyFrom = 0) {
+    const out = [];
+    let pos = onlyFrom;
+    while (pos < 4 - 1e-6) {
+      const ch = (chs.length === 1 || pos < 2) ? chs[0] : chs[1];
+      if (this.rest > 0) { this.rest -= 0.5; pos += 0.5; continue; }
+      if (this.left <= 0) { this.left = randi(5, Math.round(6 + busy * 10)); if (Math.random() < 0.55) this.dir *= -1; }
+      const onBeat = Math.abs(pos - Math.round(pos)) < 1e-6;
+      let n;
+      if (onBeat) n = nearestAllowed(this.last + this.dir * randi(1, 3), ch, 'S', this.dir);
+      else n = Math.random() < 0.25 ? this.last + this.dir : nearestAllowed(this.last + this.dir * randi(1, 2), ch, 'W', this.dir);
+      if (n >= this.hi - 1) this.dir = -1; if (n <= this.lo + 1) this.dir = 1;
+      if (Math.random() < 0.12) this.dir *= -1;
+      n = clamp(n, this.lo, this.hi);
+      let len = 0.5;
+      this.left--;
+      if (this.left <= 0) { len = pick([1, 1.5, 1]); n = nearestAllowed(n, ch, 'S', this.dir); this.rest = pick([1, 1.5, 2, 2.5]) * (1.4 - busy); }
+      else if (Math.random() < 0.12) len = 1;
+      // 셋잇단 꾸밈
+      if (onBeat && Math.random() < 0.09 * busy && pos + 1 <= 4) {
+        const a = n + this.dir * 2, b = n + this.dir;
+        out.push({ pos, dur: 1 / 3, m: nearestAllowed(a, ch, 'W', this.dir) }, { pos: pos + 1 / 3, dur: 1 / 3, m: b }, { pos: pos + 2 / 3, dur: 1 / 3, m: n });
+        this.last = n; pos += 1; continue;
+      }
+      len = Math.min(len, 4 - pos);
+      out.push({ pos, dur: len, m: n });
+      this.last = n; pos += len;
+    }
+    return out;
+  }
+}
+function genPianoSolo(bar, sg, chs, next) {
+  if (!PNO.line) PNO.line = new LineGen(62, 86);
+  const notes = PNO.line.bar(bar, chs, 0.55 + MUS.energy * 0.3);
+  for (const n of notes) {
+    const t = pt(bar, n.pos), s = nearestSample('P', n.m);
+    const d = n.dur < 0.6 ? MUS.spb * n.dur * 0.75 : MUS.spb * n.dur * 0.95;
+    playOne(s, n.m, t, vel(0.55 + (Math.abs(n.pos - Math.round(n.pos)) < 1e-6 ? 0.06 : 0)) * rand(0.9, 1.05), AE.buses.pno, { dur: d, release: 0.2 });
+    vq(t, 'pno', 'hit', { notes: [n.m], hand: 'R', dur: d });
+  }
+  // 왼손은 드문드문
+  const chAt = b => (chs.length === 1 || b < 2) ? chs[0] : chs[1];
+  const pat = chs.length > 1 ? [[0, 0.8], [2, 0.8]] : pick([[[0, 1.2]], [[1.5, 0.5]], [[0.5, 0.5], [2.5, 0.8]], [[2, 1.0]]]);
+  for (const [pos, d] of pat) compHit(bar, pos, chAt(pos), d, 0.36);
+}
+
+// ---------- 드럼 ----------
+function genDrums(bar, sg, chs) {
+  const e = MUS.energy, last = sg.type !== 'me' ? sg.local === sg.bars - 1 : (sg.local % 12) === 11;
+  const first = sg.type !== 'me' ? sg.local === 0 : (sg.local % 12) === 0;
+  if (!MUS.brushes) {
+    const R = [[0, 0.62], [1, 0.78], [1.5, 0.45], [2, 0.62], [3, 0.78], [3.5, 0.45]];
+    for (const [p, v] of R) {
+      const bell = e > 0.75 && (p === 1 || p === 3) && Math.random() < 0.35;
+      drum(bell ? 'ridebell' : 'ride', pt(bar, p) + rand(-0.004, 0.004), v * rand(0.9, 1.05), 'R');
+    }
+    drum('hat', pt(bar, 1), 0.7, 'LF'); drum('hat', pt(bar, 3), 0.75, 'LF');
+    // 킥 '페더링' (아주 작게)
+    for (let b = 0; b < 4; b++) if (Math.random() < 0.85) drum('kick', pt(bar, b), 0.16 + (b === 0 ? 0.05 : 0), 'RF');
+    // 스네어 컴핑
+    if (!(last && sg.type !== 'count')) {
+      const n = Math.random() < 0.2 ? 0 : randi(1, 1 + Math.round(e * 3));
+      const slots = shuffle([0.5, 1.5, 2.5, 3.5, 1, 3, 2 + 2 / 3, 1 + 2 / 3]).slice(0, n);
+      for (const s of slots) {
+        const acc = Math.random() < 0.18 + e * 0.25;
+        drum(acc ? 'snare' : 'ghost', pt(bar, s), acc ? 0.5 + e * 0.2 : rand(0.25, 0.38), 'L');
+        if (acc && Math.random() < 0.3 + e * 0.3) drum('kick', pt(bar, s), 0.45 + e * 0.25, 'RF');
+      }
+    }
+  } else {
+    // 브러시: 박마다 쓸고, 2·4에 톡
+    for (let b = 0; b < 4; b++) drum('brush', pt(bar, b) - 0.04, 0.72, 'L');
+    drum('btap', pt(bar, 1), 0.62, 'R'); drum('btap', pt(bar, 3), 0.62, 'R');
+    if (Math.random() < 0.4) drum('btap', pt(bar, 2.5), 0.38, 'R');
+    drum('hat', pt(bar, 1), 0.5, 'LF'); drum('hat', pt(bar, 3), 0.55, 'LF');
+    for (let b = 0; b < 4; b += 2) drum('kick', pt(bar, b), 0.12, 'RF');
+  }
+  if (first && sg.type !== 'intro' && (sg.type !== 'me' || sg.local === 0 || Math.random() < 0.5)) drum('crash', pt(bar, 0), MUS.brushes ? 0.35 : 0.7, 'R');
+  if (last) drumFill(bar, MUS.brushes ? 0.5 : 0.75);
+}
+function drumFill(bar, v, from = 2) {
+  const pieces = ['snare', 'snare', 'tomHi', 'tomHi', 'tomLo', 'tomLo'];
+  let k = 0;
+  for (let p = from; p < 4 - 1e-6; p += 1 / 3) {
+    if (Math.random() < 0.2 && k > 0) { k++; continue; }
+    const piece = MUS.brushes ? (k % 2 ? 'btap' : 'snare') : pieces[Math.min(pieces.length - 1, Math.floor(k / 1.2))];
+    drum(piece, pt(bar, p), v * (0.6 + k * 0.05), k % 2 ? 'L' : 'R');
+    k++;
+  }
+  drum('kick', pt(bar, 3 + 2 / 3), v * 0.8, 'RF');
+}
+function countOff(bar) {
+  const beats = bar === -2 ? [0, 2] : [0, 1, 2, 3];
+  for (const b of beats) drum('stick', pt(bar, b), 0.8, 'LR');
+}
+
+// ---------- 트롬본 (테마) ----------
+// [마디, 박, 길이(박), 음] — 콘서트 음높이
+const HEAD = [
+  [0, 0.5, 0.5, 60], [0, 1, 0.5, 63], [0, 1.5, 0.5, 65], [0, 2, 0.5, 68], [0, 2.5, 1, 65], [0, 3.5, 0.5, 63],
+  [1, 0, 1.5, 62], [1, 1.5, 0.5, 60], [1, 2, 1.2, 58],
+  [2, 0.5, 0.5, 60], [2, 1, 0.5, 63], [2, 1.5, 0.5, 65], [2, 2, 0.5, 68], [2, 2.5, 0.5, 65], [2, 3, 0.5, 63], [2, 3.5, 0.5, 60],
+  [3, 0, 1, 58], [3, 1, 0.5, 60], [3, 1.5, 0.5, 63], [3, 2, 1.5, 57], [3, 3.5, 0.5, 56],
+  [4, 0.5, 0.5, 60], [4, 1, 0.5, 63], [4, 1.5, 0.5, 65], [4, 2, 0.5, 68], [4, 2.5, 1, 65], [4, 3.5, 0.5, 63],
+  [5, 0, 1.5, 62], [5, 1.5, 0.5, 65], [5, 2, 1, 68], [5, 3, 1, 65],
+  [6, 0.5, 0.5, 60], [6, 1, 0.5, 63], [6, 1.5, 0.5, 65], [6, 2, 0.5, 68], [6, 2.5, 0.5, 65], [6, 3, 0.5, 63], [6, 3.5, 0.5, 60],
+  [7, 0, 1, 60], [7, 1, 0.5, 57], [7, 1.5, 0.5, 60], [7, 2, 1.5, 66], [7, 3.5, 0.5, 63],
+  [8, 0, 1, 62], [8, 1, 0.5, 65], [8, 1.5, 0.5, 67], [8, 2, 0.5, 70], [8, 2.5, 0.5, 69], [8, 3, 0.5, 67], [8, 3.5, 0.5, 65],
+  [9, 0, 1, 64], [9, 1, 0.5, 67], [9, 1.5, 0.5, 70], [9, 2, 1, 69], [9, 3, 0.5, 67], [9, 3.5, 0.5, 64],
+  [10, 0, 1.5, 65], [10, 1.5, 0.5, 63], [10, 2, 1, 66], [10, 3, 0.5, 63], [10, 3.5, 0.5, 62],
+  [11, 0, 1, 62], [11, 1, 1, 58], [11, 2, 1, 64], [11, 3, 0.75, 67],
+];
+const TBN = { voice: null, lastEnd: 0 };
+// 트롬본 슬라이드 포지션 (시각용)
+const TBN_PARTIALS = [34, 46, 53, 58, 62, 65, 70, 72, 74];
+function slidePos(m) { let best = 1; for (const p of TBN_PARTIALS) { const k = p - m + 1; if (k >= 1 && k <= 7) { best = k; break; } } return best; }
+function tbnNote(t, m, dur, v = 0.9) {
+  const s = nearestSample('B', m);
+  const vo = new SusVoice(s, m, t, AE.buses.tbn, { level: vel(v) * 0.9, fadeIn: 0.022, scoop: Math.random() < 0.25 ? -0.6 : 0, scoopTime: 0.05, offset: s.start + 0.01 });
+  if (dur > MUS.spb * 1.2) vo.vibrato(12, t + 0.35, 0.3);
+  vo.release(t + dur, 0.07);
+  vq(t, 'tbn', 'note', { midi: m, dur, slide: slidePos(m) });
+}
+function genHead(bar, local) {
+  const notes = HEAD.filter(n => n[0] === local);
+  for (let i = 0; i < notes.length; i++) {
+    const [, pos, len, m] = notes[i];
+    const t = pt(bar, pos);
+    const nx = notes[i + 1] ? pt(bar, notes[i + 1][1]) : pt(bar, pos + len);
+    const span = Math.min(len * MUS.spb, nx - t);
+    const d = len <= 0.5 ? span * 0.78 : span * 0.92;
+    tbnNote(t, m, d, Math.abs(pos - Math.round(pos)) < 1e-6 ? 0.95 : 0.88);
+  }
+}
+
+// ---------- 마디 만들기 ----------
+function myActivity(windowSec) {
+  const now = AE.ctx.currentTime;
+  if (TP.blowing) return 1;
+  const recent = TP.notes.filter(n => n.t > now - windowSec).length;
+  return clamp(recent / 6, 0, 1);
+}
+function genBar(bar) {
+  const sg = segAt(bar);
+  if (sg.type === 'count') { countOff(bar); if (bar === -2) vq(barTime(bar), 'drums', 'count'); return; }
+  if (sg.type === 'done') return;
+  // 구간 시작 알림
+  if (sg.local === 0) vq(barTime(bar), 'song', 'seg', { seg: sg.type });
+  if (sg.type === 'me' && sg.local % 12 === 0) vq(barTime(bar), 'song', 'chorus', { n: sg.local / 12 });
+  const chs = chordsAtBar(bar), next = chordsAtBar(bar + 1);
+  // 셈여림·브러시
+  updateBandMood(sg);
+  MUS.dyn = lerp(MUS.dyn, MUS.dynTarget, 0.6);
+  if (MUS.brushes !== MUS.brushTarget) { MUS.brushes = MUS.brushTarget; vq(barTime(bar), 'drums', 'swap', { brushes: MUS.brushes }); }
+
+  if (sg.type === 'final') { genFinal(bar); return; }
+  const inBreak = MUS.breakBars && bar >= MUS.breakBars.from && bar <= MUS.breakBars.to;
+  if (inBreak) {
+    if (bar === MUS.breakBars.from) { drum('crash', pt(bar, 0), 0.8, 'R'); drum('kick', pt(bar, 0), 0.8, 'RF'); bassNote(pt(bar, 0), nearestPC(chs[0].root, 36, 29, 41), MUS.spb * 0.5, 1); compHit(bar, 0, chs[0], 0.4, 0.6); vq(barTime(bar), 'song', 'break', { on: true }); }
+    return;
+  }
+  if (MUS.breakBars && bar === MUS.breakBars.to + 1) { drum('crash', pt(bar, 0), 0.95, 'R'); drum('kick', pt(bar, 0), 0.9, 'RF'); vq(barTime(bar), 'song', 'break', { on: false }); MUS.breakBars = null; }
+
+  genBass(bar, sg, chs, next);
+  genDrums(bar, sg, chs);
+  if (sg.type === 'pno') genPianoSolo(bar, sg, chs, next);
+  else {
+    const act = sg.type === 'me' ? myActivity(MUS.spb * 4) : 0.4;
+    genComp(bar, sg, chs, next, clamp(1 - act + 0.15, 0.1, 1));
+    // 내가 쉬면 밴드가 빈자리를 채움
+    if (sg.type === 'me' && act < 0.15 && !TP.blowing && Math.random() < 0.45) {
+      if (!PNO.fill) PNO.fill = new LineGen(65, 84);
+      const notes = PNO.fill.bar(bar, chs, 0.5, 2);
+      for (const n of notes.slice(0, 5)) { const t = pt(bar, n.pos), s = nearestSample('P', n.m); playOne(s, n.m, t, vel(0.42), AE.buses.pno, { dur: MUS.spb * n.dur * 0.8, release: 0.2 }); vq(t, 'pno', 'hit', { notes: [n.m], hand: 'R', dur: 0.2 }); }
+    }
+    if (sg.type === 'me' && act < 0.1 && !TP.blowing && (sg.local % 12) !== 11 && Math.random() < 0.3) drumFill(bar, MUS.brushes ? 0.4 : 0.55, 3);
+  }
+  if (sg.type === 'head' || sg.type === 'head2') genHead(bar, sg.local);
+  if (sg.type === 'tag') {
+    const TAGL = [[[0, 1, 60], [1, 1, 64], [2, 1.5, 66], [3.5, 0.5, 63]], [[0, 1, 62], [1, 1, 65], [2, 1.5, 64], [3.5, 0.5, 60]]];
+    for (const [p, l, m] of TAGL[sg.local % 2]) tbnNote(pt(bar, p), m, l * MUS.spb * (l <= 0.5 ? 0.75 : 0.92), 0.9);
+  }
+
+  // 신호: 피아노 솔로 끝 무렵 트롬본이 나를 봄
+  if (sg.type === 'pno' && sg.local === 10) vq(pt(bar, 2), 'tbn', 'cue');
+  if (sg.type === 'me') soloDecisions(bar, sg);
+}
+
+// 솔로를 계속할지: 코러스 11마디부터 내가 쉬고 있으면 테마로
+function soloDecisions(bar, sg) {
+  const ch = Math.floor(sg.local / 12), lb = sg.local % 12;
+  if (lb === 10) vq(pt(bar, 1), 'pno', 'ask', { chorus: ch });
+  if (lb !== 11) return;
+  const now = AE.ctx.currentTime, quietSince = barTime(bar - 2) + 3 * MUS.spb;
+  const silent = !TP.blowing && TP.lastSoundT < quietSince;
+  const enough = ch >= 1;
+  // 절정 브레이크가 다음 코러스로 걸쳐 있으면 솔로를 이어 감
+  if (MUS.breakBars && MUS.breakBars.to > bar) { MUS.plan[sg.idx].bars = sg.local + 1 + 12; return; }
+  if ((silent && enough) || ch >= 5) {
+    MUS.plan[sg.idx].bars = sg.local + 1;
+    MUS.plan.push({ type: 'head2', bars: 12 }, { type: 'tag', bars: 4 }, { type: 'final', bars: 1 });
+    MUS.soloEnded = true;
+    vq(barTime(bar + 1), 'song', 'soloEnd');
+  } else {
+    MUS.plan[sg.idx].bars = sg.local + 1 + 12;
+  }
+  void now;
+}
+
+function updateBandMood(sg) {
+  let d = { intro: 0.78, head: 0.9, pno: 0.8, me: 0.86, head2: 0.95, tag: 1.0, final: 1.0 }[sg.type] || 0.85;
+  let brushes = false;
+  if (sg.type === 'me' || sg.type === 'pno') {
+    if (TP.mute === 'harmon') { d *= 0.62; brushes = true; }
+    else if (TP.instr === 'flugel') { d *= 0.74; brushes = sg.type === 'me'; }
+    else if (TP.mute === 'straight') d *= 0.86;
+  }
+  if (sg.type === 'me') d += (REACT.heat / 100) * 0.16;
+  MUS.dynTarget = d; MUS.brushTarget = brushes;
+  MUS.energy = clamp(0.3 + (sg.type === 'me' ? REACT.heat / 100 * 0.7 : 0.15), 0, 1);
+}
+
+// ---------- 마지막 늘이는 화음 ----------
+function genFinal(bar) {
+  const t = barTime(bar), ch = FINAL[0];
+  drum('crash', t, 0.9, 'R'); drum('kick', t, 0.8, 'RF');
+  bassNote(t, 29, 3.0, 1.0);
+  const v = [53, 57, 60, 62, 67, 69, 74];
+  pianoNotes(t, v, 3.2, 0.62, 'L', 0.02);
+  const s = nearestSample('B', 57);
+  const tv = new SusVoice(s, 57, t, AE.buses.tbn, { level: vel(0.85), fadeIn: 0.03, offset: s.start + 0.01 });
+  tv.vibrato(14, t + 0.4, 0.4);
+  vq(t, 'tbn', 'note', { midi: 57, dur: 99, slide: slidePos(57) });
+  MUS.fermata = { t, tv, nextRoll: t + 0.1, nextPiano: t + 2.4, nextBass: t + 1.9, rollV: 0.05, cut: null, wasBlowing: TP.blowing };
+  vq(t, 'song', 'fermata');
+}
+function fermataTick(now) {
+  const F = MUS.fermata; if (!F || F.cut) return;
+  if (TP.blowing) F.wasBlowing = true;
+  const age = now - F.t;
+  // 심벌 롤
+  while (F.nextRoll < now + 0.15) {
+    F.rollV = Math.min(0.42, F.rollV + 0.006);
+    playBuf(AE.sets.D.ride.buf, F.nextRoll, F.rollV * 0.5 * MUS.dyn, AE.buses.drums, { offset: AE.sets.D.ride.start, pan: -0.2, rate: rand(0.97, 1.03) });
+    F.nextRoll += 0.075;
+  }
+  if (now > F.nextPiano - 0.1) { pianoNotes(F.nextPiano, [57, 62, 67, 69, 74, 79], 2.6, 0.32, 'R', 0.05); F.nextPiano += 2.4; }
+  if (now > F.nextBass - 0.1) { bassNote(F.nextBass, 29, 2.0, 0.55); F.nextBass += 1.9; }
+  const myHold = TP.blowing && F.wasBlowing;
+  if ((!myHold && age > 2.6) || age > 14) fermataCut(now + 0.04);
+}
+function fermataCut(t) {
+  const F = MUS.fermata; if (!F || F.cut) return;
+  F.cut = t;
+  drum('crash', t, 1.0, 'R'); drum('kick', t, 1.0, 'RF'); drum('snare', t, 0.8, 'L');
+  bassNote(t, 29, 0.25, 1.0);
+  pianoNotes(t, [41, 53, 57, 60, 65, 69, 72], 0.3, 0.75, 'L', 0.004);
+  F.tv.release(t, 0.08);
+  vq(t, 'song', 'cut');
+  MUS.done = true;
+}
+
+// ---------- 시계 ----------
+function startSong() {
+  buildPlan();
+  MUS.t0 = AE.ctx.currentTime + 0.25 + 8 * MUS.spb; // 카운트 2마디 뒤 0마디
+  MUS.nextBar = -2; MUS.running = true; MUS.done = false; MUS.soloEnded = false; MUS.fermata = null; MUS.breakBars = null;
+  MUS.dyn = 0.8; MUS.brushes = false; MUS.brushTarget = false;
+  BASS.last = 41; PNO.voicing = null; PNO.line = null; PNO.fill = null;
+  VQ.length = 0;
+  if (MUS.timer) clearInterval(MUS.timer);
+  MUS.timer = setInterval(schedTick, 25);
+}
+function stopSong() { MUS.running = false; if (MUS.timer) clearInterval(MUS.timer); MUS.timer = null; }
+function schedTick() {
+  if (!MUS.running || !AE.ctx || AE.ctx.state !== 'running') return;
+  const now = AE.ctx.currentTime;
+  let guard = 0;
+  while (barTime(MUS.nextBar) < now + MUS.look && guard++ < 4) {
+    const sg = segAt(MUS.nextBar);
+    if (sg.type === 'done') break;
+    genBar(MUS.nextBar); MUS.nextBar++;
+  }
+  fermataTick(now);
+}
+// 반응 쪽에서 부르는 것들
+function requestBreak() {
+  const now = AE.ctx.currentTime;
+  let b = Math.ceil(songBeats(now + 0.4) / 4);
+  if (barTime(b) < now + MUS.look + 0.05) b++;
+  // 아직 안 만든 마디만 가능
+  if (b < MUS.nextBar) b = MUS.nextBar;
+  const sg = segAt(b);
+  if (sg.type !== 'me' || MUS.soloEnded) return false;
+  // 코러스 끝자락이라 계획이 아직 안 늘어났으면 한 코러스 더 이어 감 (절정 중에 솔로를 끊지 않음)
+  if (segAt(b + 2).type !== 'me') MUS.plan[sg.idx].bars += 12;
+  if (segAt(b + 2).type !== 'me') return false;
+  MUS.breakBars = { from: b, to: b + 1 };
+  dlog('break', { from: b });
+  return b;
+}
+function bandAccents(times, big = false) {
+  for (const t of times) {
+    if (t < AE.ctx.currentTime + 0.02) continue;
+    if (MUS.brushes) { drum('btap', t, 0.8, 'R'); drum('kick', t, 0.4, 'RF'); }
+    else { drum('snare', t, 0.75, 'L'); drum('kick', t, 0.7, 'RF'); }
+  }
+  if (big && times.length) { const t = times[times.length - 1]; if (t > AE.ctx.currentTime) drum('crash', t, MUS.brushes ? 0.4 : 0.8, 'R'); }
+}
+function nextSlot(after) {
+  const b = songBeats(after), bar = Math.floor(b / 4);
+  for (let i = 0; i <= 8; i++) { const p = i / 2; const t = pt(bar, p); if (t >= after) return t; }
+  return barTime(bar + 1);
+}
+
+// ===== 40_trumpet.js =====
+// ===================== 내 트럼펫 =====================
+// 바람 칸: 페달(1배음) · 2~6배음 · 8배음 · 12배음 · 16배음 (기보, Bb 트럼펫)
+const ZONES = [
+  { p: 1, w: 48 }, { p: 2, w: 60 }, { p: 3, w: 67 }, { p: 4, w: 72 }, { p: 5, w: 76 },
+  { p: 6, w: 79 }, { p: 8, w: 84 }, { p: 12, w: 91 }, { p: 16, w: 96 },
+];
+const NZ = ZONES.length;
+const SEMI = [0, 2, 1, 3, 3, 5, 4, 6]; // 밸브 비트(1번=1, 2번=2, 3번=4) → 내려가는 반음
+const ZLEVEL = [0.95, 0.86, 0.88, 0.92, 0.95, 0.99, 1.04, 1.1, 1.16];
+const TP = {
+  zone: 3, pos: 3.5, blowing: false, rawMask: 0, mask: 0, instr: 'tp', mute: null, busyUntil: 0,
+  voice: null, cur: null, raw: null, noteT0: 0, pitchT0: 0, lastAttackT: -9, lastSoundT: -9, alt: false, rr: 1,
+  notes: [], listeners: [], air: [], shake: null, vibOn: false, pending: null, valveTimer: null, in: null,
+};
+const tpEmit = (type, d) => { for (const f of TP.listeners) f(type, d); };
+
+function initTrumpet() {
+  const ctx = AE.ctx;
+  TP.in = ctx.createGain(); TP.in.gain.value = 1;
+  TP.warm = ctx.createBiquadFilter(); TP.warm.type = 'peaking'; TP.warm.frequency.value = 380; TP.warm.Q.value = 0.8; TP.warm.gain.value = 0;
+  TP.lp = ctx.createBiquadFilter(); TP.lp.type = 'lowpass'; TP.lp.frequency.value = 18000; TP.lp.Q.value = 0.5;
+  TP.in.connect(TP.warm); TP.warm.connect(TP.lp); TP.lp.connect(AE.buses.tp);
+}
+function applyInstrumentTone() {
+  const t = AE.ctx.currentTime;
+  if (TP.instr === 'flugel') { TP.lp.frequency.setTargetAtTime(2300, t, 0.05); TP.warm.gain.setTargetAtTime(4, t, 0.05); }
+  else { TP.lp.frequency.setTargetAtTime(18000, t, 0.05); TP.warm.gain.setTargetAtTime(0, t, 0.05); }
+}
+const rawConcert = () => ZONES[TP.zone].w - SEMI[TP.mask] - 2;
+function setFor(m) {
+  if (TP.instr === 'flugel') return m <= 86 ? 'S' : 'T';
+  if (TP.mute === 'harmon') return 'H';
+  if (TP.mute === 'straight') return 'M';
+  if (m < 51) return 'B';
+  return 'T';
+}
+const SETLVL = { T: 0.92, S: 1.06, H: 1.05, M: 0.9, B: 0.95 };
+function noteLevel(set) { return SETLVL[set] * ZLEVEL[TP.zone]; }
+function vibDepth() {
+  if (TP.mute === 'harmon') return 8;
+  if (TP.instr === 'flugel') return 18;
+  if (TP.zone === 0) return 5;
+  return TP.zone >= 7 ? 17 : 13;
+}
+const canPlay = () => AE.ctx && AE.ctx.currentTime >= TP.busyUntil;
+
+function recordNote(t, m, kind) {
+  TP.notes.push({ t, m, zone: TP.zone, kind, mask: TP.mask });
+  if (TP.notes.length > 300) TP.notes.splice(0, 100);
+}
+
+// 소리 시작 (숨으로 / 혀로)
+function noteOn(kind) {
+  if (!canPlay()) return;
+  const now = AE.ctx.currentTime;
+  const gap = kind === 'tongue' ? 0.022 : 0;
+  const t = now + 0.004 + gap;
+  const raw = rawConcert();
+  const out = clamp(harmonize(raw, { time: t }), 38, 96);
+  const fast = t - TP.lastAttackT < 0.3;
+  TP.alt = fast ? !TP.alt : false;
+  const accent = TP.alt ? 0.8 : 1.0;
+  const set = setFor(out), s = nearestSample(set, out);
+  const lvl = noteLevel(set) * accent;
+  let offset = s.start, fadeIn = TP.instr === 'flugel' ? 0.02 : 0.004;
+  if (TP.voice) TP.voice.release(now + 0.004, kind === 'tongue' ? 0.016 : 0.03);
+  // 빠른 텅잉은 실제 스타카토 녹음을 머리에 깐다
+  if (kind === 'tongue' && fast && set === 'T') {
+    TP.rr = 3 - TP.rr;
+    const a = nearestSample('A', out, TP.rr);
+    if (a && Math.abs(a.m - out) <= 4) { playOne(a, out, t, lvl * 1.0, TP.in, { dur: 0.16, release: 0.06 }); offset = s.start + 0.07; fadeIn = 0.03; }
+  }
+  const v = new SusVoice(s, out, t, TP.in, { level: lvl, fadeIn, offset: Math.min(offset, s.ls != null ? s.ls - 0.05 : offset) });
+  TP.voice = v; TP.cur = out; TP.raw = raw; TP.noteT0 = t; TP.pitchT0 = t; TP.lastAttackT = t; TP.vibOn = false;
+  TP.lastSoundT = t;
+  recordNote(t, out, kind);
+  dlog('note', { m: out, raw, art: kind, ch: chordAtTime(t).name, strong: isStrongTime(t), zone: TP.zone });
+  tpEmit('attack', { t, m: out, raw, zone: TP.zone, kind });
+}
+// 소리를 끊지 않고 음만 바꿈 (밸브 / 바람 칸)
+function legato(kind) {
+  if (!TP.blowing || !TP.voice || TP.shake) return;
+  const t = AE.ctx.currentTime + 0.003;
+  const raw = rawConcert();
+  if (raw === TP.raw) return;
+  const out = clamp(harmonize(raw, { time: t, legato: true, rawPrev: TP.raw, outPrev: TP.cur }), 38, 96);
+  TP.raw = raw;
+  if (out === TP.cur) return;
+  const set = setFor(out), s = nearestSample(set, out);
+  const prev = TP.cur;
+  if (TP.voice.s === s && Math.abs(out - prev) <= 4) {
+    TP.voice.glideTo(out, t, kind === 'slur' ? 0.05 : 0.028);
+    TP.voice.vibrato(0, t, 0.02);
+  } else {
+    const nv = new SusVoice(s, out, t, TP.in, { level: noteLevel(set), fadeIn: 0.022, offset: Math.min(s.start + 0.12, s.ls != null ? s.ls - 0.05 : 1), scoop: clamp(prev - out, -3, 3) * 0.45, scoopTime: 0.045 });
+    TP.voice.release(t, 0.035);
+    TP.voice = nv;
+  }
+  TP.cur = out; TP.pitchT0 = t; TP.vibOn = false;
+  recordNote(t, out, kind);
+  dlog('note', { m: out, raw, art: kind, ch: chordAtTime(t).name, strong: isStrongTime(t), zone: TP.zone });
+  tpEmit('legato', { t, m: out, prev, zone: TP.zone, kind });
+}
+function noteOff(flick) {
+  if (!TP.voice) return;
+  const t = AE.ctx.currentTime + 0.003, v = TP.voice, dur = t - TP.noteT0;
+  if (TP.shake) endShake(t);
+  if (flick === 'fall') {
+    v.bend(-pick([7, 9, 12]), t, 0.34); v.vibrato(0, t, 0.02);
+    v.release(t + 0.16, 0.24);
+    TP.lp.frequency.cancelScheduledValues(t); TP.lp.frequency.setValueAtTime(TP.instr === 'flugel' ? 2300 : 12000, t);
+    TP.lp.frequency.exponentialRampToValueAtTime(900, t + 0.4); TP.lp.frequency.setTargetAtTime(TP.instr === 'flugel' ? 2300 : 18000, t + 0.5, 0.05);
+  } else if (flick === 'doit') {
+    v.bend(5, t, 0.2); v.release(t + 0.1, 0.16);
+  } else v.release(t, TP.instr === 'flugel' ? 0.09 : 0.06);
+  TP.voice = null; TP.lastSoundT = t + (flick ? 0.3 : 0.05);
+  tpEmit('release', { t, dur, m: TP.cur, zone: TP.zone, flick });
+}
+
+// ---------- 셰이크 ----------
+function startShake(t) {
+  const ch = chordAtTime(t);
+  const up = stepAllowed(TP.cur, 1, ch, 'W');
+  const iv = clamp(up - TP.cur, 2, 4);
+  const v = TP.voice; if (!v) return;
+  TP.shake = { t0: t, iv, base: TP.cur };
+  v.glideTo(TP.cur + iv / 2, t, 0.03);
+  v.lfo.frequency.cancelScheduledValues(t); v.lfo.frequency.setTargetAtTime(7.2, t, 0.02);
+  const amp = v.rate * (Math.pow(2, iv / 24) - 1);
+  v.lg.gain.cancelScheduledValues(t); v.lg.gain.setTargetAtTime(amp, t, 0.03);
+  tpEmit('shake', { t, on: true, zone: TP.zone });
+}
+function endShake(t) {
+  const sh = TP.shake; TP.shake = null; if (!sh) return;
+  const v = TP.voice;
+  if (v && !v.dead) { v.glideTo(sh.base, t, 0.03); v.lg.gain.cancelScheduledValues(t); v.lg.gain.setTargetAtTime(0, t, 0.02); v.lfo.frequency.setTargetAtTime(5.4, t, 0.05); }
+  TP.vibOn = false; TP.pitchT0 = t;
+  tpEmit('shake', { t, on: false, dur: t - sh.t0, zone: TP.zone });
+}
+
+// ---------- 입력 ----------
+function zoneFromPos(pos, cur) {
+  const raw = clamp(Math.floor(pos), 0, NZ - 1);
+  if (cur == null || raw === cur) return raw;
+  const H = 0.2;
+  if (raw > cur) return pos > cur + 1 + H ? raw : cur;
+  return pos < cur - H ? raw : cur;
+}
+function airDown(pos) {
+  if (!AE.ctx) return;
+  TP.air = [{ t: performance.now(), pos }];
+  TP.pos = pos;
+  TP.zone = zoneFromPos(pos, null);
+  if (!canPlay()) return;
+  TP.blowing = true;
+  noteOn('breath');
+}
+function airMove(pos) {
+  const tn = performance.now();
+  TP.air.push({ t: tn, pos }); while (TP.air.length > 40) TP.air.shift();
+  TP.pos = pos;
+  if (!TP.blowing) { TP.zone = zoneFromPos(pos, TP.zone); return; }
+  // 셰이크 감지: 높은 칸에서 빠르게 위아래
+  detectShake(tn);
+  if (TP.shake) return;
+  const z = zoneFromPos(pos, TP.zone);
+  if (z === TP.zone) return;
+  // 아주 빠르게 훑는 중이면 잠깐 기다림 (폴과 구분)
+  const sp = airSpeed(70);
+  const apply = () => { TP.pending = null; if (!TP.blowing || TP.shake) return; const zz = zoneFromPos(TP.pos, TP.zone); if (zz !== TP.zone) { stepZones(zz); } };
+  if (Math.abs(sp) > 14) { if (!TP.pending) TP.pending = setTimeout(apply, 55); return; }
+  if (TP.pending) { clearTimeout(TP.pending); TP.pending = null; }
+  stepZones(z);
+}
+// 칸을 여러 개 건너뛰면 지나가는 배음을 차례로 (립 슬러)
+function stepZones(target) {
+  const dir = Math.sign(target - TP.zone);
+  const n = Math.abs(target - TP.zone);
+  if (n <= 1) { TP.zone = target; legato('slur'); return; }
+  let k = 0;
+  const step = () => {
+    if (!TP.blowing || TP.shake) return;
+    TP.zone += dir; legato('slur'); k++;
+    if (TP.zone !== target && k < 9) setTimeout(step, 24);
+  };
+  step();
+}
+function airSpeed(ms) {
+  const a = TP.air; if (a.length < 2) return 0;
+  const tn = a[a.length - 1].t; let i = a.length - 1;
+  while (i > 0 && tn - a[i - 1].t < ms) i--;
+  const dt = (tn - a[i].t) / 1000; if (dt < 0.01) return 0;
+  return (a[a.length - 1].pos - a[i].pos) / dt; // 칸/초
+}
+function detectShake(tn) {
+  if (TP.zone < 4 || !TP.voice) { if (TP.shake) endShake(AE.ctx.currentTime); return; }
+  const a = TP.air, rev = [];
+  let dir = 0, anchor = a.length ? a[0].pos : 0;
+  let lo = 99, hi = -99;
+  for (const s of a) {
+    if (tn - s.t > 800) { anchor = s.pos; continue; }
+    lo = Math.min(lo, s.pos); hi = Math.max(hi, s.pos);
+    const d = s.pos - anchor;
+    if (Math.abs(d) > 0.12) { const nd = Math.sign(d); if (dir && nd !== dir) rev.push(s.t); dir = nd; anchor = s.pos; }
+  }
+  const recent = rev.filter(t => tn - t < 700);
+  if (!TP.shake && recent.length >= 3 && hi - lo < 2.6) startShake(AE.ctx.currentTime + 0.003);
+  else if (TP.shake && (rev.length === 0 || tn - rev[rev.length - 1] > 260)) endShake(AE.ctx.currentTime + 0.003);
+}
+function airUp() {
+  if (TP.pending) { clearTimeout(TP.pending); TP.pending = null; }
+  const sp = airSpeed(110);
+  TP.blowing = false;
+  let flick = null;
+  if (sp < -9 && TP.zone >= 2) flick = 'fall';
+  else if (sp > 9) flick = 'doit';
+  noteOff(flick);
+}
+function tongueTap() {
+  if (TP.blowing && canPlay()) { if (TP.shake) endShake(AE.ctx.currentTime); noteOn('tongue'); tpEmit('tongue', { t: AE.ctx.currentTime }); }
+}
+function setValve(i, down) {
+  const bit = i === 1 ? 1 : i === 2 ? 2 : 4;
+  const m = down ? (TP.rawMask | bit) : (TP.rawMask & ~bit);
+  if (m === TP.rawMask) return;
+  TP.rawMask = m;
+  clearTimeout(TP.valveTimer);
+  TP.valveTimer = setTimeout(() => { if (TP.mask !== TP.rawMask) { TP.mask = TP.rawMask; legato('valve'); } }, 12);
+}
+function releaseAllInput() {
+  if (TP.blowing) { TP.blowing = false; noteOff(null); }
+  TP.rawMask = 0; TP.mask = 0;
+}
+
+// ---------- 악기·뮤트 교체 ----------
+function swapItem(item) {
+  if (!AE.ctx || AE.ctx.currentTime < TP.busyUntil) return false;
+  const t = AE.ctx.currentTime;
+  const before = { instr: TP.instr, mute: TP.mute };
+  let instr = TP.instr, mute = TP.mute;
+  if (item === 'flugel') { instr = TP.instr === 'flugel' ? 'tp' : 'flugel'; mute = null; }
+  else { instr = 'tp'; mute = TP.mute === item ? null : item; }
+  const bigSwap = instr !== TP.instr;
+  if (TP.blowing) { TP.blowing = false; noteOff(null); }
+  TP.busyUntil = t + (bigSwap ? 0.95 : 0.7);
+  setTimeout(() => { TP.instr = instr; TP.mute = mute; applyInstrumentTone(); }, bigSwap ? 450 : 330);
+  tpEmit('swap', { t, item, from: before, to: { instr, mute }, big: bigSwap });
+  return true;
+}
+
+function trumpetTick() {
+  const now = AE.ctx.currentTime, v = TP.voice;
+  if (TP.blowing) TP.lastSoundT = now;
+  if (TP.blowing && v && !v.dead && !TP.shake && !TP.vibOn && now - TP.pitchT0 > 0.42) {
+    TP.vibOn = true; v.vibrato(vibDepth(), now, 0.35);
+  }
+}
+
+// ===== 50_scene.js =====
+// ===================== 3D 장면: 가게 =====================
+const SC = { renderer: null, scene: null, camera: null, W: 1, H: 1, env: null, lights: {}, clickables: [], portrait: true };
+const C = h => new THREE.Color(h);
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const _e = new THREE.Euler(), _q = new THREE.Quaternion();
+function M4(p = [0, 0, 0], r = [0, 0, 0], s = [1, 1, 1]) {
+  if (!Array.isArray(r)) r = [0, 0, 0];
+  if (!Array.isArray(s)) s = typeof s === 'number' ? [s, s, s] : [1, 1, 1];
+  _e.set(r[0], r[1], r[2]); _q.setFromEuler(_e);
+  return new THREE.Matrix4().compose(V3(p[0], p[1], p[2]), _q, V3(s[0], s[1], s[2]));
+}
+// 꼭짓점 색을 입힌 기하 (병합용)
+function gc(geo, color, m) {
+  const g = geo.clone();
+  if (m) g.applyMatrix4(m);
+  for (const k of ['uv', 'uv1', 'uv2']) if (g.attributes[k]) g.deleteAttribute(k);
+  const c = color instanceof THREE.Color ? color : C(color), n = g.attributes.position.count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return g.index ? g : g;
+}
+function merged(list) {
+  const idx = list.filter(g => g.index), non = list.filter(g => !g.index);
+  const all = non.length ? list.map(g => g.index ? g.toNonIndexed() : g) : idx;
+  return mergeGeometries(all, false);
+}
+const GEO = {
+  box: new THREE.BoxGeometry(1, 1, 1),
+  sph: new THREE.SphereGeometry(0.5, 24, 16),
+  sphLo: new THREE.SphereGeometry(0.5, 14, 10),
+  cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 20),
+  cylLo: new THREE.CylinderGeometry(0.5, 0.5, 1, 10),
+  // 캡슐: 높이 1, 반지름 0.5 (scale y = 전체 길이)
+  cap: new THREE.CapsuleGeometry(0.5, 1, 6, 14).scale(1, 0.5, 1),
+  capLo: new THREE.CapsuleGeometry(0.5, 1, 4, 8).scale(1, 0.5, 1),
+  tor: new THREE.TorusGeometry(0.5, 0.1, 10, 28),
+};
+function rbox(w, h, d, r = 0.02, seg = 3) { // 모서리 둥근 상자
+  const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r);
+  s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  const g = new THREE.ExtrudeGeometry(s, { depth: d - 2 * Math.min(r, d / 3), bevelEnabled: true, bevelThickness: Math.min(r, d / 3), bevelSize: Math.min(r, d / 3) * 0.9, bevelSegments: seg, curveSegments: 4 });
+  g.translate(0, 0, -(d - 2 * Math.min(r, d / 3)) / 2);
+  return g;
+}
+
+const MAT = {};
+function makeMaterials() {
+  MAT.cloth = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 });
+  MAT.skin = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.52, metalness: 0 });
+  MAT.gloss = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0 });
+  MAT.matte = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  MAT.brass = new THREE.MeshStandardMaterial({ color: C('#e9b44c'), metalness: 1, roughness: 0.2, envMap: SC.env, envMapIntensity: 1.25 });
+  MAT.brassDark = new THREE.MeshStandardMaterial({ color: C('#b07a22'), metalness: 1, roughness: 0.35, envMap: SC.env, envMapIntensity: 1.0 });
+  MAT.chrome = new THREE.MeshStandardMaterial({ color: C('#dfe4ea'), metalness: 1, roughness: 0.16, envMap: SC.env, envMapIntensity: 1.2 });
+  MAT.cymbal = new THREE.MeshStandardMaterial({ color: C('#d4a64a'), metalness: 0.9, roughness: 0.33, envMap: SC.env, envMapIntensity: 1.0 });
+  MAT.pianoBlack = new THREE.MeshStandardMaterial({ color: C('#16151b'), metalness: 0.1, roughness: 0.12, envMap: SC.env, envMapIntensity: 0.9 });
+  MAT.glassVC = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.08, metalness: 0, envMap: SC.env, envMapIntensity: 1.1, transparent: true, opacity: 0.82 });
+  MAT.pearl = new THREE.MeshStandardMaterial({ color: C('#f5eef2'), roughness: 0.25, metalness: 0.05, envMap: SC.env, envMapIntensity: 0.6 });
+  MAT.emissive = new THREE.MeshBasicMaterial({ color: C('#fff1c9') });
+}
+
+function canvasTex(w, h, draw, rep) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); }
+  return t;
+}
+function herringbone() {
+  return canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = '#7a4524'; g.fillRect(0, 0, w, h);
+    const cols = ['#8e5229', '#9c5d2f', '#84492a', '#a5673a', '#7d4626', '#94582f'];
+    const L = 128, T = 32;
+    for (let y = -L; y < h + L; y += T * 2) for (let x = -L; x < w + L; x += L) {
+      for (let k = 0; k < 2; k++) {
+        g.save(); g.translate(x + k * T * 2, y + k * T * 2); g.rotate(k ? -Math.PI / 4 : Math.PI / 4);
+        g.fillStyle = pick(cols); g.fillRect(0, 0, L * 0.98, T * 0.96);
+        g.globalAlpha = 0.18; g.fillStyle = '#3b1f0e';
+        for (let i = 0; i < 5; i++) g.fillRect(rand(0, L), rand(0, T), rand(10, 40), 1);
+        g.restore(); g.globalAlpha = 1;
+      }
+    }
+  }, [5, 5]);
+}
+function rugTex() {
+  return canvasTex(512, 512, (g, w, h) => {
+    const cx = w / 2, cy = h / 2;
+    g.fillStyle = '#9e1f2a'; g.beginPath(); g.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2); g.fill();
+    const ring = (r, c, lw) => { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); g.ellipse(cx, cy, r, r, 0, 0, Math.PI * 2); g.stroke(); };
+    ring(w * 0.47, '#f2b531', 10); ring(w * 0.43, '#1d2f6f', 14); ring(w * 0.39, '#f2b531', 4);
+    for (let i = 0; i < 24; i++) {
+      const a = i / 24 * Math.PI * 2; g.save(); g.translate(cx + Math.cos(a) * w * 0.31, cy + Math.sin(a) * w * 0.31); g.rotate(a);
+      g.fillStyle = i % 2 ? '#f6e3c4' : '#1d2f6f'; g.beginPath(); g.moveTo(0, -16); g.lineTo(12, 0); g.lineTo(0, 16); g.lineTo(-12, 0); g.fill(); g.restore();
+    }
+    ring(w * 0.22, '#f6e3c4', 6);
+    g.fillStyle = '#1d2f6f'; g.beginPath(); g.arc(cx, cy, w * 0.12, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#f2b531'; for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; g.beginPath(); g.arc(cx + Math.cos(a) * w * 0.17, cy + Math.sin(a) * w * 0.17, 7, 0, Math.PI * 2); g.fill(); }
+  });
+}
+function skyTex() {
+  return canvasTex(256, 512, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h);
+    gr.addColorStop(0, '#5aa9f0'); gr.addColorStop(0.55, '#a7d4fb'); gr.addColorStop(0.8, '#ffe2b4'); gr.addColorStop(1, '#ffc98a');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,255,255,.85)';
+    for (let i = 0; i < 6; i++) { const x = rand(0, w), y = rand(h * 0.1, h * 0.5); for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(x + k * 14, y + rand(-6, 6), rand(10, 20), 0, Math.PI * 2); g.fill(); } }
+    // 건너편 건물 실루엣
+    for (let x = 0; x < w; x += rand(26, 50)) { const bh = rand(h * 0.12, h * 0.28); g.fillStyle = pick(['#d98e62', '#c96f55', '#e4ad7d', '#b8604c']); g.fillRect(x, h - bh, rand(24, 48), bh); g.fillStyle = 'rgba(255,240,200,.6)'; for (let yy = h - bh + 8; yy < h - 6; yy += 16) for (let xx = x + 5; xx < x + 20; xx += 9) g.fillRect(xx, yy, 4, 7); }
+  });
+}
+function artTex(seed) {
+  return canvasTex(256, 320, (g, w, h) => {
+    const pal = [['#f2b531', '#e2452b', '#2346b8', '#fbf1dc', '#11806f'], ['#ff8a5b', '#1c1f33', '#f6e3c4', '#3aa6b9', '#f2b531'], ['#2346b8', '#fbf1dc', '#e2452b', '#1c1f33', '#9bc53d']][seed % 3];
+    g.fillStyle = pal[3]; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 9; i++) {
+      g.fillStyle = pal[i % 5]; const r = rand(20, 90);
+      if (i % 3 === 0) { g.beginPath(); g.arc(rand(0, w), rand(0, h), r, 0, Math.PI * 2); g.fill(); }
+      else if (i % 3 === 1) g.fillRect(rand(-20, w - 40), rand(-20, h - 40), rand(40, 160), rand(16, 60));
+      else { g.beginPath(); g.moveTo(rand(0, w), rand(0, h)); g.lineTo(rand(0, w), rand(0, h)); g.lineTo(rand(0, w), rand(0, h)); g.fill(); }
+    }
+    g.strokeStyle = pal[1]; g.lineWidth = 6; g.beginPath(); g.moveTo(20, h * 0.75); for (let x = 20; x < w - 20; x += 20) g.lineTo(x, h * 0.75 + Math.sin(x / 18 + seed) * 18); g.stroke();
+  });
+}
+
+function initScene() {
+  const canvas = document.getElementById('scene');
+  // 화면 밀도가 높은 폰은 이미 계단이 잘 안 보이므로 MSAA를 끄고 그만큼 프레임을 확보
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 1.5, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.0;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
+  SC.renderer = renderer;
+  const scene = new THREE.Scene(); scene.background = C('#f3dfbd');
+  SC.scene = scene;
+  const pm = new THREE.PMREMGenerator(renderer);
+  SC.env = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+  makeMaterials();
+  const camera = new THREE.PerspectiveCamera(66, 1, 0.03, 60);
+  camera.position.set(0, 1.6, 0.25);
+  SC.camera = camera; scene.add(camera);
+  // 1인칭 악기는 따로 그린다 (세로 화면 왜곡 방지)
+  SC.vmScene = new THREE.Scene();
+  SC.vmCam = new THREE.PerspectiveCamera(44, 1, 0.01, 5);
+  SC.vmScene.add(new THREE.HemisphereLight(C('#fff1dc'), C('#b86a3a'), 1.3));
+  const vs = new THREE.DirectionalLight(C('#ffd9a6'), 2.6); vs.position.set(-2, 2.5, 1.2); SC.vmScene.add(vs);
+  const vf = new THREE.DirectionalLight(C('#cfe0ff'), 0.7); vf.position.set(1.5, 0.5, 2); SC.vmScene.add(vf);
+  renderer.autoClear = false;
+  buildLights();
+  buildRoom();
+  onResize();
+  window.addEventListener('resize', onResize);
+}
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  SC.W = w; SC.H = h; SC.portrait = h > w;
+  SC.renderer.setSize(w, h, false);
+  const asp = w / h;
+  // 세로 화면에서도 밴드 네 명이 다 들어오도록 가로 시야를 확보
+  const hfov = SC.portrait ? 40 : 66;
+  let vfov = 2 * Math.atan(Math.tan(hfov * Math.PI / 360) / asp) * 180 / Math.PI;
+  vfov = clamp(vfov, 44, 78);
+  SC.camera.fov = vfov; SC.camera.aspect = asp; SC.camera.updateProjectionMatrix();
+  SC.vmCam.fov = SC.portrait ? 50 : 40; SC.vmCam.aspect = asp; SC.vmCam.updateProjectionMatrix();
+  aimCamera();
+  if (typeof placeMe === 'function' && ME.rig) placeMe();
+}
+function aimCamera() {
+  const cam = SC.camera;
+  cam.position.set(0, 1.63, SC.portrait ? 0.62 : 0.4);
+  cam.lookAt(SC.portrait ? -0.1 : -0.05, SC.portrait ? 0.1 : 0.9, -3.2);
+}
+
+function buildLights() {
+  const s = SC.scene;
+  const hemi = new THREE.HemisphereLight(C('#dcebff'), C('#e6b88a'), 1.15); s.add(hemi);
+  // 늦은 오후 해: 낮게 왼쪽 창으로 들어와 밴드를 비춤
+  const sun = new THREE.DirectionalLight(C('#ffd49a'), 3.6);
+  sun.position.set(-9.0, 3.8, -1.5); sun.target.position.set(0, 0.8, -3.0);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  const sc = sun.shadow.camera; sc.left = -7; sc.right = 7; sc.top = 5; sc.bottom = -5; sc.near = 0.5; sc.far = 22;
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; sun.shadow.radius = 3;
+  s.add(sun); s.add(sun.target);
+  const fill = new THREE.DirectionalLight(C('#ffe8cc'), 0.85); fill.position.set(2.5, 3.2, 4.5); fill.target.position.set(0, 1.1, -3); s.add(fill); s.add(fill.target);
+  const spot = new THREE.SpotLight(C('#ffd79a'), 28, 9, 0.62, 0.6, 1.4);
+  spot.position.set(0.4, 3.45, -0.6); spot.target.position.set(0, 0.9, -3.2); s.add(spot); s.add(spot.target);
+  SC.lights = { hemi, sun, fill, spot };
+}
+
+function buildRoom() {
+  const s = SC.scene, W = 6.2, ZB = -11.5, H = 3.7;
+  // 바닥
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, 16), new THREE.MeshStandardMaterial({ map: herringbone(), roughness: 0.48, metalness: 0, envMap: SC.env, envMapIntensity: 0.25 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, -4); floor.receiveShadow = true; s.add(floor);
+  // 밴드 깔개
+  const rug = new THREE.Mesh(new THREE.CircleGeometry(2.25, 64), new THREE.MeshStandardMaterial({ map: rugTex(), roughness: 0.95 }));
+  rug.rotation.x = -Math.PI / 2; rug.scale.set(1.15, 1, 1); rug.position.set(0, 0.006, -3.1); rug.receiveShadow = true; s.add(rug);
+  // 벽 재질
+  const cobalt = new THREE.MeshStandardMaterial({ color: C('#2a4fbf'), roughness: 0.85 });
+  const cream = new THREE.MeshStandardMaterial({ color: C('#f4e4c6'), roughness: 0.9 });
+  const wain = new THREE.MeshStandardMaterial({ color: C('#7a3b20'), roughness: 0.55, envMap: SC.env, envMapIntensity: 0.2 });
+  // 뒷벽 + 오른벽 (코발트) + 징두리
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, H), cobalt); back.position.set(0, H / 2, ZB); back.receiveShadow = true; s.add(back);
+  const right = new THREE.Mesh(new THREE.PlaneGeometry(16, H), cobalt); right.rotation.y = -Math.PI / 2; right.position.set(W, H / 2, -3.5); right.receiveShadow = true; s.add(right);
+  const wl = [];
+  wl.push(gc(GEO.box, '#7a3b20', M4([0, 0.5, ZB + 0.04], 0, [W * 2, 1.0, 0.08])), gc(GEO.box, '#e9b44c', M4([0, 1.02, ZB + 0.08], 0, [W * 2, 0.05, 0.1])));
+  wl.push(gc(GEO.box, '#7a3b20', M4([W - 0.04, 0.5, -3.5], 0, [0.08, 1.0, 16])), gc(GEO.box, '#e9b44c', M4([W - 0.08, 1.02, -3.5], 0, [0.1, 0.05, 16])));
+  const wm = new THREE.Mesh(merged(wl), MAT.gloss); wm.receiveShadow = true; s.add(wm);
+  // 왼벽: 큰 창 세 개 (해가 들어오는 쪽)
+  const winZ = [-1.4, -4.6, -7.8], winW = 2.2, sill = 0.8, top = 3.15;
+  const wallParts = [];
+  const addWall = (z0, z1, y0, y1) => wallParts.push(gc(GEO.box, '#f4e4c6', M4([-W, (y0 + y1) / 2, (z0 + z1) / 2], 0, [0.25, y1 - y0, Math.abs(z1 - z0)])));
+  let zPrev = 3.5;
+  for (const z of winZ) { addWall(zPrev, z + winW / 2, 0, H); addWall(z + winW / 2, z - winW / 2, 0, sill); addWall(z + winW / 2, z - winW / 2, top, H); zPrev = z - winW / 2; }
+  addWall(zPrev, ZB, 0, H);
+  const wallM = new THREE.Mesh(merged(wallParts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
+  wallM.castShadow = true; wallM.receiveShadow = true; s.add(wallM);
+  // 창틀 (진녹색) + 십자 창살
+  const fr = [];
+  for (const z of winZ) {
+    const c = '#145c4c';
+    fr.push(gc(GEO.box, c, M4([-W + 0.02, sill, z], 0, [0.3, 0.08, winW + 0.1])), gc(GEO.box, c, M4([-W + 0.02, top, z], 0, [0.3, 0.08, winW + 0.1])));
+    fr.push(gc(GEO.box, c, M4([-W + 0.02, (sill + top) / 2, z + winW / 2], 0, [0.3, top - sill, 0.08])), gc(GEO.box, c, M4([-W + 0.02, (sill + top) / 2, z - winW / 2], 0, [0.3, top - sill, 0.08])));
+    fr.push(gc(GEO.box, c, M4([-W + 0.02, (sill + top) / 2, z], 0, [0.12, top - sill, 0.05])), gc(GEO.box, c, M4([-W + 0.02, sill + (top - sill) * 0.62, z], 0, [0.12, 0.05, winW])));
+    fr.push(gc(GEO.box, '#e9d2a8', M4([-W + 0.16, sill - 0.03, z], 0, [0.32, 0.05, winW + 0.2])));
+  }
+  const frM = new THREE.Mesh(merged(fr), MAT.gloss); frM.castShadow = true; s.add(frM);
+  // 창밖 하늘
+  const sky = new THREE.Mesh(new THREE.PlaneGeometry(14, 6), new THREE.MeshBasicMaterial({ map: skyTex() }));
+  sky.rotation.y = Math.PI / 2; sky.position.set(-W - 1.6, 2.2, -4.6); s.add(sky);
+  // 햇살 기둥
+  const shaft = new THREE.MeshBasicMaterial({ color: C('#fff0c4'), transparent: true, opacity: 0.055, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  for (const z of winZ) {
+    const g = new THREE.BufferGeometry();
+    // 창 네 모서리에서 햇빛 방향 (9, -3, -1.5)으로 바닥까지
+    const fx = y => -W + 3 * y, fz = (z0, y) => z0 - 0.5 * y;
+    const p = [-W, top, z + winW / 2, -W, top, z - winW / 2, -W, sill, z - winW / 2, -W, sill, z + winW / 2,
+      fx(top), 0.0, fz(z + winW / 2, top), fx(top), 0.0, fz(z - winW / 2, top), fx(sill), 0.0, fz(z - winW / 2, sill), fx(sill), 0.0, fz(z + winW / 2, sill)];
+    g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    g.setIndex([0, 1, 5, 0, 5, 4, 3, 2, 6, 3, 6, 7, 0, 4, 7, 0, 7, 3, 1, 2, 6, 1, 6, 5]);
+    const m = new THREE.Mesh(g, shaft); m.renderOrder = 5; s.add(m);
+  }
+  // 천장 + 들보
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, 16), new THREE.MeshStandardMaterial({ color: C('#fbf1dc'), roughness: 0.95, emissive: C('#f0dcb8'), emissiveIntensity: 0.55 }));
+  ceil.rotation.x = Math.PI / 2; ceil.position.set(0, H, -3.5); s.add(ceil);
+  const beams = [];
+  for (let z = 0.8; z > ZB; z -= 3.0) beams.push(gc(GEO.box, '#b97a45', M4([0, H - 0.08, z], 0, [W * 2, 0.16, 0.18])));
+  const bm = new THREE.Mesh(merged(beams), MAT.gloss); s.add(bm);
+  // 펜던트 조명
+  const lamps = [], bulbs = [];
+  for (const [x, z] of [[-2.2, -2.2], [2.2, -2.4], [0, -6.4], [-3.2, -7.4], [3.0, -7.0], [0, -1.0]]) {
+    lamps.push(gc(GEO.cylLo, '#2b2b2b', M4([x, H - 0.45, z], 0, [0.012, 0.9, 0.012])));
+    const sh = new THREE.LatheGeometry([V3(0.02, 0.12, 0), V3(0.08, 0.1, 0), V3(0.2, 0.02, 0), V3(0.24, -0.06, 0), V3(0.235, -0.07, 0)], 24);
+    lamps.push(gc(sh, '#e9b44c', M4([x, H - 0.95, z])));
+    bulbs.push(gc(GEO.sphLo, '#fff4d2', M4([x, H - 1.04, z], 0, [0.1, 0.1, 0.1])));
+  }
+  const lm = new THREE.Mesh(merged(lamps), MAT.gloss); s.add(lm);
+  s.add(new THREE.Mesh(merged(bulbs), new THREE.MeshBasicMaterial({ vertexColors: true })));
+  // 오른벽 그림 액자
+  const arts = [[-1.2, 2.1, 0.9, 1.15, 0], [-4.3, 2.0, 1.1, 1.4, 1], [-8.0, 2.2, 0.8, 1.0, 2]];
+  for (const [z, y, w, h, k] of arts) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(0.05, h + 0.12, w + 0.12), MAT.brassDark); f.position.set(W - 0.03, y, z); s.add(f);
+    const a = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: artTex(k), roughness: 0.7 }));
+    a.rotation.y = -Math.PI / 2; a.position.set(W - 0.06, y, z); s.add(a);
+  }
+  buildBar(ZB);
+  buildPlants(W, ZB);
+}
+function buildBar(ZB) {
+  const s = SC.scene, x0 = 1.0, x1 = 5.6, zc = ZB + 1.25;
+  const parts = [];
+  parts.push(gc(rbox(x1 - x0, 1.05, 0.62, 0.03), '#5a2a14', M4([(x0 + x1) / 2, 0.525, zc])));
+  parts.push(gc(rbox(x1 - x0 + 0.16, 0.06, 0.78, 0.02), '#2b1a10', M4([(x0 + x1) / 2, 1.08, zc])));
+  for (let x = x0 + 0.3; x < x1; x += 0.55) parts.push(gc(GEO.box, '#6e3519', M4([x, 0.55, zc + 0.315], 0, [0.36, 0.8, 0.02])));
+  // 뒷선반
+  for (const y of [1.45, 1.95, 2.45]) parts.push(gc(GEO.box, '#3a1d0e', M4([(x0 + x1) / 2, y, ZB + 0.18], 0, [x1 - x0, 0.04, 0.3])));
+  const m = new THREE.Mesh(merged(parts), MAT.gloss); m.castShadow = true; m.receiveShadow = true; s.add(m);
+  const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, x1 - x0, 12), MAT.brass); rail.rotation.z = Math.PI / 2; rail.position.set((x0 + x1) / 2, 0.18, zc + 0.42); s.add(rail);
+  // 병들
+  const bot = [];
+  const cols = ['#2f8f4e', '#c9452f', '#e8a93a', '#6d3fa6', '#3b7fd1', '#e0d27a', '#8a2f1d', '#1c6b62'];
+  for (const y of [1.47, 1.97, 2.47]) for (let x = x0 + 0.15; x < x1 - 0.1; x += rand(0.12, 0.2)) {
+    const h = rand(0.22, 0.34), r = rand(0.035, 0.055), c = pick(cols);
+    bot.push(gc(GEO.cylLo, c, M4([x, y + h / 2, ZB + 0.2], 0, [r * 2, h, r * 2])));
+    bot.push(gc(GEO.cylLo, c, M4([x, y + h + 0.05, ZB + 0.2], 0, [r * 0.7, 0.1, r * 0.7])));
+  }
+  const bm = new THREE.Mesh(merged(bot), MAT.glassVC); s.add(bm);
+  SC.barPos = V3((x0 + x1) / 2, 0, zc);
+}
+function buildPlants(W, ZB) {
+  const s = SC.scene, parts = [], leaves = [];
+  for (const [x, z, sc] of [[-5.3, -10.4, 1.2], [5.4, -9.4, 1.0], [-5.4, -0.2, 0.9]]) {
+    parts.push(gc(new THREE.CylinderGeometry(0.26, 0.2, 0.5, 18), '#d36a3a', M4([x, 0.25, z], 0, [sc, sc, sc])));
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * Math.PI * 2 + rand(-0.2, 0.2), h = rand(0.7, 1.5) * sc;
+      const lf = new THREE.SphereGeometry(0.22 * sc, 10, 8); lf.scale(1.6, 0.12, 1);
+      leaves.push(gc(lf, pick(['#2f8a4e', '#3fa35c', '#237043']), M4([x + Math.cos(a) * 0.32 * sc, 0.5 + h, z + Math.sin(a) * 0.32 * sc], [rand(-0.5, 0.5), -a, rand(0.3, 0.7)])));
+      leaves.push(gc(GEO.cylLo, '#2d6b36', M4([x + Math.cos(a) * 0.16 * sc, 0.5 + h / 2, z + Math.sin(a) * 0.16 * sc], [Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3], [0.025, h, 0.025])));
+    }
+  }
+  const pm = new THREE.Mesh(merged(parts), MAT.cloth); pm.castShadow = true; s.add(pm);
+  const lm = new THREE.Mesh(merged(leaves), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: THREE.DoubleSide })); lm.castShadow = true; s.add(lm);
+}
+// 테이블과 의자 (관객 자리)
+function buildTable(x, z, ry = 0) {
+  const s = SC.scene, p = [];
+  p.push(gc(new THREE.CylinderGeometry(0.36, 0.36, 0.035, 32), '#f2ece4', M4([x, 0.74, z])));
+  p.push(gc(new THREE.CylinderGeometry(0.03, 0.03, 0.72, 10), '#1f1f24', M4([x, 0.37, z])));
+  p.push(gc(new THREE.CylinderGeometry(0.2, 0.24, 0.03, 20), '#1f1f24', M4([x, 0.015, z])));
+  const m = new THREE.Mesh(merged(p), MAT.gloss); m.castShadow = true; m.receiveShadow = true; s.add(m);
+  return m;
+}
+function buildChair(x, z, ry) {
+  const p = [], c = '#5b2d17';
+  const o = M4([x, 0, z], [0, ry, 0]);
+  const add = (g, m) => p.push(gc(g, c, new THREE.Matrix4().multiplyMatrices(o, m)));
+  add(new THREE.CylinderGeometry(0.21, 0.21, 0.04, 24), M4([0, 0.46, 0]));
+  for (const [dx, dz] of [[0.15, 0.15], [-0.15, 0.15], [0.15, -0.15], [-0.15, -0.15]]) add(GEO.cylLo, M4([dx, 0.23, dz], [dz * 0.4, 0, -dx * 0.4], [0.03, 0.47, 0.03]));
+  const back = new THREE.TorusGeometry(0.19, 0.016, 8, 20, Math.PI); add(back, M4([0, 0.72, -0.17], [0, 0, 0]));
+  add(GEO.cylLo, M4([0.18, 0.6, -0.17], 0, [0.03, 0.28, 0.03])); add(GEO.cylLo, M4([-0.18, 0.6, -0.17], 0, [0.03, 0.28, 0.03]));
+  const m = new THREE.Mesh(merged(p), MAT.gloss); m.castShadow = true; SC.scene.add(m);
+}
+function addDrink(x, z, kind = 0) {
+  const p = [];
+  const cols = ['#e8a93a', '#c9452f', '#f6e3c4', '#3aa66b', '#7a2a1d'];
+  const c = cols[kind % cols.length];
+  if (kind % 3 === 0) { p.push(gc(new THREE.CylinderGeometry(0.035, 0.03, 0.09, 14), c, M4([x, 0.8, z]))); }
+  else if (kind % 3 === 1) { p.push(gc(new THREE.ConeGeometry(0.05, 0.06, 16), c, M4([x, 0.84, z], [Math.PI, 0, 0]))); p.push(gc(GEO.cylLo, '#e8e2da', M4([x, 0.79, z], 0, [0.008, 0.05, 0.008]))); }
+  else { p.push(gc(new THREE.CylinderGeometry(0.03, 0.03, 0.13, 14), c, M4([x, 0.82, z]))); }
+  const m = new THREE.Mesh(merged(p), MAT.glassVC); SC.scene.add(m);
+  return m;
+}
+
+// ===== 60_people.js =====
+// ===================== 사람 =====================
+const SKIN = ['#f5d2b6', '#eebf9a', '#d9a27a', '#b9784f', '#8d5435', '#6a3b24', '#f3c9a6', '#c88b62'];
+const HAIRC = ['#1d1a1a', '#3b2416', '#5a3a22', '#8a5a2e', '#c99a5b', '#d8d2c8', '#2b2b30', '#7a2f1d'];
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m1 = new THREE.Matrix4();
+const DOWN = new THREE.Vector3(0, -1, 0);
+
+function mk(geo, mat, cast = true) { const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = false; return m; }
+function grp(parent, x = 0, y = 0, z = 0) { const g = new THREE.Group(); g.position.set(x, y, z); if (parent) parent.add(g); return g; }
+
+// 손 모양들 (손목이 원점, 손가락은 -Y 방향)
+function handGeo(skin, kind, lo) {
+  const p = [], seg = lo ? GEO.capLo : GEO.cap;
+  p.push(gc(rbox(0.075, 0.085, 0.032, 0.014, lo ? 1 : 2), skin, M4([0, -0.045, 0])));
+  const fx = [-0.027, -0.009, 0.009, 0.027], fl = [0.05, 0.058, 0.055, 0.044];
+  for (let i = 0; i < 4; i++) {
+    let rx = 0.25, len = fl[i];
+    if (kind === 'grip') rx = 1.9;
+    else if (kind === 'fist') rx = 2.4;
+    else if (kind === 'flat') rx = 0.05;
+    else if (kind === 'point') rx = i === 1 ? 0.05 : 2.3;
+    else if (kind === 'snap') rx = i === 2 ? 1.2 : 1.6;
+    else if (kind === 'curl') rx = 0.9;
+    // 두 마디로 굽히기
+    const base = M4([fx[i], -0.088, 0]);
+    const r1 = M4([0, 0, 0], [rx * 0.55, 0, 0]);
+    const m1 = new THREE.Matrix4().multiplyMatrices(base, r1);
+    p.push(gc(seg, skin, new THREE.Matrix4().multiplyMatrices(m1, M4([0, -len * 0.3, 0], 0, [0.017, len * 0.45, 0.017]))));
+    const m2 = new THREE.Matrix4().multiplyMatrices(m1, M4([0, -len * 0.55, 0], [rx * 0.6, 0, 0]));
+    p.push(gc(seg, skin, new THREE.Matrix4().multiplyMatrices(m2, M4([0, -len * 0.25, 0], 0, [0.0155, len * 0.38, 0.0155]))));
+  }
+  // 엄지
+  const tr = kind === 'flat' ? [0, 0, 0.5] : kind === 'grip' || kind === 'fist' ? [1.1, 0.4, 0.9] : kind === 'snap' ? [1.0, 0, 0.6] : [0.5, 0.3, 0.7];
+  p.push(gc(seg, skin, new THREE.Matrix4().multiplyMatrices(M4([-0.037, -0.03, 0.008], tr), M4([0, -0.022, 0], 0, [0.019, 0.04, 0.019]))));
+  return merged(p);
+}
+
+class Person {
+  constructor(o) {
+    this.o = o; const lo = !!o.lo; this.lo = lo;
+    const skin = C(o.skin), hairC = C(o.hairColor), seated = !!o.seated;
+    this.seated = seated;
+    const root = grp(null, o.x || 0, 0, o.z || 0); root.rotation.y = o.ry || 0; this.root = root;
+    const S = o.scale || 1; root.scale.setScalar(S);
+    const hipY = seated ? 0.5 : 0.93;
+    const hips = grp(root, 0, hipY, 0); this.hips = hips;
+    const pants = C(o.pants), shoes = C(o.shoes || '#1d1b1f'), top = C(o.top), jacket = o.jacket ? C(o.jacket) : null, outer = jacket || top;
+    const sg = lo ? GEO.capLo : GEO.cap;
+    // 다리
+    const legs = [], legsUp = [];
+    if (seated) for (const sx of [-1, 1]) {
+      legsUp.push(gc(sg, pants, M4([sx * 0.1, -0.22, 0], 0, [0.145, 0.5, 0.15])));
+      legsUp.push(gc(sg, pants, M4([sx * 0.105, -0.66, 0.0], 0, [0.12, 0.48, 0.125])));
+      legsUp.push(gc(rbox(0.1, 0.07, 0.25, 0.03, 1), shoes, M4([sx * 0.105, -0.895, 0.05])));
+    }
+    for (const sx of [-1, 1]) {
+      if (seated) {
+        legs.push(gc(sg, pants, M4([sx * 0.1, 0, 0.2], [Math.PI / 2, 0, 0], [0.145, 0.5, 0.15])));
+        legs.push(gc(sg, pants, M4([sx * 0.11, -0.25, 0.43], [0, 0, 0], [0.12, 0.5, 0.125])));
+        legs.push(gc(rbox(0.1, 0.07, 0.24, 0.03, 1), shoes, M4([sx * 0.11, -0.47, 0.47])));
+      } else {
+        legs.push(gc(sg, pants, M4([sx * 0.1, -0.22, 0], 0, [0.145, 0.5, 0.15])));
+        legs.push(gc(sg, pants, M4([sx * 0.105, -0.66, 0.0], 0, [0.12, 0.48, 0.125])));
+        legs.push(gc(rbox(0.1, 0.07, 0.25, 0.03, 1), shoes, M4([sx * 0.105, -0.895, 0.05])));
+      }
+    }
+    const pelvis = gc(rbox(0.32, 0.18, 0.21, 0.07, lo ? 1 : 2), pants, M4([0, 0.02, 0]));
+    legs.push(pelvis);
+    this.legsSit = mk(merged(legs), MAT.cloth); hips.add(this.legsSit);
+    if (seated) { legsUp.push(pelvis.clone()); this.legsUp = mk(merged(legsUp), MAT.cloth); this.legsUp.visible = false; hips.add(this.legsUp); }
+    // 몸통
+    const spine = grp(hips, 0, 0.06, 0); this.spine = spine;
+    const chest = grp(spine, 0, 0, 0); this.chest = chest;
+    const tp = [], belly = o.belly || 0, fem = !!o.fem;
+    const sw = fem ? 0.9 : 1;
+    // 허리 → 가슴 → 어깨 (위로 갈수록 넓게)
+    tp.push(gc(sg, outer, M4([0, 0.12, 0], 0, [0.28 * sw + belly * 0.06, 0.3, 0.2 + belly * 0.08])));
+    tp.push(gc(GEO.sph, outer, M4([0, 0.27, 0.005], 0, [0.36 * sw, 0.34, 0.235])));
+    tp.push(gc(GEO.sph, outer, M4([0, 0.415, -0.005], 0, [0.44 * sw, 0.16, 0.21])));
+    for (const sx of [-1, 1]) tp.push(gc(GEO.sph, outer, M4([sx * 0.19 * sw, 0.41, 0], 0, [0.13, 0.12, 0.13])));
+    if (belly) tp.push(gc(GEO.sph, outer, M4([0, 0.12, 0.05], 0, [0.3, 0.26, 0.24 + belly * 0.08])));
+    if (jacket) {
+      const sh = C(o.top);
+      tp.push(gc(new THREE.ConeGeometry(0.075, 0.24, 3), sh, M4([0, 0.37, 0.108], [Math.PI, 0, 0], [1, 1, 0.25])));
+      if (o.tie) tp.push(gc(rbox(0.035, 0.21, 0.012, 0.006, 1), C(o.tie), M4([0, 0.31, 0.123], [0.08, 0, 0])));
+      const lap = jacket.clone().multiplyScalar(0.72);
+      tp.push(gc(GEO.box, lap, M4([0.058, 0.35, 0.112], [0.12, 0, -0.38], [0.035, 0.22, 0.012])), gc(GEO.box, lap, M4([-0.058, 0.35, 0.112], [0.12, 0, 0.38], [0.035, 0.22, 0.012])));
+      tp.push(gc(GEO.sphLo, C('#e9e2d0'), M4([0, 0.17, 0.117], 0, [0.02, 0.02, 0.012])), gc(GEO.sphLo, C('#e9e2d0'), M4([0, 0.08, 0.112], 0, [0.02, 0.02, 0.012])));
+    } else {
+      tp.push(gc(GEO.tor, outer.clone().multiplyScalar(0.8), M4([0, 0.49, 0.005], [Math.PI / 2, 0, 0], [0.19, 0.17, 0.3])));
+      if (o.stripe) for (const y of [0.16, 0.26, 0.36]) tp.push(gc(GEO.sph, C(o.stripe), M4([0, y, 0.004], 0, [0.37 * sw * (y > 0.3 ? 1.02 : 0.96), 0.045, 0.238])));
+    }
+    if (o.scarf) tp.push(gc(GEO.tor, C(o.scarf), M4([0, 0.5, 0.01], [Math.PI / 2, 0, 0], [0.24, 0.22, 0.7])));
+    chest.add(mk(merged(tp), MAT.cloth));
+    // 목 + 머리
+    const neck = grp(chest, 0, 0.52, 0.0); this.neck = neck;
+    neck.add(mk(gc(GEO.cylLo, skin, M4([0, 0.04, 0], 0, [0.09, 0.1, 0.09])), MAT.skin));
+    const head = grp(neck, 0, 0.17 + ((o.headScale || 1) - 1) * 0.09, 0.01); this.head = head;
+    head.scale.setScalar(o.headScale || 1);
+    this.buildHead(head, skin, hairC, o, lo);
+    // 팔
+    this.arms = {};
+    for (const side of ['L', 'R']) {
+      const sx = side === 'L' ? 1 : -1; // 사람 기준 왼쪽 = +x
+      const sh = grp(chest, sx * 0.215 * (o.fem ? 0.9 : 1), 0.425, -0.005);
+      const ua = mk(gc(sg, outer, M4([0, -0.135, 0], 0, [0.105, 0.32, 0.105])), MAT.cloth); sh.add(ua);
+      const el = grp(sh, 0, -0.28, 0);
+      const fp = [gc(sg, outer, M4([0, -0.125, 0], 0, [0.09, 0.29, 0.09]))];
+      fp.push(gc(GEO.cylLo, jacket ? C(o.top) : outer.clone().multiplyScalar(0.85), M4([0, -0.245, 0], 0, [0.075, 0.03, 0.075])));
+      el.add(mk(merged(fp), MAT.cloth));
+      const wr = grp(el, 0, -0.26, 0);
+      const hands = {};
+      for (const k of (lo ? ['relax', 'flat', 'point', 'grip'] : ['relax', 'flat', 'point', 'grip', 'fist', 'snap', 'curl'])) {
+        const h = mk(handGeo(skin, k, lo), MAT.skin); h.visible = k === 'relax'; if (side === 'L') h.scale.x = -1; wr.add(h); hands[k] = h;
+      }
+      this.arms[side] = { sh, el, wr, hands, pose: 'relax', len: [0.28, 0.26], sx };
+    }
+    // 상태
+    this.look = new THREE.Vector3(0, 1.5, 3); this.lookT = this.look.clone(); this.gaze = this.look.clone();
+    this.yaw = 0; this.pitch = 0; this.roll = 0;
+    this.ex = { brow: 0, browIn: 0, lid: 0.9, squint: 0, mouth: 'smile', open: 0.2, smile: 0.4 };
+    this.exT = { ...this.ex };
+    this.nodAmp = 0.25; this.nodT = 0.25; this.sway = 0; this.lean = 0; this.leanT = 0; this.stand = seated ? 0 : 1; this.standT = this.stand;
+    this.blinkT = rand(1, 4); this.blink = 0;
+    this.armTargets = { L: null, R: null }; this.armHold = { L: 0, R: 0 };
+    this.acts = []; this.groove = rand(0.75, 1.25); this.nodPhase = rand(-0.03, 0.03);
+    this.restArms();
+  }
+  buildHead(head, skin, hairC, o, lo) {
+    const sp = lo ? GEO.sphLo : GEO.sph;
+    const P = [];
+    const hw = o.headW || 1;
+    P.push(gc(sp, skin, M4([0, 0, 0], 0, [0.215 * hw, 0.265, 0.235])));
+    P.push(gc(sp, skin, M4([0, -0.065, 0.02], 0, [0.19 * hw, 0.17, 0.2])));
+    P.push(gc(sp, skin.clone().multiplyScalar(0.93), M4([0, -0.006, 0.122], [0.25, 0, 0], [0.042, 0.062, 0.05])));
+    P.push(gc(sp, skin.clone().multiplyScalar(0.94), M4([0.108 * hw, 0.0, -0.005], 0, [0.035, 0.06, 0.03])), gc(sp, skin.clone().multiplyScalar(0.94), M4([-0.108 * hw, 0.0, -0.005], 0, [0.035, 0.06, 0.03])));
+    if (!lo) P.push(gc(GEO.sphLo, C('#ef8f7a'), M4([0.06, -0.045, 0.098], 0, [0.04, 0.022, 0.012])), gc(GEO.sphLo, C('#ef8f7a'), M4([-0.06, -0.045, 0.098], 0, [0.04, 0.022, 0.012])));
+    // 머리카락
+    const hs = o.hair;
+    const cap = (sc = 1.0, y = 0.035, back = 0.0) => P.push(gc(sp, hairC, M4([0, y, -0.012 - back], 0, [0.232 * hw * sc, 0.25 * sc, 0.245 * sc])));
+    if (hs === 'short') { cap(1.0, 0.04); P.push(gc(sp, hairC, M4([0, 0.075, 0.07], [-0.3, 0, 0], [0.2 * hw, 0.08, 0.12]))); }
+    else if (hs === 'afro') { for (let i = 0; i < (lo ? 10 : 22); i++) { const a = rand(0, Math.PI * 2), b = rand(-0.2, 1.2); P.push(gc(GEO.sphLo, hairC, M4([Math.cos(a) * 0.12 * Math.cos(b), 0.07 + Math.sin(b) * 0.12, Math.sin(a) * 0.12 * Math.cos(b) - 0.03], 0, [0.13, 0.13, 0.13]))); } }
+    else if (hs === 'bun') { cap(1.0, 0.04); P.push(gc(sp, hairC, M4([0, 0.15, -0.09], 0, [0.12, 0.12, 0.12]))); }
+    else if (hs === 'long') { cap(1.02, 0.04); P.push(gc(sp, hairC, M4([0, -0.07, -0.07], 0, [0.25 * hw, 0.3, 0.14]))); }
+    else if (hs === 'pomp') { cap(0.98, 0.03); P.push(gc(sp, hairC, M4([0, 0.12, 0.05], [0.4, 0, 0], [0.19, 0.1, 0.16]))); }
+    else if (hs === 'buzz') { cap(0.96, 0.03); }
+    else if (hs === 'side') { cap(1.0, 0.04); P.push(gc(sp, hairC, M4([0.04, 0.1, 0.06], [-0.4, 0, 0.3], [0.16, 0.07, 0.12]))); }
+    else if (hs === 'bald') { P.push(gc(sp, hairC, M4([0, -0.02, -0.03], 0, [0.225 * hw, 0.14, 0.235]))); }
+    if (o.beard) {
+      P.push(gc(sp, hairC, M4([0, -0.132, 0.03], 0, [0.17 * hw, 0.1, 0.18])));
+      for (const sx of [1, -1]) P.push(gc(sp, hairC, M4([sx * 0.074 * hw, -0.088, 0.035], [0, 0, sx * 0.25], [0.05, 0.12, 0.11])));
+    }
+    if (o.mustache) P.push(gc(GEO.cap, hairC, M4([0, -0.05, 0.118], [0, 0, Math.PI / 2], [0.022, 0.05, 0.02])));
+    if (o.hat === 'beret') P.push(gc(sp, C(o.hatColor || '#1d1b1f'), M4([0.03, 0.148, -0.02], [-0.12, 0, -0.18], [0.26, 0.1, 0.26])));
+    if (o.hat === 'fedora') { const hc = C(o.hatColor || '#3a2a1e'); P.push(gc(GEO.cyl, hc, M4([0, 0.12, -0.01], 0, [0.36, 0.015, 0.38])), gc(GEO.cyl, hc, M4([0, 0.17, -0.01], 0, [0.22, 0.1, 0.24])), gc(GEO.cyl, C(o.hatBand || '#c9452f'), M4([0, 0.14, -0.01], 0, [0.225, 0.025, 0.245]))); }
+    if (o.hat === 'cap') { const hc = C(o.hatColor || '#2346b8'); P.push(gc(sp, hc, M4([0, 0.085, -0.01], 0, [0.235, 0.18, 0.25])), gc(GEO.cyl, hc, M4([0, 0.085, 0.12], [0.15, 0, 0], [0.2, 0.012, 0.14]))); }
+    const hm = mk(merged(P), MAT.skin); head.add(hm);
+    // 눈
+    this.eyes = []; this.lids = []; this.brows = [];
+    const eyeY = 0.022, eyeZ = 0.088, ex = 0.05 * hw;
+    const white = new THREE.MeshStandardMaterial({ color: C('#fbf8f2'), roughness: 0.3 });
+    for (const sx of [1, -1]) {
+      const eg = grp(head, sx * ex, eyeY, eyeZ);
+      eg.add(mk(new THREE.SphereGeometry(0.03, lo ? 10 : 16, lo ? 8 : 12), white, false));
+      const iris = grp(eg); // 시선용
+      const ir = mk(gc(new THREE.SphereGeometry(0.0306, lo ? 10 : 18, 3, 0, Math.PI * 2, 0, 0.6), C(o.eye || '#3a2414'), M4([0, 0, 0], [Math.PI / 2, 0, 0])), MAT.gloss, false);
+      const pu = mk(gc(new THREE.SphereGeometry(0.031, 12, 2, 0, Math.PI * 2, 0, 0.3), C('#0b0b0d'), M4([0, 0, 0], [Math.PI / 2, 0, 0])), MAT.gloss, false);
+      iris.add(ir); iris.add(pu);
+      if (!lo) { const hl = mk(gc(GEO.sphLo, C('#ffffff'), M4([0.006, 0.007, 0.0312], 0, [0.006, 0.006, 0.003])), MAT.emissive, false); iris.add(hl); }
+      this.eyes.push(iris);
+      // 윗눈꺼풀
+      const lid = grp(eg);
+      lid.add(mk(gc(new THREE.SphereGeometry(0.0345, lo ? 10 : 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), skin.clone().multiplyScalar(0.97)), MAT.skin, false));
+      this.lids.push(lid);
+      const lo2 = grp(eg);
+      lo2.add(mk(gc(new THREE.SphereGeometry(0.034, lo ? 10 : 14, 6, 0, Math.PI * 2, Math.PI * 0.62, Math.PI * 0.38), skin.clone().multiplyScalar(0.97)), MAT.skin, false));
+      this.lids.push(lo2);
+      const br = grp(head, sx * 0.053 * hw, 0.083, 0.112);
+      br.add(mk(gc(rbox(0.058, 0.016, 0.016, 0.007, 1), hairC.clone().multiplyScalar(0.9), M4([0, 0, 0])), MAT.cloth, false));
+      br.userData.sx = sx;
+      this.brows.push(br);
+    }
+    if (o.glasses) {
+      const gp = [];
+      for (const sx of [1, -1]) gp.push(gc(new THREE.TorusGeometry(0.034, 0.005, 6, 20), C(o.glasses), M4([sx * ex, eyeY, 0.122])));
+      gp.push(gc(GEO.cylLo, C(o.glasses), M4([0, eyeY + 0.005, 0.124], [0, 0, Math.PI / 2], [0.007, 0.03, 0.007])));
+      for (const sx of [1, -1]) gp.push(gc(GEO.cylLo, C(o.glasses), M4([sx * 0.095 * hw, eyeY, 0.06], [Math.PI / 2, 0, 0], [0.006, 0.12, 0.006])));
+      head.add(mk(merged(gp), MAT.gloss, false));
+    }
+    // 입 (여러 모양 중 하나만 보임)
+    const mouth = grp(head, 0, -0.078, 0.113); this.mouthG = mouth;
+    const lip = C(o.lip || '#a8433b'), dark = C('#3a1414'), teeth = C('#fbf6ec');
+    const M = {};
+    M.smile = mk(gc(new THREE.TorusGeometry(0.03, 0.0065, 6, 16, Math.PI), lip, M4([0, 0.012, 0.004], [0, 0, Math.PI])), MAT.skin, false);
+    const og = [gc(GEO.sphLo, dark, M4([0, 0, 0], 0, [0.05, 0.05, 0.025])), gc(new THREE.TorusGeometry(0.025, 0.0048, 6, 18), lip, M4([0, 0, 0.004], 0, [1, 1, 0.6]))];
+    if (!lo) og.push(gc(GEO.sphLo, C('#c9585a'), M4([0, -0.012, 0.004], 0, [0.03, 0.014, 0.012])));
+    M.open = mk(merged(og), MAT.skin, false);
+    const gg = [gc(new THREE.CylinderGeometry(0.034, 0.034, 0.012, 18, 1, false, -Math.PI / 2, Math.PI), dark, M4([0, 0.006, 0.003], [Math.PI / 2, 0, 0], [1, 1, 0.62])),
+      gc(GEO.box, teeth, M4([0, 0.0005, 0.0095], 0, [0.054, 0.011, 0.006]))];
+    if (!lo) gg.push(gc(GEO.sphLo, C('#c9585a'), M4([0, -0.012, 0.007], 0, [0.034, 0.012, 0.008])));
+    M.grin = mk(merged(gg), MAT.skin, false);
+    M.pout = mk(gc(GEO.sphLo, lip, M4([0, 0, 0.006], 0, [0.034, 0.022, 0.028])), MAT.skin, false);
+    M.line = mk(gc(GEO.cap, lip, M4([0, 0, 0.005], [0, 0, Math.PI / 2], [0.01, 0.035, 0.008])), MAT.skin, false);
+    M.blow = mk(gc(GEO.sphLo, lip, M4([0, 0, 0.004], 0, [0.04, 0.018, 0.03])), MAT.skin, false);
+    for (const k in M) { M[k].visible = k === 'smile'; mouth.add(M[k]); }
+    this.mouths = M;
+  }
+  addTo(scene) { scene.add(this.root); return this; }
+  headWorld(out = new THREE.Vector3()) { return this.head.getWorldPosition(out); }
+  // ----- 팔 IK -----
+  restArms() {
+    for (const s of ['L', 'R']) { const A = this.arms[s]; A.sh.quaternion.identity(); A.sh.rotation.set(0.05, 0, A.sx * 0.12); A.el.rotation.set(-0.15, 0, 0); A.wr.rotation.set(0, 0, 0); }
+  }
+  setHand(side, kind) { const A = this.arms[side]; if (A.pose === kind) return; for (const k in A.hands) A.hands[k].visible = k === kind; if (!A.hands[kind]) A.hands.relax.visible = true; A.pose = kind; }
+  // target: 월드 위치, pole: 팔꿈치가 향할 월드 방향 벡터
+  ik(side, target, pole, handQ) {
+    const A = this.arms[side];
+    this.chest.updateWorldMatrix(true, false);
+    const inv = _m1.copy(this.chest.matrixWorld).invert();
+    const sc = this.root.scale.x;
+    const T = _v1.copy(target).applyMatrix4(inv);
+    const S = A.sh.position;
+    const a = A.len[0], b = A.len[1];
+    const d0 = _v2.copy(T).sub(S); let d = d0.length();
+    d = clamp(d, Math.abs(a - b) + 0.01, a + b - 0.002);
+    const dir = d0.normalize();
+    // 폴 벡터를 가슴 기준으로
+    const P = _v3.copy(pole).transformDirection(inv);
+    P.sub(dir.clone().multiplyScalar(P.dot(dir))).normalize();
+    const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), sinA = Math.sqrt(1 - cosA * cosA);
+    const E = S.clone().add(dir.clone().multiplyScalar(a * cosA)).add(P.clone().multiplyScalar(a * sinA));
+    const ue = E.clone().sub(S).normalize();
+    A.sh.quaternion.setFromUnitVectors(DOWN, ue);
+    const Tc = S.clone().add(dir.clone().multiplyScalar(d));
+    const fe = Tc.sub(E).normalize().applyQuaternion(_q1.copy(A.sh.quaternion).invert());
+    A.el.quaternion.setFromUnitVectors(DOWN, fe);
+    if (handQ) {
+      A.el.updateWorldMatrix(true, false);
+      A.el.getWorldQuaternion(_q2);
+      A.wr.quaternion.copy(_q2.invert().multiply(handQ));
+    } else A.wr.quaternion.identity();
+    void sc;
+  }
+  // ----- 표정 -----
+  express(k, dur = 1.5) {
+    const E = {
+      calm: { brow: 0, browIn: 0, lid: 0.9, squint: 0, mouth: 'smile', open: 0.2, smile: 0.4 },
+      smile: { brow: 0.15, browIn: 0, lid: 0.8, squint: 0.15, mouth: 'smile', open: 0.2, smile: 0.9 },
+      awe: { brow: 1.0, browIn: -0.2, lid: 1.3, squint: -0.3, mouth: 'open', open: 0.85, smile: 0 },
+      wow: { brow: 0.8, browIn: 0, lid: 1.15, squint: 0, mouth: 'open', open: 0.55, smile: 0 },
+      grin: { brow: 0.35, browIn: 0, lid: 0.85, squint: 0.35, mouth: 'grin', open: 0.5, smile: 1 },
+      stank: { brow: -0.7, browIn: 0.9, lid: 0.7, squint: 0.6, mouth: 'pout', open: 0.4, smile: 0 },
+      bliss: { brow: 0.35, browIn: -0.3, lid: 0.0, squint: 0, mouth: 'smile', open: 0.2, smile: 0.7 },
+      ask: { brow: 0.6, browIn: 0.2, lid: 1.0, squint: 0, mouth: 'line', open: 0.2, smile: 0.2 },
+      focus: { brow: -0.15, browIn: 0.25, lid: 0.75, squint: 0.2, mouth: 'line', open: 0.1, smile: 0 },
+      blow: { brow: 0.2, browIn: 0.2, lid: 0.7, squint: 0.3, mouth: 'blow', open: 0.3, smile: 0 },
+      laugh: { brow: 0.4, browIn: -0.3, lid: 0.35, squint: 0.6, mouth: 'grin', open: 0.7, smile: 1 },
+    }[k];
+    if (!E) return;
+    Object.assign(this.exT, E);
+    this.exUntil = dur > 0 ? NOW.t + dur : 0;
+  }
+  setBase(k) { this.base = k; }
+  // ----- 매 프레임 -----
+  update(dt, t, beat) {
+    // 표정 시간 끝나면 기본으로
+    if (this.exUntil && t > this.exUntil) { this.exUntil = 0; this.express(this.base || 'calm', -1); this.exUntil = 0; }
+    const ex = this.ex, et = this.exT, r = 10;
+    ex.brow = damp(ex.brow, et.brow, r, dt); ex.browIn = damp(ex.browIn, et.browIn, r, dt);
+    ex.lid = damp(ex.lid, et.lid, r * 1.4, dt); ex.squint = damp(ex.squint, et.squint, r, dt);
+    ex.open = damp(ex.open, et.open, r * 1.3, dt);
+    if (ex.mouth !== et.mouth) { ex.mouth = et.mouth; for (const k in this.mouths) this.mouths[k].visible = k === et.mouth; }
+    const mo = this.mouths[ex.mouth];
+    if (mo) {
+      if (ex.mouth === 'open') mo.scale.set(0.8 + ex.open * 0.3, 0.45 + ex.open * 1.0, 1);
+      else if (ex.mouth === 'grin') mo.scale.set(1 + ex.open * 0.15, 0.7 + ex.open * 0.8, 1);
+      else if (ex.mouth === 'smile') mo.scale.set(0.9 + et.smile * 0.25, 0.5 + et.smile * 0.6, 1);
+      else mo.scale.set(1, 1, 1);
+    }
+    // 깜빡임
+    this.blinkT -= dt;
+    if (this.blinkT < 0) { this.blink = 1; this.blinkT = rand(2.2, 5.5); }
+    this.blink = Math.max(0, this.blink - dt * 8);
+    const lid = clamp(ex.lid * (1 - this.blink * 1.2), 0, 1.35);
+    for (let i = 0; i < this.lids.length; i += 2) {
+      this.lids[i].rotation.x = 1.5 - 2.2 * Math.pow(clamp(lid / 1.3, 0, 1), 0.7);
+      this.lids[i + 1].rotation.x = -ex.squint * 0.35;
+    }
+    for (const b of this.brows) { b.position.y = 0.083 + ex.brow * 0.022 - ex.browIn * 0.006; b.rotation.z = b.userData.sx * (ex.browIn * 0.32 - ex.brow * 0.06); }
+    // 시선과 고개
+    this.look.lerp(this.lookT, 1 - Math.exp(-dt * 5));
+    this.root.updateWorldMatrix(true, false);
+    const hw = this.neck.getWorldPosition(_v1);
+    const rel = _v2.copy(this.look).sub(hw);
+    // 몸 기준 좌표로
+    _q1.copy(this.root.getWorldQuaternion(_q2)).invert();
+    rel.applyQuaternion(_q1);
+    let yaw = Math.atan2(rel.x, rel.z), pitch = -Math.atan2(rel.y, Math.hypot(rel.x, rel.z));
+    yaw = clamp(yaw, -1.25, 1.25); pitch = clamp(pitch, -0.6, 0.5);
+    this.yaw = damp(this.yaw, yaw, 7, dt); this.pitch = damp(this.pitch, pitch, 7, dt);
+    // 2·4박 끄덕임
+    const ph = ((beat + this.nodPhase) % 2 + 2) % 2;
+    const pulse = Math.exp(-Math.pow((ph - 1.0) / 0.22, 2)) * 0.9 + Math.exp(-Math.pow((ph - 0.0) / 0.25, 2)) * 0.25 + Math.exp(-Math.pow((ph - 2.0) / 0.25, 2)) * 0.25;
+    this.nodAmp = damp(this.nodAmp, this.nodT, 3, dt);
+    const nod = pulse * this.nodAmp * 0.16 * this.groove;
+    this.sway = Math.sin((beat + this.nodPhase * 4) * Math.PI / 2) * this.nodAmp * 0.05;
+    this.lean = damp(this.lean, this.leanT, 3, dt);
+    this.neck.rotation.set(this.pitch * 0.35 + nod * 0.4, this.yaw * 0.35, this.sway * 0.5);
+    this.head.rotation.set(this.pitch * 0.65 + nod, this.yaw * 0.65, this.roll + this.sway);
+    this.spine.rotation.set(this.lean * 0.35, this.yaw * 0.12, this.sway * 0.3);
+    // 눈동자
+    for (const e of this.eyes) {
+      e.parent.updateWorldMatrix(true, false);
+      const ep = e.parent.getWorldPosition(_v3);
+      const d = _v2.copy(this.look).sub(ep);
+      d.applyQuaternion(_q1.copy(e.parent.getWorldQuaternion(_q2)).invert());
+      const ey = clamp(Math.atan2(d.x, d.z), -0.45, 0.45), ep2 = clamp(-Math.atan2(d.y, Math.hypot(d.x, d.z)), -0.35, 0.35);
+      e.rotation.set(ep2, ey, 0);
+    }
+    // 일어서기 (앉은 사람만)
+    if (this.seated) {
+      this.stand = damp(this.stand, this.standT, 3.5, dt);
+      this.hips.position.y = 0.5 + this.stand * 0.43;
+      this.hips.position.z = -this.stand * 0.1;
+      const up = this.stand > 0.5;
+      if (this.legsUp && this.legsUp.visible !== up) { this.legsUp.visible = up; this.legsSit.visible = !up; }
+    }
+  }
+}
+
+// ===== 65_band.js =====
+// ===================== 악기 · 밴드 배치 =====================
+function tubeAlong(points, r, seg = 40, rs = 10) {
+  const curve = new THREE.CatmullRomCurve3(points.map(p => V3(p[0], p[1], p[2])), false, 'catmullrom', 0.2);
+  return new THREE.TubeGeometry(curve, seg, r, rs, false);
+}
+function bellGeo(len, r0, r1, seg = 28, flare = 3.2) {
+  const pts = [];
+  for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push(new THREE.Vector2(r0 + (r1 - r0) * Math.pow(t, flare), t * len)); }
+  pts.push(new THREE.Vector2(r1 + 0.004, len + 0.002)); pts.push(new THREE.Vector2(r1 - 0.004, len + 0.004));
+  const g = new THREE.LatheGeometry(pts, seg);
+  return g;
+}
+// ---------- 내 트럼펫 / 플루겔혼 (1인칭) ----------
+// 좌표: 입 쪽이 +z, 나팔이 -z 방향. 원점은 첫 번째 밸브 근처
+function buildHorn(kind) {
+  const g = new THREE.Group(), fl = kind === 'flugel';
+  const brass = fl ? MAT.brassDark : MAT.brass;
+  const parts = [];
+  const lr = fl ? 0.0075 : 0.0065;
+  // 리드파이프: 입(+z)에서 앞으로 → 앞쪽 U자 슬라이드 → 밸브 아래로
+  parts.push(tubeAlong([[-0.03, 0.035, 0.33], [-0.03, 0.036, 0.12], [-0.03, 0.036, -0.1], [-0.03, 0.033, -0.29]], lr, 30));
+  parts.push(tubeAlong([[-0.03, 0.033, -0.29], [-0.03, 0.03, -0.33], [-0.03, -0.005, -0.352], [-0.03, -0.04, -0.33], [-0.025, -0.048, -0.22], [-0.01, -0.052, -0.04]], lr, 30));
+  const mp = new THREE.LatheGeometry([new THREE.Vector2(0.004, 0), new THREE.Vector2(0.006, 0.05), new THREE.Vector2(0.008, 0.075), new THREE.Vector2(0.016, 0.09), new THREE.Vector2(0.0135, 0.095), new THREE.Vector2(0.006, 0.09)], 18);
+  mp.rotateX(Math.PI / 2); mp.translate(-0.03, 0.035, 0.31); parts.push(mp);
+  // 밸브 몸통 세 개
+  const vz = [0.06, 0.025, -0.01];
+  for (const z of vz) {
+    parts.push(new THREE.CylinderGeometry(0.0115, 0.0115, 0.12, 18).translate(0, 0.0, z));
+    parts.push(new THREE.CylinderGeometry(0.014, 0.014, 0.012, 18).translate(0, 0.064, z));
+    parts.push(new THREE.CylinderGeometry(0.014, 0.014, 0.012, 18).translate(0, -0.064, z));
+  }
+  // 밸브 슬라이드
+  parts.push(tubeAlong([[-0.005, -0.03, 0.06], [-0.035, -0.04, 0.068], [-0.055, -0.06, 0.05], [-0.035, -0.07, 0.025], [-0.005, -0.06, 0.02]], 0.0055, 18));
+  parts.push(tubeAlong([[0.005, -0.03, -0.01], [0.035, -0.04, -0.02], [0.055, -0.06, 0.0], [0.035, -0.07, 0.03], [0.005, -0.06, 0.03]], 0.0055, 18));
+  // 나팔 관: 밸브 밑에서 뒤로 돌아 올라와 오른쪽으로 앞으로
+  const bellLen = fl ? 0.3 : 0.27, br = fl ? 0.08 : 0.064, bx = 0.036;
+  parts.push(tubeAlong([[0.0, -0.064, 0.072], [0.0, -0.085, 0.15], [0.015, -0.05, 0.205], [bx, -0.008, 0.18], [bx, -0.004, 0.08], [bx, -0.002, -0.04], [bx, 0.0, -0.08]], fl ? 0.009 : 0.0072, 34));
+  const bell = bellGeo(bellLen, fl ? 0.012 : 0.0085, br, 36, fl ? 2.0 : 3.4);
+  bell.rotateX(-Math.PI / 2); bell.translate(bx, 0.0, -0.08);
+  parts.push(bell);
+  const body = new THREE.Mesh(mergeGeometries(parts.map(p => { for (const k of ['uv', 'uv1']) if (p.attributes[k]) p.deleteAttribute(k); return p.index ? p.toNonIndexed() : p; })), brass);
+  body.castShadow = true; g.add(body);
+  // 밸브 버튼 (누르면 내려감)
+  g.valves = [];
+  for (const z of vz) {
+    const vg = grp(g, 0, 0.075, z);
+    vg.add(new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.03, 8).translate(0, 0.012, 0), MAT.brass));
+    vg.add(new THREE.Mesh(new THREE.CylinderGeometry(0.0115, 0.0105, 0.007, 20).translate(0, 0.03, 0), MAT.pearl));
+    vg.add(new THREE.Mesh(new THREE.TorusGeometry(0.0112, 0.0018, 6, 20).rotateX(Math.PI / 2).translate(0, 0.0335, 0), MAT.brass));
+    g.valves.push(vg);
+  }
+  g.bellMouth = V3(bx, 0, -0.08 - bellLen);
+  g.bellR = br;
+  return g;
+}
+function buildMute(kind) {
+  const g = new THREE.Group();
+  if (kind === 'harmon') {
+    const bowl = new THREE.LatheGeometry([new THREE.Vector2(0.012, 0), new THREE.Vector2(0.03, 0.01), new THREE.Vector2(0.05, 0.04), new THREE.Vector2(0.052, 0.065), new THREE.Vector2(0.044, 0.08), new THREE.Vector2(0.02, 0.09), new THREE.Vector2(0.018, 0.11), new THREE.Vector2(0.024, 0.13)], 28);
+    g.add(new THREE.Mesh(bowl, MAT.chrome));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.027, 0.03, 20).translate(0, 0.12, 0), new THREE.MeshStandardMaterial({ color: C('#c48a52'), roughness: 0.9 })));
+    g.add(new THREE.Mesh(new THREE.CircleGeometry(0.013, 16).rotateX(Math.PI / 2).translate(0, 0.0005, 0), new THREE.MeshBasicMaterial({ color: C('#111') })));
+  } else {
+    const cone = new THREE.LatheGeometry([new THREE.Vector2(0.002, 0), new THREE.Vector2(0.045, 0.005), new THREE.Vector2(0.048, 0.02), new THREE.Vector2(0.02, 0.14), new THREE.Vector2(0.015, 0.15)], 26);
+    g.add(new THREE.Mesh(cone, new THREE.MeshStandardMaterial({ color: C('#e8ebee'), metalness: 0.6, roughness: 0.3, envMap: SC.env })));
+    for (const a of [0, 2.1, 4.2]) g.add(new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.03, 0.004).translate(Math.cos(a) * 0.021, 0.115, Math.sin(a) * 0.021), new THREE.MeshStandardMaterial({ color: C('#c48a52'), roughness: 0.9 })));
+  }
+  return g;
+}
+// 1인칭 손
+function buildMyHands() {
+  const skin = C('#e3ac86'), dark = C('#d39a74');
+  const R = new THREE.Group(), L = new THREE.Group();
+  // 오른손: 손등은 밸브 오른쪽, 팔목은 오른쪽 뒤로 빠짐. 손가락 셋이 버튼 위
+  R.add(mk(gc(rbox(0.034, 0.024, 0.07, 0.011, 2), skin, M4([0.042, 0.115, 0.03], [0, 0.15, 0.55])), MAT.skin));
+  // 팔목 → 팔뚝 → 소매: 방향은 placeMe에서 화면 오른쪽 아래(내 몸 쪽)로 맞춤
+  const arm = grp(R, 0.062, 0.1, 0.075); R.arm = arm;
+  arm.add(mk(gc(GEO.cap, dark, M4([0, 0.16, 0], 0, [0.046, 0.36, 0.046])), MAT.skin));
+  arm.add(mk(merged([gc(GEO.cyl, '#23284a', M4([0, 0.64, 0], 0, [0.078, 0.84, 0.078])), gc(GEO.cyl, '#f6ead2', M4([0, 0.225, 0], 0, [0.066, 0.03, 0.066]))]), MAT.cloth));
+  R.fingers = [];
+  const vz = [0.06, 0.025, -0.01];
+  for (let i = 0; i < 3; i++) {
+    const f = grp(R, 0.0, 0.125, vz[i]);
+    f.add(mk(gc(GEO.cap, skin, M4([0.02, 0.008, 0], [0, 0, 1.25], [0.0145, 0.042, 0.0145])), MAT.skin));
+    f.add(mk(gc(GEO.cap, skin, M4([0.0, -0.002, 0], [0, 0, 0.35], [0.013, 0.026, 0.013])), MAT.skin));
+    R.fingers.push(f);
+  }
+  return { R, L };
+}
+// ---------- 밴드 악기 ----------
+function buildTrombone() {
+  const g = new THREE.Group(), p = [];
+  // 슬라이드 고정부 (위·아래 관) — 앞(+z)으로 뻗음
+  p.push(new THREE.CylinderGeometry(0.008, 0.008, 0.58, 10).rotateX(Math.PI / 2).translate(0.035, 0, 0.26));
+  p.push(new THREE.CylinderGeometry(0.008, 0.008, 0.58, 10).rotateX(Math.PI / 2).translate(-0.035, 0, 0.26));
+  p.push(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 6).rotateZ(Math.PI / 2).translate(0, 0, 0.03));
+  // 나팔 관 (어깨 위로 넘어가는 U)
+  p.push(tubeAlong([[-0.035, 0, -0.02], [-0.03, 0.02, -0.25], [0.0, 0.07, -0.42], [0.05, 0.1, -0.3], [0.07, 0.11, -0.05], [0.075, 0.11, 0.15]], 0.01, 40));
+  const bell = bellGeo(0.32, 0.012, 0.105, 32, 3.0); bell.rotateX(Math.PI / 2); bell.translate(0.075, 0.11, 0.12); p.push(bell);
+  // 마우스피스
+  const mp = new THREE.LatheGeometry([new THREE.Vector2(0.005, 0), new THREE.Vector2(0.008, 0.05), new THREE.Vector2(0.018, 0.075), new THREE.Vector2(0.016, 0.08)], 14); mp.rotateX(-Math.PI / 2); mp.translate(0.035, 0, -0.01); p.push(mp);
+  const m = new THREE.Mesh(mergeGeometries(p.map(q => { for (const k of ['uv', 'uv1']) if (q.attributes[k]) q.deleteAttribute(k); return q.index ? q.toNonIndexed() : q; })), MAT.brass); m.castShadow = true; g.add(m);
+  // 움직이는 바깥 슬라이드
+  const sl = new THREE.Group();
+  const sp = [];
+  sp.push(new THREE.CylinderGeometry(0.0095, 0.0095, 0.56, 10).rotateX(Math.PI / 2).translate(0.035, 0, 0.3));
+  sp.push(new THREE.CylinderGeometry(0.0095, 0.0095, 0.56, 10).rotateX(Math.PI / 2).translate(-0.035, 0, 0.3));
+  sp.push(tubeAlong([[0.035, 0, 0.57], [0.03, 0, 0.6], [0, 0, 0.615], [-0.03, 0, 0.6], [-0.035, 0, 0.57]], 0.0095, 14));
+  sp.push(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 6).rotateZ(Math.PI / 2).translate(0, -0.01, 0.4));
+  const sm = new THREE.Mesh(mergeGeometries(sp.map(q => { for (const k of ['uv', 'uv1']) if (q.attributes[k]) q.deleteAttribute(k); return q.index ? q.toNonIndexed() : q; })), MAT.brass); sm.castShadow = true;
+  sl.add(sm); g.add(sl); g.slide = sl;
+  return g;
+}
+function buildBass() {
+  const g = new THREE.Group();
+  const s = new THREE.Shape();
+  // 콘트라베이스 몸통 외곽 (아래가 y=0)
+  const pts = [[0, 0], [0.24, 0.02], [0.33, 0.16], [0.3, 0.36], [0.2, 0.5], [0.2, 0.58], [0.26, 0.7], [0.23, 0.92], [0.12, 1.06], [0.04, 1.1]];
+  s.moveTo(0, 0);
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+  for (let i = pts.length - 1; i >= 0; i--) s.lineTo(-pts[i][0], pts[i][1]);
+  const body = new THREE.ExtrudeGeometry(s, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 3, curveSegments: 6 });
+  body.translate(0, 0, -0.08);
+  const wood = new THREE.MeshStandardMaterial({ color: C('#b35a1f'), roughness: 0.28, metalness: 0, envMap: SC.env, envMapIntensity: 0.5 });
+  const bm = new THREE.Mesh(body, wood); bm.castShadow = true; g.add(bm);
+  const dk = [];
+  dk.push(gc(GEO.box, '#1b1412', M4([0, 1.32, 0.11], [0.05, 0, 0], [0.06, 0.82, 0.02])));
+  dk.push(gc(GEO.box, '#5b2a10', M4([0, 1.4, 0.08], 0, [0.05, 0.75, 0.05])));
+  dk.push(gc(new THREE.TorusGeometry(0.04, 0.018, 8, 16), '#5b2a10', M4([0, 1.82, 0.08], [0, Math.PI / 2, 0])));
+  dk.push(gc(GEO.box, '#d9c09a', M4([0, 0.45, 0.13], 0, [0.16, 0.08, 0.02])));
+  dk.push(gc(GEO.box, '#1b1412', M4([0, 0.2, 0.12], 0, [0.12, 0.16, 0.02])));
+  dk.push(gc(GEO.cylLo, '#9aa0a6', M4([0, -0.08, 0], 0, [0.012, 0.18, 0.012])));
+  for (const sx of [-1, 1]) dk.push(gc(GEO.cap, '#1b1412', M4([sx * 0.12, 0.55, 0.115], [0, 0, sx * 0.15], [0.012, 0.12, 0.01])));
+  const dm = new THREE.Mesh(merged(dk), MAT.gloss); dm.castShadow = true; g.add(dm);
+  const st = [];
+  for (let i = 0; i < 4; i++) st.push(gc(GEO.cylLo, '#dcdcdc', M4([-0.03 + i * 0.02, 0.98, 0.135], [0.03, 0, 0], [0.0035, 1.25, 0.0035])));
+  g.add(mk(merged(st), MAT.gloss, false));
+  g.position.y = 0.1;
+  return g;
+}
+function buildPiano() {
+  const g = new THREE.Group();
+  const s = new THREE.Shape();
+  // 그랜드 피아노 윗면 (건반 쪽이 z=0, 몸통이 +z로)
+  s.moveTo(-0.72, 0); s.lineTo(0.72, 0); s.lineTo(0.72, 0.55);
+  s.bezierCurveTo(0.72, 1.0, 0.35, 0.95, 0.1, 1.25); s.bezierCurveTo(-0.15, 1.6, -0.4, 1.62, -0.6, 1.5);
+  s.bezierCurveTo(-0.74, 1.4, -0.72, 1.0, -0.72, 0);
+  const body = new THREE.ExtrudeGeometry(s, { depth: 0.28, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2, curveSegments: 18 });
+  body.rotateX(Math.PI / 2); body.translate(0, 1.0, 0);
+  const bm = new THREE.Mesh(body, MAT.pianoBlack); bm.castShadow = true; bm.receiveShadow = true; g.add(bm);
+  const lid = new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: false, curveSegments: 18 }); lid.rotateX(Math.PI / 2); lid.translate(0, 1.025, 0);
+  g.add(new THREE.Mesh(lid, MAT.pianoBlack));
+  const k = [];
+  k.push(gc(GEO.box, '#151419', M4([0, 0.79, -0.12], 0, [1.5, 0.12, 0.26])));
+  k.push(gc(GEO.box, '#f7f3ea', M4([0, 0.86, -0.15], 0, [1.36, 0.025, 0.15])));
+  for (let i = 0; i < 36; i++) { const o = i % 7; if (o === 2 || o === 6) continue; k.push(gc(GEO.box, '#121115', M4([-0.66 + i * 0.0378 + 0.019, 0.88, -0.12], 0, [0.022, 0.025, 0.09]))); }
+  for (const [x, z] of [[-0.62, -0.05], [0.62, -0.05], [-0.4, 1.4]]) k.push(gc(new THREE.CylinderGeometry(0.045, 0.035, 0.72, 12), '#151419', M4([x, 0.36, z])));
+  // 의자
+  k.push(gc(rbox(0.7, 0.07, 0.34, 0.02, 1), '#151419', M4([0, 0.5, -0.55])));
+  for (const sx of [-1, 1]) k.push(gc(GEO.box, '#151419', M4([sx * 0.3, 0.24, -0.55], 0, [0.04, 0.48, 0.3])));
+  const km = new THREE.Mesh(merged(k), MAT.gloss); km.castShadow = true; g.add(km);
+  g.keyX = m => -0.66 + clamp((m - 36) / 60, 0, 1) * 1.32;
+  return g;
+}
+function buildDrums() {
+  const g = new THREE.Group(), P = {};
+  const shell = '#b3261e', head = '#f6efe0', chrome = '#d8dde3';
+  const parts = [];
+  // 베이스드럼 (정면 원판 무늬)
+  parts.push(gc(GEO.cyl, shell, M4([0, 0.3, 0.25], [Math.PI / 2, 0, 0], [0.56, 0.36, 0.56])));
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.27, 40), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w) => { c.fillStyle = '#f6efe0'; c.fillRect(0, 0, w, w); c.fillStyle = '#1d2f6f'; c.beginPath(); c.arc(w / 2, w / 2, w * 0.3, 0, Math.PI * 2); c.fill(); c.fillStyle = '#f2b531'; c.beginPath(); c.arc(w / 2, w / 2, w * 0.18, 0, Math.PI * 2); c.fill(); c.fillStyle = '#b3261e'; c.beginPath(); c.arc(w / 2, w / 2, w * 0.08, 0, Math.PI * 2); c.fill(); }), roughness: 0.7 }));
+  face.position.set(0, 0.3, 0.432); g.add(face);
+  for (const z of [0.07, 0.43]) parts.push(gc(GEO.tor, chrome, M4([0, 0.3, z], 0, [0.56, 0.56, 0.2])));
+  // 스네어 (드러머 왼쪽 = +x)
+  parts.push(gc(GEO.cyl, '#c9cdd2', M4([0.22, 0.66, -0.05], [0.12, 0, 0], [0.34, 0.13, 0.34])));
+  parts.push(gc(GEO.cyl, head, M4([0.22, 0.73, -0.05], [0.12, 0, 0], [0.33, 0.01, 0.33])));
+  P.snare = V3(0.22, 0.74, -0.04);
+  // 탐
+  parts.push(gc(GEO.cyl, shell, M4([0.1, 0.83, 0.18], [0.35, 0, 0], [0.26, 0.2, 0.26])));
+  parts.push(gc(GEO.cyl, head, M4([0.1, 0.935, 0.15], [0.35, 0, 0], [0.25, 0.01, 0.25])));
+  P.tomHi = V3(0.1, 0.94, 0.15);
+  parts.push(gc(GEO.cyl, shell, M4([-0.36, 0.5, -0.02], 0, [0.38, 0.34, 0.38])));
+  parts.push(gc(GEO.cyl, head, M4([-0.36, 0.675, -0.02], 0, [0.37, 0.01, 0.37])));
+  P.tomLo = V3(-0.36, 0.68, -0.02);
+  // 스탠드들
+  for (const [x, z, h] of [[0.48, 0.0, 0.9], [-0.55, 0.15, 1.05], [0.45, 0.32, 1.25], [0.22, -0.05, 0.6]]) {
+    parts.push(gc(GEO.cylLo, chrome, M4([x, h / 2, z], 0, [0.02, h, 0.02])));
+    for (const a of [0, 2.1, 4.2]) parts.push(gc(GEO.cylLo, chrome, M4([x + Math.cos(a) * 0.12, 0.08, z + Math.sin(a) * 0.12], [Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9], [0.012, 0.3, 0.012])));
+  }
+  // 의자
+  parts.push(gc(GEO.cyl, '#1d1b1f', M4([0, 0.52, -0.42], 0, [0.36, 0.08, 0.36])));
+  parts.push(gc(GEO.cylLo, chrome, M4([0, 0.26, -0.42], 0, [0.04, 0.5, 0.04])));
+  const pm = new THREE.Mesh(merged(parts), MAT.gloss); pm.castShadow = true; g.add(pm);
+  // 심벌 (흔들림용으로 따로)
+  const cym = (r, x, y, z, tilt) => {
+    const c = new THREE.Group(); c.position.set(x, y, z);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.12, r, 0.012, 32), MAT.cymbal); m.castShadow = true;
+    const inner = new THREE.Group(); inner.rotation.set(tilt[0], 0, tilt[1]); inner.add(m); c.add(inner); g.add(c);
+    c.inner = inner; c.wob = 0; c.wv = 0; return c;
+  };
+  P.hat = cym(0.18, 0.48, 0.9, 0.0, [0.0, 0.05]);
+  P.hatTop = cym(0.18, 0.48, 0.93, 0.0, [0.0, 0.05]);
+  P.ride = cym(0.27, -0.55, 1.05, 0.15, [0.25, -0.2]);
+  P.crash = cym(0.23, 0.45, 1.27, 0.32, [0.3, 0.25]);
+  g.P = P;
+  return g;
+}
+// 스틱/브러시 (손에 쥐어 줌)
+function stickGeo(brush) {
+  const p = [gc(GEO.cylLo, brush ? '#2b2b2b' : '#e8cfa0', M4([0, -0.2, 0], 0, [0.012, 0.4, 0.012]))];
+  if (brush) for (let i = 0; i < 9; i++) p.push(gc(GEO.cylLo, '#c9cdd2', M4([rand(-0.012, 0.012), -0.42 - rand(0, 0.03), rand(-0.012, 0.012)], [rand(-0.15, 0.15), 0, rand(-0.15, 0.15)], [0.003, 0.16, 0.003])));
+  return merged(p);
+}
+// 스탠드 (내 오른쪽)
+function buildStand() {
+  const g = new THREE.Group(), p = [];
+  for (const a of [0, 2.1, 4.2]) p.push(gc(GEO.cylLo, '#1d1b1f', M4([Math.cos(a) * 0.12, 0.06, Math.sin(a) * 0.12], [Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0], [0.015, 0.26, 0.015])));
+  p.push(gc(GEO.cylLo, '#1d1b1f', M4([0, 0.3, 0], 0, [0.022, 0.5, 0.022])));
+  p.push(gc(new THREE.ConeGeometry(0.07, 0.12, 16, 1, true), '#1d1b1f', M4([0, 0.6, 0], [Math.PI, 0, 0])));
+  // 작은 의자 (뮤트 올려 두는 곳)
+  p.push(gc(GEO.cyl, '#7a3b20', M4([0.3, 0.45, 0.05], 0, [0.32, 0.03, 0.32])));
+  for (const a of [0.4, 2.5, 4.6]) p.push(gc(GEO.cylLo, '#5a2a14', M4([0.3 + Math.cos(a) * 0.1, 0.22, 0.05 + Math.sin(a) * 0.1], 0, [0.025, 0.45, 0.025])));
+  const m = new THREE.Mesh(merged(p), MAT.gloss); m.castShadow = true; g.add(m);
+  return g;
+}
+
+function buildRiser() {
+  const g = new THREE.Group();
+  const P = [gc(GEO.box, '#4a2c1a', M4([0, 0.14, -0.12], 0, [1.7, 0.28, 1.45])), gc(GEO.box, '#7a2f1d', M4([0, 0.29, -0.12], 0, [1.66, 0.02, 1.41]))];
+  const m = new THREE.Mesh(merged(P), MAT.matte); m.receiveShadow = true; m.castShadow = true; g.add(m);
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.03, 0.03), MAT.brass); edge.position.set(0, 0.29, 0.6); g.add(edge);
+  return g;
+}
+// ---------- 밴드 ----------
+const BAND = {};
+function setupBand() {
+  const s = SC.scene;
+  // 트롬본 (리더): 오른쪽 앞에 서서 약간 안쪽을 봄
+  const tb = new Person({ headScale: 1.2, x: 0.66, z: -2.6, ry: 0.15, skin: '#7a4428', hair: 'bald', hairColor: '#d8d2c8', beard: true, mustache: true, hat: 'beret', hatColor: '#1b1d2a', top: '#fbf1dc', jacket: '#1f6f5c', tie: '#e2452b', pants: '#2a2a35', shoes: '#4a2a18', scale: 1.03 }).addTo(s);
+  tb.horn = buildTrombone(); s.add(tb.horn);
+  tb.base = 'calm';
+  // 피아노: 왼쪽, 피아노 몸통이 내 쪽으로
+  const piano = buildPiano(); piano.position.set(-0.62, 0, -1.95); piano.rotation.y = -0.5; s.add(piano);
+  const pn = new Person({ headScale: 1.2, x: 0, z: 0, ry: 0, seated: true, fem: true, skin: '#f3c9a6', hair: 'bun', hairColor: '#1d1a1a', glasses: '#c79a3b', top: '#e2452b', pants: '#1c1f33', shoes: '#1c1f33', lip: '#b8384a', scarf: '#f2b531', scale: 0.98 });
+  // 피아노 의자에 앉힘 (피아노 좌표계 안)
+  piano.add(pn.root); pn.root.position.set(0, 0, -0.55); pn.root.rotation.y = 0;
+  pn.piano = piano;
+  // 베이스: 가운데 뒤
+  const bs = new Person({ headScale: 1.2, x: 0.05, z: -3.0, ry: -0.03, skin: '#a8673e', hair: 'afro', hairColor: '#24160f', top: '#ff7a59', pants: '#3a4a7a', shoes: '#f1ead6', stripe: '#ffd45c', scale: 1.0 }).addTo(s);
+  bs.inst = buildBass(); s.add(bs.inst);
+  // 드럼: 오른쪽 뒤, 낮은 단 위 (베이스와 트롬본 사이로 얼굴이 보이게)
+  const riser = buildRiser(); riser.position.set(0.45, 0, -3.85); riser.rotation.y = -0.1; s.add(riser);
+  const kit = buildDrums(); kit.position.set(0.45, 0.3, -3.85); kit.rotation.y = -0.1; s.add(kit);
+  const dr = new Person({ headScale: 1.2, x: 0, z: 0, ry: 0, seated: true, skin: '#eebf9a', hair: 'buzz', hairColor: '#5a3a22', beard: true, top: '#fbf1dc', stripe: '#2346b8', pants: '#1c1f33', shoes: '#1d1b1f', scale: 1.0 });
+  kit.add(dr.root); dr.root.position.set(0, 0, -0.42);
+  dr.kit = kit;
+  dr.sticks = { L: new THREE.Mesh(stickGeo(false), MAT.gloss), R: new THREE.Mesh(stickGeo(false), MAT.gloss), bL: new THREE.Mesh(stickGeo(true), MAT.gloss), bR: new THREE.Mesh(stickGeo(true), MAT.gloss) };
+  for (const k of ['L', 'R']) { dr.arms[k].wr.add(dr.sticks[k]); dr.arms[k].wr.add(dr.sticks['b' + k]); dr.sticks['b' + k].visible = false; dr.setHand(k, 'grip'); }
+  Object.assign(BAND, { tb, pn, bs, dr, piano, kit, members: [pn, bs, dr, tb] });
+  for (const m of BAND.members) { m.express('calm', -1); m.nodT = 0.35; }
+  tb.name = 'tb'; pn.name = 'pn'; bs.name = 'bs'; dr.name = 'dr';
+  // 내 스탠드
+  const st = buildStand(); st.position.set(0.62, 0, -0.55); st.rotation.y = -0.3; s.add(st);
+  BAND.stand = st;
+  BAND.standFlugel = buildHorn('flugel'); BAND.standFlugel.scale.setScalar(1.0);
+  st.add(BAND.standFlugel); BAND.standFlugel.position.set(0, 0.95, 0); BAND.standFlugel.rotation.set(-Math.PI / 2, 0, 0);
+  BAND.standMutes = { harmon: buildMute('harmon'), straight: buildMute('straight') };
+  st.add(BAND.standMutes.harmon); BAND.standMutes.harmon.position.set(0.24, 0.47, 0.0);
+  st.add(BAND.standMutes.straight); BAND.standMutes.straight.position.set(0.37, 0.47, 0.1);
+}
+
+// 1인칭 악기 (카메라에 붙임)
+const ME = {};
+function setupMe() {
+  const rig = grp(SC.vmScene); ME.rig = rig;
+  ME.horns = { tp: buildHorn('tp'), flugel: buildHorn('flugel') };
+  const hands = buildMyHands(); ME.hands = hands;
+  const hold = grp(rig); ME.hold = hold;
+  for (const k in ME.horns) { hold.add(ME.horns[k]); ME.horns[k].visible = k === 'tp'; }
+  hold.add(hands.R); hold.add(hands.L);
+  ME.mutes = { harmon: buildMute('harmon'), straight: buildMute('straight') };
+  for (const k in ME.mutes) { const m = ME.mutes[k]; m.visible = false; m.rotation.x = Math.PI / 2; hold.add(m); }
+  ME.swap = 0; ME.swapItem = null; ME.press = [0, 0, 0];
+  placeMe();
+}
+function placeMe() {
+  const p = SC.portrait;
+  // 화면 아래 가운데, 약간 오른쪽. 나팔은 앞(-z)으로
+  // 오른쪽 아래에서 안쪽으로 비스듬히 (나팔이 왼쪽 앞을 향함)
+  ME.baseY = p ? -0.17 : -0.15;
+  ME.rig.position.set(p ? 0.045 : 0.1, ME.baseY, -0.64);
+  ME.rig.rotation.set(0.14, 0.5, -0.08);
+  ME.rig.scale.setScalar(p ? 0.7 : 0.85);
+  ME.hold.position.set(0, 0, 0); ME.hold.rotation.set(0, 0, 0);
+  // 팔뚝은 손목에서 화면 오른쪽 아래, 내 쪽으로 빠지게
+  const arm = ME.hands.R.arm;
+  ME.rig.updateMatrixWorld(true);
+  const q = ME.hands.R.getWorldQuaternion(new THREE.Quaternion()).invert();
+  const d = new THREE.Vector3(0.45, -0.75, 0.5).normalize().applyQuaternion(q);
+  arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+}
+
+// ===== 68_audience.js =====
+// ===================== 손님 =====================
+const AUD = [];
+const TOPS = ['#e2452b', '#2346b8', '#f2b531', '#11806f', '#ff7a59', '#7c3aa6', '#3aa6b9', '#f6ead2', '#9bc53d', '#d94a7a', '#1c1f33', '#ffcf5c'];
+const PANTS = ['#1c1f33', '#2a2a35', '#3a4a7a', '#5a3a22', '#2f4f3a', '#6b2a2a', '#3d3d48'];
+const HAIRS = ['short', 'long', 'bun', 'afro', 'pomp', 'side', 'buzz', 'bald', 'long', 'short'];
+function randomLook(i) {
+  const hair = HAIRS[i % HAIRS.length];
+  const o = {
+    skin: pick(SKIN), hair, hairColor: hair === 'bald' ? pick(['#5a3a22', '#d8d2c8', '#2b2b30']) : pick(HAIRC),
+    top: pick(TOPS), pants: pick(PANTS), shoes: pick(['#1d1b1f', '#4a2a18', '#f1ead6', '#8a2f1d']), lo: true,
+    lip: pick(['#a8433b', '#b8384a', '#8f3a32', '#c24a5a']), scale: rand(0.94, 1.04), headScale: 1.12, belly: Math.random() < 0.25 ? rand(0.5, 1) : 0,
+  };
+  if (Math.random() < 0.3) o.jacket = pick(['#3d3d48', '#6b3a1e', '#2f4f3a', '#7a2f1d', '#c99a5b', '#1d2f6f']);
+  if (Math.random() < 0.28) o.glasses = pick(['#1d1b1f', '#c79a3b', '#7a2f1d']);
+  if (Math.random() < 0.18 && hair !== 'afro' && hair !== 'bun') { o.hat = pick(['beret', 'fedora', 'cap']); o.hatColor = pick(['#1d1b1f', '#3a2a1e', '#e2452b', '#2346b8', '#f2b531']); }
+  if (Math.random() < 0.2 && (hair === 'short' || hair === 'bald' || hair === 'buzz')) o.beard = true;
+  if (Math.random() < 0.12) o.scarf = pick(['#f2b531', '#e2452b', '#11806f']);
+  if (Math.random() < 0.3 && !o.jacket) o.stripe = pick(['#fbf1dc', '#1c1f33', '#f2b531']);
+  return o;
+}
+// 손님은 그림자 지도에 넣지 않음 (모바일 부담 줄이기, 의자·테이블 그림자는 남음)
+function noShadow(p) { p.root.traverse(o => { if (o.isMesh) o.castShadow = false; }); }
+function setupAudience() {
+  const s = SC.scene, center = V3(0, 0, -2.9);
+  // [테이블 x, z, 자리 수]
+  const tables = [[-1.55, -6.0, 2], [0.15, -6.35, 2], [1.75, -5.9, 2], [-0.85, -7.7, 2], [1.0, -7.8, 2], [-2.6, -4.6, 1], [2.75, -4.4, 2], [-2.9, -2.0, 2], [3.0, -1.7, 1], [-2.3, -9.2, 2], [2.4, -9.3, 1]];
+  let i = 0;
+  for (const [x, z, n] of tables) {
+    buildTable(x, z);
+    const face = Math.atan2(center.x - x, center.z - z);
+    for (let k = 0; k < n; k++) {
+      // 테이블에서 무대 쪽 반원에 앉음
+      const off = n === 1 ? 0 : (k === 0 ? -0.75 : 0.75);
+      const a = face + Math.PI + off;
+      const px = x + Math.sin(a) * 0.52, pz = z + Math.cos(a) * 0.52;
+      const ry = Math.atan2(center.x - px, center.z - pz) + rand(-0.15, 0.15);
+      buildChair(px, pz, ry);
+      const p = new Person({ ...randomLook(i++), seated: true, x: px, z: pz, ry }).addTo(s);
+      noShadow(p);
+      p.table = V3(x, 0.78, z); p.base = 'calm'; p.express('calm', -1);
+      p.watch = rand(0, 1); p.friend = null;
+      AUD.push(p);
+      if (Math.random() < 0.85) addDrink(x + Math.sin(a) * 0.18 + rand(-0.05, 0.05), z + Math.cos(a) * 0.18 + rand(-0.05, 0.05), randi(0, 8));
+    }
+  }
+  // 옆자리끼리 친구
+  for (const p of AUD) { let best = null, bd = 9; for (const q of AUD) { if (q === p) continue; const d = q.root.position.distanceTo(p.root.position); if (d < bd) { bd = d; best = q; } } p.friend = best; }
+  // 바텐더
+  const bt = new Person({ x: SC.barPos.x - 0.9, z: SC.barPos.z - 0.6, ry: -0.25, skin: '#d9a27a', hair: 'pomp', hairColor: '#1d1a1a', mustache: true, top: '#fbf1dc', jacket: '#2f4f3a', tie: '#c2352a', pants: '#1c1f33', lo: true }).addTo(s);
+  bt.base = 'calm'; bt.express('calm', -1); bt.nodT = 0.1;
+  const shaker = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.028, 0.16, 14), MAT.chrome); bt.arms.R.wr.add(shaker); shaker.position.set(0, -0.1, 0.02);
+  BAND.bartender = bt; bt.shaking = true;
+  // 바에 기댄 손님 둘
+  for (const [x, ry] of [[SC.barPos.x + 0.6, 0.9], [SC.barPos.x + 1.4, 0.75]]) {
+    const p = new Person({ ...randomLook(i++), x, z: SC.barPos.z + 0.75, ry: ry + Math.PI * 0.85, lo: true }).addTo(s);
+    noShadow(p);
+    p.base = 'calm'; p.express('calm', -1); p.watch = rand(0, 1); p.standing = true; AUD.push(p);
+    p.friend = AUD[AUD.length - 2] && AUD[AUD.length - 2].standing ? AUD[AUD.length - 2] : null;
+  }
+}
+
+// ===== 70_react.js =====
+// ===================== 반응 규칙 =====================
+const GAIN = { high: 16, run: 13, riff: 18, space: 7, fall: 9, pedal: 11, shake: 11 };
+const BIG = new Set(['high', 'run', 'riff', 'shake']);
+const REACT = {
+  sec: 'title', heat: 0, peak: 0, awes: 0, lastAwe: -99, aweOrder: ['pn', 'bs', 'dr', 'tb'], aweIdx: 0, lastAweWho: null,
+  kinds: [], hist: [], did: new Set(), big: false, lastG: {}, breakUsed: false, inBreak: false, soloStart: 0,
+  onsets: [], phrase: null, prevPhrase: null, riffN: 0, highFlag: false, pedalFlag: false, longFlag: false,
+  lastOff: 0, silentSince: 0, timers: [], nextIdle: 0, nextClink: 0, stats: { notes: 0 },
+  reset() {
+    Object.assign(this, { sec: 'count', heat: 0, peak: 0, awes: 0, lastAwe: -99, aweIdx: 0, lastAweWho: null, kinds: [], hist: [], did: new Set(), big: false, lastG: {}, breakUsed: false, inBreak: false,
+      onsets: [], phrase: null, prevPhrase: null, riffN: 0, highFlag: false, pedalFlag: false, longFlag: false, lastOff: 0, silentSince: 0, timers: [], stats: { notes: 0 } });
+    for (const p of AUD) { p.act = null; p.standT = 0; p.leanT = 0; p.express('calm', -1); p.base = 'calm'; }
+    for (const m of BAND.members) { m.express('calm', -1); m.base = 'calm'; m.leanT = 0; }
+    BAND.bartender.shaking = true;
+  },
+  later(sec, fn) { this.timers.push({ t: NOW.t + sec, fn }); },
+};
+const meNow = () => AE.ctx ? AE.ctx.currentTime : 0;
+const watchers = () => AUD.filter(p => p.watching);
+const pickSome = (arr, n) => shuffle(arr.slice()).slice(0, n);
+
+// ---------- 트럼펫 이벤트 → 행동 감지 ----------
+TP.listeners.push((type, d) => {
+  const R = REACT, now = meNow();
+  if (type === 'attack' || type === 'legato') {
+    R.stats.notes++;
+    R.onsets.push(now); while (R.onsets.length && R.onsets[0] < now - 1.7) R.onsets.shift();
+    R.highFlag = false; R.pedalFlag = false; R.longFlag = false;
+    if (type === 'attack') {
+      // 쉬었다가 첫 박에 정확히 들어가면 '여백'
+      const b = songBeats(now), off = Math.abs(b / 4 - Math.round(b / 4)) * 4;
+      if (R.sec === 'me' && now - R.lastOff > MUS.spb * 3.6 && R.lastOff > 0 && off < 0.18 && d.kind === 'breath') gesture('space');
+      if (!R.phrase || now - R.lastOff > 0.32) { closePhrase(); R.phrase = { t0: now, notes: [] }; }
+    }
+    if (R.phrase) R.phrase.notes.push({ t: now - R.phrase.t0, m: d.m });
+    if (R.onsets.length >= 7 && now - (R.lastG.run || -9) > 4) gesture('run');
+    if (R.sec === 'me' && R.heat < 42) addHeat(0.35);
+  } else if (type === 'release') {
+    R.lastOff = now;
+    if (d.flick === 'fall' && d.zone >= 4) gesture('fall');
+  } else if (type === 'shake') {
+    if (!d.on && d.dur > 0.45) gesture('shake');
+  } else if (type === 'swap') onSwap(d);
+});
+function closePhrase() {
+  const R = REACT, ph = R.phrase; if (!ph || !ph.notes.length) return;
+  R.phrase = null;
+  if (R.prevPhrase && similar(R.prevPhrase, ph)) {
+    R.riffN++;
+    if (R.riffN === 2 && R.sec === 'me') catchRiff(R.prevPhrase, ph);
+    if (R.riffN === 3) gesture('riff');
+  } else R.riffN = 1;
+  R.prevPhrase = ph;
+}
+function similar(a, b) {
+  if (Math.abs(a.notes.length - b.notes.length) > 1 || a.notes.length < 2 || a.notes.length > 9) return false;
+  const n = Math.min(a.notes.length, b.notes.length);
+  let ok = 0;
+  for (let i = 0; i < n; i++) if (Math.abs(a.notes[i].t - b.notes[i].t) < 0.11) ok++;
+  let cs = 0;
+  for (let i = 1; i < n; i++) if (Math.sign(a.notes[i].m - a.notes[i - 1].m) === Math.sign(b.notes[i].m - b.notes[i - 1].m)) cs++;
+  return ok >= n - 1 && cs >= (n - 1) * 0.6;
+}
+// 같은 리프 두 번째가 끝나면 드러머가 세 번째를 같이 침
+function catchRiff(a, b) {
+  const period = b.t0 - a.t0;
+  if (period < 0.4 || period > 4.5) return;
+  const t3 = b.t0 + period;
+  const times = b.notes.slice(0, 7).map(n => t3 + n.t);
+  bandAccents(times, true);
+  // 손님 몇이 테이블을 같이 침
+  for (const p of pickSome(AUD.filter(q => !q.standing), 2)) REACT.later(Math.max(0, t3 - meNow()), () => {
+    doAct(p, 'slap', period * 0.9); p.express('grin', period);
+    for (const tt of times.slice(0, 4)) if (tt > meNow()) playBuf(AE.syn.slap, tt, 0.25, AE.buses.crowd, { pan: clamp(p.root.position.x / 4, -0.9, 0.9) });
+  });
+}
+function addHeat(v) { const R = REACT; R.heat = clamp(R.heat + v, 0, 100); R.peak = Math.max(R.peak, R.heat); }
+function gesture(kind) {
+  const R = REACT, now = meNow();
+  R.lastG[kind] = now;
+  dlog('gesture', { g: kind, heat: Math.round(R.heat), sec: R.sec });
+  if (R.sec !== 'me' && R.sec !== 'head2' && R.sec !== 'tag') { smallNod(kind); return; }
+  const last3 = R.kinds.slice(-3);
+  let g = GAIN[kind] || 6;
+  if (R.kinds[R.kinds.length - 1] === kind) g *= 0.45; else if (!last3.includes(kind)) g *= 1.25;
+  // 같은 걸 계속 우려먹으면 감흥이 줄어듦 (최근 24초 안의 같은 행동 수)
+  while (R.hist.length && now - R.hist[0].t > 24) R.hist.shift();
+  const same = R.hist.filter(h => h.k === kind).length;
+  g *= Math.pow(0.6, same);
+  R.hist.push({ k: kind, t: now });
+  R.kinds.push(kind);
+  if (R.sec === 'me') { addHeat(g); R.did.add(kind); }
+  reactTo(kind);
+  // 경이 순간: 달아오른 상태에서 '새로운' 큰 행동이 나왔을 때, 8마디에 한 번까지
+  const barsSince = (now - R.lastAwe) / (4 * MUS.spb);
+  if (R.sec === 'me' && BIG.has(kind) && same <= 1 && R.heat >= 50 && barsSince >= 8 && !R.inBreak) aweMoment();
+  // 절정: 열기 최고에서 최고음을 길게 → 밴드가 2마디 멈춤
+  if (R.sec === 'me' && kind === 'high' && R.heat >= 88 && !R.breakUsed) { if (requestBreak() !== false) R.breakUsed = true; }
+}
+function smallNod(kind) {
+  // 내 차례가 아닐 때도 밴드는 알아챔 (작게)
+  const m = kind === 'pedal' ? BAND.bs : pick(BAND.members);
+  m.express('smile', 1.2);
+}
+function reactTo(kind) {
+  const R = REACT, me = meWorld(), W = watchers(), now = meNow();
+  const heatK = R.heat / 100;
+  switch (kind) {
+    case 'high': {
+      const t = nextSlot(now + 0.03); drum('crash', t, MUS.brushes ? 0.35 : 0.75, 'R'); drum('kick', t, 0.5, 'RF');
+      for (const p of pickSome(W, 3 + Math.round(heatK * 5))) { p.express('wow', 1.8); p.leanT = -0.15; R.later(1.8, () => p.leanT = 0); }
+      if (heatK > 0.5) for (const p of pickSome(W, 2)) doAct(p, 'raise', 1.4);
+      BAND.tb.express('wow', 1.4);
+      break;
+    }
+    case 'run':
+      BAND.pn.lookOverride = { t: NOW.t + 1.3 }; BAND.pn.express('wow', 1.3);
+      for (const p of pickSome(W, 2 + Math.round(heatK * 4))) { p.express('grin', 1.6); p.shakeHead = NOW.t + 1.6; }
+      break;
+    case 'riff':
+      for (const p of W) p.nodBoost = NOW.t + 3;
+      BAND.dr.express('grin', 2);
+      break;
+    case 'space':
+      BAND.bs.express('smile', 1.2); BAND.bs.nodBoost = NOW.t + 2;
+      for (const p of W) { p.leanT = 0.3; R.later(2.2, () => { if (p.leanT === 0.3) p.leanT = 0; }); }
+      break;
+    case 'fall':
+      for (const p of pickSome(W, 2 + Math.round(heatK * 3))) { p.express('stank', 1.5); p.pullBack = NOW.t + 1.2; }
+      nudge();
+      break;
+    case 'pedal':
+      BAND.bs.lookOverride = { t: NOW.t + 1.8 }; BAND.bs.express('laugh', 1.8); BAND.bs.shakeHead = NOW.t + 1.6;
+      for (const p of pickSome(W, 3)) p.express('grin', 1.5);
+      break;
+    case 'shake': {
+      const t = nextSlot(now + 0.03); drum(MUS.brushes ? 'btap' : 'ridebell', t, 0.8, 'R');
+      for (const p of pickSome(W, 3)) p.express('wow', 1.3);
+      BAND.tb.express('grin', 1.3);
+      break;
+    }
+  }
+}
+// 옆 사람 툭 치고 나를 가리킴
+function nudge() {
+  const cand = watchers().filter(p => p.friend && !p.standing);
+  if (!cand.length) return;
+  const p = pick(cand), f = p.friend;
+  p.lookAtFriend = NOW.t + 0.7; doAct(p, 'point', 1.5, { target: meWorld().clone() });
+  p.express('grin', 1.6);
+  REACT.later(0.35, () => { f.lookAtFriend = NOW.t + 0.4; f.express('wow', 1.4); });
+}
+function aweMoment() {
+  const R = REACT;
+  R.lastAwe = meNow(); R.awes++;
+  let who;
+  do { who = R.aweOrder[R.aweIdx++ % R.aweOrder.length]; } while (who === R.lastAweWho && R.aweOrder.length > 1);
+  R.lastAweWho = who;
+  const m = BAND[who];
+  dlog('awe', { who, n: R.awes, heat: Math.round(R.heat) });
+  const stare = () => { m.lookOverride = { t: NOW.t + 2.2, me: true }; m.express('awe', 1.7); R.later(1.7, () => { m.express('grin', 1.4); m.shakeHead = NOW.t + 1.3; }); };
+  if (R.awes >= 2) {
+    // 둘이 먼저 눈을 맞추고 같이 나를 봄
+    const other = BAND[pick(R.aweOrder.filter(k => k !== who))];
+    m.lookOverride = { t: NOW.t + 0.55, at: other }; other.lookOverride = { t: NOW.t + 0.55, at: m };
+    m.express('wow', 0.6); other.express('wow', 0.6);
+    R.later(0.55, () => { stare(); other.lookOverride = { t: NOW.t + 1.8, me: true }; other.express('awe', 1.5); R.later(1.5, () => other.express('grin', 1.2)); });
+  } else stare();
+}
+function onSwap(d) {
+  const R = REACT;
+  const quiet = d.to.mute === 'harmon' || d.to.instr === 'flugel';
+  for (const p of watchers()) { p.leanT = quiet ? 0.22 : 0; }
+  BAND.pn.express('smile', 1.2);
+  if (quiet) { setBed('room', 0.025); BAND.bartender.shaking = false; }
+  else setBed('room', 0.05);
+  void R;
+}
+
+// ---------- 곡 진행 이벤트 ----------
+REACT.onSong = function (e) {
+  const R = this;
+  if (e.type === 'seg') {
+    R.sec = e.seg;
+    if (e.seg === 'me') {
+      R.soloStart = meNow(); R.heat = Math.max(R.heat, 6);
+      showBanner('내 차례');
+      BAND.tb.express('smile', 1.5);
+    }
+    if (e.seg === 'head') { BAND.bartender.shaking = true; }
+  } else if (e.type === 'soloEnd') {
+    soloApplause();
+  } else if (e.type === 'break') {
+    R.inBreak = e.on;
+    if (e.on) {
+      for (const m of BAND.members) { m.lookOverride = { t: NOW.t + MUS.spb * 8, me: true }; m.express('awe', MUS.spb * 8); }
+      for (const p of AUD) { p.watching = true; p.express('wow', MUS.spb * 8); p.leanT = 0.3; }
+      BAND.bartender.shaking = false; setBed('room', 0.0);
+    } else {
+      for (const m of BAND.members) m.express('grin', 2);
+      for (const p of AUD) { p.leanT = 0; p.nodBoost = NOW.t + 4; }
+      for (const p of pickSome(AUD, 4)) doAct(p, 'raise', 1.5);
+      setBed('room', 0.04);
+    }
+  } else if (e.type === 'fermata') {
+    for (const m of BAND.members) { m.lookOverride = { t: NOW.t + 30, me: true }; m.express('focus', 30); }
+  } else if (e.type === 'cut') {
+    for (const m of BAND.members) m.lookOverride = null;
+    DIR.tbState = 'rest'; DIR.tbLastNote = 0;
+    ovation();
+  }
+};
+REACT.onCue = function () {
+  // 피아노 솔로 끝 무렵: 리더가 나를 보고 고개를 끄덕
+  const tb = BAND.tb;
+  tb.lookOverride = { t: NOW.t + 3.5, me: true }; tb.express('ask', 1.6);
+  REACT.later(1.6, () => { tb.express('smile', 2); tb.cueNod = NOW.t + 1.2; });
+};
+REACT.onAsk = function () {
+  if (TP.blowing || meNow() - TP.lastSoundT < MUS.spb * 2) return;
+  const pn = BAND.pn; pn.lookOverride = { t: NOW.t + 2.4, me: true }; pn.express('ask', 2.2);
+};
+function soloApplause() {
+  const R = REACT, k = clamp(0.35 + R.peak / 100 * 0.75, 0.35, 1.1);
+  setBed('applause', 0.32 * k, 0.4); R.later(3.2, () => setBed('applause', 0, 1.2));
+  const n = Math.round(AUD.length * clamp(0.4 + R.peak / 120, 0.4, 1));
+  for (const p of pickSome(AUD, n)) R.later(rand(0, 0.5), () => { doAct(p, 'clap', rand(2.4, 3.6), { rate: rand(3.8, 5.0), sound: AUD.indexOf(p) % 3 === 0 ? 0.12 : 0 }); p.express('smile', 3); });
+  const tb = BAND.tb; tb.lookOverride = { t: NOW.t + 2.5, me: true }; tb.express('grin', 2.5); tb.presenting = NOW.t + 2.4;
+  dlog('soloEnd', { peak: Math.round(R.peak), awes: R.awes });
+}
+function ovation() {
+  const R = REACT, big = R.peak >= 65 || R.awes >= 2;
+  R.big = big;
+  const k = big ? 1 : 0.6;
+  setBed('applause', 0.75 * k, 0.5);
+  R.later(big ? 8 : 5, () => setBed('applause', 0, 2.5));
+  for (const p of AUD) R.later(rand(0, 0.6), () => {
+    doAct(p, 'clap', big ? rand(6, 8) : rand(3.5, 5), { rate: rand(4.4, 5.8), high: big && Math.random() < 0.5, sound: AUD.indexOf(p) % 3 === 0 ? 0.16 : 0 });
+    p.express(big ? 'grin' : 'smile', 6); p.watching = true;
+    if (big && !p.standing) p.standT = 1;
+  });
+  if (big) for (let i = 0; i < 3; i++) R.later(0.6 + i * 0.7, () => whistle());
+  for (const m of BAND.members) { m.lookOverride = { t: NOW.t + 6, me: true }; m.express('grin', 6); }
+  BAND.tb.presenting = NOW.t + 5;
+  dlog('ovation', { big, peak: Math.round(R.peak), awes: R.awes });
+  R.later(big ? 7.5 : 5.5, () => endGame());
+}
+function whistle() {
+  const ctx = AE.ctx, t0 = ctx.currentTime + 0.02;
+  const o = ctx.createOscillator(); o.type = 'sine';
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, t0);
+  const f = rand(1900, 2500);
+  o.frequency.setValueAtTime(f * 0.8, t0); o.frequency.exponentialRampToValueAtTime(f * 1.25, t0 + 0.18); o.frequency.exponentialRampToValueAtTime(f * 0.7, t0 + 0.42);
+  o.frequency.setValueAtTime(f * 0.95, t0 + 0.5); o.frequency.exponentialRampToValueAtTime(f * 1.3, t0 + 0.7); o.frequency.exponentialRampToValueAtTime(f * 0.6, t0 + 1.05);
+  g.gain.linearRampToValueAtTime(0.06, t0 + 0.03); g.gain.setValueAtTime(0.06, t0 + 0.4); g.gain.linearRampToValueAtTime(0.0, t0 + 0.46); g.gain.linearRampToValueAtTime(0.06, t0 + 0.52); g.gain.linearRampToValueAtTime(0, t0 + 1.08);
+  o.connect(g); g.connect(AE.buses.crowd); o.start(t0); o.stop(t0 + 1.2);
+}
+
+// ---------- 매 프레임: 시선·표정·자잘한 행동 ----------
+REACT.update = function (dt, t, beat) {
+  const R = this;
+  for (let i = R.timers.length - 1; i >= 0; i--) if (R.timers[i].t <= t) { const f = R.timers[i].fn; R.timers.splice(i, 1); f(); }
+  const now = meNow(), me = meWorld();
+  const solo = R.sec === 'me';
+  if (MUS.running && AE.ctx) {
+    // 길게 끄는 음
+    if (TP.blowing && TP.voice) {
+      const held = now - TP.pitchT0;
+      if (!R.highFlag && ((TP.zone >= 7 && held > 0.9) || (TP.zone === 6 && held > 1.6))) { R.highFlag = true; gesture('high'); }
+      if (!R.pedalFlag && TP.zone === 0 && held > 0.6) { R.pedalFlag = true; gesture('pedal'); }
+    }
+    if (R.phrase && !TP.blowing && now - R.lastOff > 0.34) closePhrase();
+    // 열기 식기
+    const silent = !TP.blowing && now - TP.lastSoundT > 4;
+    if (solo) R.heat = clamp(R.heat - dt * (silent ? 2.4 : 0.55), 0, 100);
+    else if (R.sec !== 'head2' && R.sec !== 'tag' && R.sec !== 'final') R.heat = Math.max(0, R.heat - dt * 1.5);
+  }
+  const H = R.heat / 100;
+  // 누가 나를 보나
+  const frac = solo ? clamp(0.18 + H * 1.05, 0, 1) : (R.sec === 'head2' || R.sec === 'tag' || R.sec === 'final' ? clamp(0.3 + R.peak / 100, 0, 1) : 0);
+  const tbPos = BAND.tb.headWorld(_p.set(0, 0, 0)).clone(), pnPos = BAND.pn.headWorld(new THREE.Vector3()), bsPos = BAND.bs.headWorld(new THREE.Vector3()), drPos = BAND.dr.headWorld(new THREE.Vector3());
+  const stageC = new THREE.Vector3(0, 1.2, -3.0);
+  for (const p of AUD) {
+    p.watching = p.watch < frac;
+    let look;
+    if (p.lookAtFriend && t < p.lookAtFriend && p.friend) look = p.friend.headWorld(new THREE.Vector3());
+    else if (p.watching) look = me;
+    else if (R.sec === 'head' || R.sec === 'head2') look = p.watch < 0.6 ? tbPos : stageC;
+    else if (R.sec === 'pno') look = pnPos;
+    else if (R.sec === 'title') look = stageC;
+    else look = p.watch < 0.5 ? stageC : (p.friend && p.watch > 0.8 ? p.friend.headWorld(new THREE.Vector3()) : stageC);
+    p.lookT.copy(look);
+    let nod = 0.22 + (p.watching ? 0.25 + H * 0.55 : 0);
+    if (p.nodBoost && t < p.nodBoost) nod += 0.45;
+    p.nodT = R.sec === 'title' || R.sec === 'done' ? 0.1 : nod;
+    if (p.shakeHead && t < p.shakeHead) p.roll = Math.sin(t * 7) * 0.12; else p.roll = damp(p.roll, 0, 6, dt);
+    if (p.pullBack && t < p.pullBack) p.leanT = -0.2; else if (p.pullBack) { p.pullBack = 0; p.leanT = 0; }
+    if (!p.act && !p.exUntil) {
+      // 기본 표정: 많이 달아오르면 눈 감고 듣는 사람
+      const want = p.watching ? (H > 0.55 && p.watch < 0.35 ? 'bliss' : H > 0.3 ? 'smile' : 'calm') : 'calm';
+      if (p.base !== want) { p.base = want; p.express(want, -1); p.exUntil = 0; }
+    }
+  }
+  // 자잘한 행동: 낮은 열기에서 홀짝·잡담, 높으면 2·4 핑거스냅
+  if (t > R.nextIdle) {
+    R.nextIdle = t + rand(0.5, 1.2);
+    const free = AUD.filter(p => !p.act && !p.standing);
+    if (free.length) {
+      const p = pick(free);
+      if (!p.watching && R.sec !== 'title' && Math.random() < 0.5 && p.friend) { doAct(p, 'talk', rand(1.5, 3)); p.lookAtFriend = NOW.t + 2; p.express('smile', 2.5); }
+      else if (Math.random() < 0.3) doAct(p, 'sip', 2.2);
+      else if (p.watching && H > 0.35 && R.sec === 'me' && Math.random() < 0.3 + H * 0.4) doAct(p, 'snap', rand(4, 8));
+      else if (Math.random() < 0.15) doAct(p, 'chin', rand(2, 4));
+    }
+  }
+  // 바 소리 (잔 부딪힘)
+  if (AE.decoded && MUS.running && t > R.nextClink && R.heat < 40 && R.sec !== 'final') {
+    R.nextClink = t + rand(3, 9);
+    playBuf(pick(AE.syn.clinks), AE.ctx.currentTime + 0.01, rand(0.03, 0.07), AE.buses.room, { pan: rand(-0.8, 0.8) });
+  }
+  // 바텐더
+  const bt = BAND.bartender;
+  if (R.heat >= 50 || TP.mute === 'harmon' || R.inBreak) bt.shaking = false;
+  else if (R.heat < 30 && R.sec !== 'final') bt.shaking = true;
+  bt.lookT.copy(bt.shaking ? new THREE.Vector3(bt.root.position.x, 1.2, bt.root.position.z + 1) : (solo ? me : stageC));
+  if (bt.shaking && Math.floor(t * 8.5 / Math.PI) !== R.lastShake) { R.lastShake = Math.floor(t * 8.5 / Math.PI); if (AE.decoded && MUS.running && R.lastShake % 2 === 0) playBuf(AE.syn.shaker, AE.ctx.currentTime + 0.01, 0.05, AE.buses.room, { pan: 0.5 }); }
+  // 밴드 시선
+  bandLooks(dt, t, me, { pnPos, bsPos, drPos, tbPos });
+};
+const _tbOut = new THREE.Vector3();
+function bandLooks(dt, t, me, P) {
+  const R = REACT, solo = R.sec === 'me', H = R.heat / 100;
+  const L = (m, def) => {
+    const o = m.lookOverride;
+    if (o && t < o.t) { m.lookT.copy(o.at ? o.at.headWorld(new THREE.Vector3()) : me); return; }
+    if (o && t >= o.t) m.lookOverride = null;
+    // 가끔 나를 힐끔 (열기 높을수록 자주)
+    if (solo && m.glanceUntil && t < m.glanceUntil) { m.lookT.copy(me); return; }
+    if (solo && t > (m.nextGlance || 0)) { m.nextGlance = t + rand(2.5, 6) * (1.2 - H * 0.7); m.glanceUntil = t + rand(0.6, 1.4); }
+    m.lookT.copy(def);
+  };
+  const keys = localToWorld(BAND.piano, 0, 0.85, -0.1, new THREE.Vector3());
+  L(BAND.pn, R.sec === 'pno' ? keys : (Math.sin(t * 0.3) > 0.2 ? P.bsPos : keys));
+  L(BAND.bs, Math.sin(t * 0.23 + 1) > 0 ? P.drPos : (solo ? me : P.pnPos));
+  L(BAND.dr, solo ? (Math.sin(t * 0.31) > -0.3 ? me : P.bsPos) : (Math.sin(t * 0.2) > 0 ? P.bsPos : P.tbPos));
+  const tbDef = R.sec === 'head' || R.sec === 'head2' || R.sec === 'tag' ? _tbOut.set(1.6, 1.4, 0.6) : (R.sec === 'pno' ? P.pnPos : me);
+  L(BAND.tb, tbDef);
+  for (const m of BAND.members) {
+    m.nodT = (R.sec === 'title' ? 0.15 : 0.35) + (solo ? H * 0.4 : 0) + (m.nodBoost && t < m.nodBoost ? 0.4 : 0);
+    if (m.shakeHead && t < m.shakeHead) m.roll = Math.sin(t * 6.5) * 0.11; else m.roll = damp(m.roll, 0, 6, dt);
+  }
+  // 리더 끄덕임 신호
+  const tb = BAND.tb;
+  if (tb.cueNod && t < tb.cueNod) tb.nodT = 1.4;
+  if (!tb.exUntil && DIR.tbState !== 'play' && tb.base !== 'calm') { tb.base = 'calm'; tb.express('calm', -1); tb.exUntil = 0; }
+}
+
+// ===== 72_director.js =====
+// ===================== 연출: 밴드·손님 움직임 =====================
+const DIR = { camPos: null, meWorld: new THREE.Vector3(), tbState: 'rest', tbBlend: 0, slide: 0, slideT: 0, bassL: 1.3, pluck: 0, hits: { L: [], R: [] }, pnHands: { L: null, R: null }, pnPress: { L: 0, R: 0 }, hatClose: 0, countOff: 0, brushes: false, seg: 'title' };
+const _p = new THREE.Vector3(), _p2 = new THREE.Vector3(), _qq = new THREE.Quaternion(), _qq2 = new THREE.Quaternion(), _eu = new THREE.Euler();
+
+function initDirector() {
+  DIR.camPos = SC.camera.position;
+  // 손 방향 쿼터니언 (월드)
+  DIR.qPalmDown = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+}
+// 사람 로컬 좌표 → 월드
+function localToWorld(obj, x, y, z, out = new THREE.Vector3()) { out.set(x, y, z); obj.updateWorldMatrix(true, false); return out.applyMatrix4(obj.matrixWorld); }
+function meWorld() { return SC.camera.getWorldPosition(DIR.meWorld); }
+
+// ---------- 트롬본 ----------
+function updateTrombone(dt, t) {
+  const tb = BAND.tb, horn = tb.horn;
+  const playing = DIR.tbState === 'play';
+  DIR.tbBlend = damp(DIR.tbBlend, playing ? 1 : 0, 6, dt);
+  const k = smooth01(DIR.tbBlend);
+  tb.root.updateWorldMatrix(true, true);
+  // 연주 자세: 마우스피스가 입에, 슬라이드는 앞쪽 아래로
+  const mouth = localToWorld(tb.head, 0, -0.08, 0.13, _p);
+  _qq.copy(tb.root.getWorldQuaternion(_qq2)).multiply(_qq2.setFromEuler(_eu.set(0.22 - tb.pitch * 0.4, tb.yaw * 0.5, 0)));
+  const playPos = mouth.clone().add(new THREE.Vector3(-0.035, 0.0, 0.0).applyQuaternion(_qq));
+  const playQ = _qq.clone();
+  // 쉬는 자세: 오른손에 세워 들기
+  const restPos = localToWorld(tb.root, -0.3, 0.78, 0.12, _p2).clone();
+  const restQ = tb.root.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2 + 0.1, 0.4, 0)));
+  horn.position.lerpVectors(restPos, playPos, k);
+  horn.quaternion.slerpQuaternions(restQ, playQ, k);
+  DIR.slide = damp(DIR.slide, DIR.slideT, 18, dt);
+  horn.slide.position.z = DIR.slide * k;
+  horn.updateWorldMatrix(true, true);
+  const hL = localToWorld(horn, 0.075, 0.05, 0.02, new THREE.Vector3());
+  const hR = localToWorld(horn.slide, 0.0, -0.03, 0.4, new THREE.Vector3());
+  const qGrip = horn.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, Math.PI / 2)));
+  if (k > 0.05) {
+    tb.ik('L', hL, new THREE.Vector3(0.6, -0.6, -0.3).applyQuaternion(tb.root.quaternion), qGrip);
+    tb.ik('R', hR, new THREE.Vector3(-0.8, -0.6, 0).applyQuaternion(tb.root.quaternion), qGrip);
+    tb.setHand('L', 'grip'); tb.setHand('R', 'grip');
+  } else {
+    const rh = localToWorld(horn, 0.0, -0.03, 0.28, new THREE.Vector3());
+    tb.ik('R', rh, new THREE.Vector3(-1, -0.4, -0.2).applyQuaternion(tb.root.quaternion), qGrip);
+    tb.setHand('R', 'grip');
+    if (tb.presenting && NOW.t < tb.presenting) {
+      // 손바닥을 펴서 나를 가리킴 (소개하는 손짓)
+      const tgt = meWorld().clone().sub(tb.chest.getWorldPosition(new THREE.Vector3())).setLength(0.5).add(tb.chest.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0.05, 0));
+      tb.ik('L', tgt, new THREE.Vector3(1, -0.5, -0.3).applyQuaternion(tb.root.quaternion));
+      tb.setHand('L', 'flat');
+    } else {
+      tb.ik('L', localToWorld(tb.root, 0.24, 0.86, 0.05, new THREE.Vector3()), new THREE.Vector3(1, -0.2, -0.4).applyQuaternion(tb.root.quaternion));
+      tb.setHand('L', 'relax');
+    }
+  }
+}
+// ---------- 베이스 ----------
+function updateBass(dt, t) {
+  const bs = BAND.bs, b = bs.inst;
+  // 연주자 앞, 살짝 오른쪽으로 비스듬히
+  localToWorld(bs.root, -0.06, 0.08, 0.27, _p);
+  b.position.copy(_p);
+  b.quaternion.copy(bs.root.getWorldQuaternion(_qq)).multiply(_qq2.setFromEuler(_eu.set(-0.18, 0.55, 0.12)));
+  b.updateWorldMatrix(true, false);
+  DIR.pluck = Math.max(0, DIR.pluck - dt * 9);
+  DIR.bassLs = damp(DIR.bassLs || 1.4, DIR.bassL, 14, dt);
+  const lh = localToWorld(b, -0.035, DIR.bassLs, 0.11, new THREE.Vector3());
+  const rh = localToWorld(b, 0.05 + DIR.pluck * 0.05, 0.6 + DIR.pluck * 0.04, 0.17 - DIR.pluck * 0.03, new THREE.Vector3());
+  const q = b.getWorldQuaternion(new THREE.Quaternion());
+  bs.ik('L', lh, new THREE.Vector3(1, -0.3, 0).applyQuaternion(bs.root.quaternion), q.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -1.3, Math.PI))));
+  bs.ik('R', rh, new THREE.Vector3(-1, -0.5, -0.4).applyQuaternion(bs.root.quaternion), q.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, 1.4, Math.PI))));
+  bs.setHand('L', 'curl'); bs.setHand('R', DIR.pluck > 0.3 ? 'point' : 'curl');
+}
+function bassNeckY(m) { return lerp(1.62, 1.02, clamp((m - 28) / 22, 0, 1)); }
+// ---------- 피아노 ----------
+function updatePiano(dt, t) {
+  const pn = BAND.pn, P = BAND.piano;
+  for (const s of ['L', 'R']) {
+    DIR.pnPress[s] = Math.max(0, DIR.pnPress[s] - dt * 7);
+    const x = DIR.pnHands[s] != null ? DIR.pnHands[s] : (s === 'L' ? -0.18 : 0.18);
+    DIR['pnX' + s] = damp(DIR['pnX' + s] || x, x, 12, dt);
+    const h = localToWorld(P, DIR['pnX' + s], 0.92 - DIR.pnPress[s] * 0.035 + Math.sin(t * 3 + (s === 'L' ? 0 : 2)) * 0.004, -0.19, new THREE.Vector3());
+    const q = P.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.25, 0, 0)));
+    pn.ik(s, h, new THREE.Vector3(s === 'L' ? 1 : -1, -0.7, -0.4).applyQuaternion(P.quaternion), q);
+    pn.setHand(s, 'curl');
+  }
+}
+// ---------- 드럼 ----------
+function drumTarget(piece) { const P = BAND.kit.P; return piece === 'ride' || piece === 'ridebell' ? P.ride.position : piece === 'crash' ? P.crash.position : piece === 'tomHi' ? P.tomHi : piece === 'tomLo' ? P.tomLo : P.snare; }
+function updateDrums(dt, now) {
+  const dr = BAND.dr, kit = BAND.kit, P = kit.P;
+  // 다음 타격을 미리 보고 스틱을 들었다 내리기
+  for (const s of ['L', 'R']) {
+    const H = DIR.hits[s];
+    while (H.length > 1 && H[1].t <= now) H.shift();
+    const cur = H[0], nx = H.find(h => h.t > now);
+    let lift = 0.12, tgt = s === 'R' ? (DIR.brushes ? P.snare : P.ride.position) : P.snare;
+    if (nx) {
+      tgt = drumTarget(nx.piece);
+      const to = nx.t - now;
+      const last = cur && cur.t <= now ? now - cur.t : 9;
+      lift = Math.min(clamp(last / 0.09, 0, 1), clamp(to / 0.11, 0, 1)) * (0.07 + nx.v * 0.08);
+    }
+    if (DIR.brushes && s === 'L') { // 브러시 원 그리기
+      const a = songBeatNow() * Math.PI;
+      DIR.tL = DIR.tL || new THREE.Vector3();
+      DIR.tL.set(P.snare.x + Math.cos(a) * 0.07, P.snare.y + 0.02, P.snare.z + Math.sin(a) * 0.05); tgt = DIR.tL; lift = 0;
+    }
+    DIR['dt' + s] = DIR['dt' + s] || tgt.clone();
+    DIR['dt' + s].lerp(tgt, 1 - Math.exp(-dt * 16));
+    const w = localToWorld(kit, DIR['dt' + s].x + (s === 'L' ? 0.08 : -0.1), DIR['dt' + s].y + 0.1 + lift, DIR['dt' + s].z - 0.18, new THREE.Vector3());
+    if (DIR.countOff > 0) localToWorld(kit, s === 'L' ? 0.06 : -0.06, 1.25 + (Math.sin(now * 20) > 0 ? 0.02 : 0), -0.1, w);
+    const q = kit.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.9 + lift * 2.5, s === 'L' ? -0.5 : 0.5, 0)));
+    dr.ik(s, w, new THREE.Vector3(s === 'L' ? 1 : -1, -0.6, -0.6).applyQuaternion(kit.quaternion), q);
+  }
+  // 심벌 흔들림
+  for (const c of [P.ride, P.crash, P.hat]) { c.wv += (-c.wob * 90 - c.wv * 3.5) * dt; c.wob += c.wv * dt; c.inner.rotation.y += c.wob * dt * 0.0; c.rotation.x = c.wob * 0.18; c.rotation.z = c.wob * 0.12; }
+  DIR.hatClose = Math.max(0, DIR.hatClose - dt * 10);
+  P.hatTop.position.y = 0.93 + 0.025 * (1 - DIR.hatClose);
+}
+
+// ---------- 이벤트 처리 ----------
+function handleVQ(e) {
+  switch (e.who) {
+    case 'tbn':
+      if (e.type === 'note') { DIR.tbState = 'play'; DIR.slideT = (e.slide - 1) * 0.085; DIR.tbLastNote = e.t + Math.min(e.dur, 30); BAND.tb.express('blow', Math.min(e.dur + 0.3, 30)); }
+      else if (e.type === 'cue') REACT.onCue();
+      break;
+    case 'bass': if (!e.ghost) { DIR.pluck = 1; DIR.bassL = bassNeckY(e.midi); } break;
+    case 'pno': {
+      if (e.type === 'ask') { REACT.onAsk(); break; }
+      const x = BAND.piano.keyX(e.notes.reduce((a, b) => a + b, 0) / e.notes.length);
+      DIR.pnHands[e.hand === 'R' ? 'R' : 'L'] = x; DIR.pnPress[e.hand === 'R' ? 'R' : 'L'] = 1;
+      break;
+    }
+    case 'drums':
+      if (e.type === 'hit') {
+        const P = BAND.kit.P;
+        if (e.piece === 'ride' || e.piece === 'ridebell') { P.ride.wv += 2.2 * e.v; }
+        if (e.piece === 'crash') { P.crash.wv += 4.5 * e.v; }
+        if (e.piece === 'hat') DIR.hatClose = 1;
+        if (e.piece === 'stick') DIR.countOff = 0.6;
+      } else if (e.type === 'swap') { DIR.brushes = e.brushes; const s = BAND.dr.sticks; s.L.visible = s.R.visible = !e.brushes; s.bL.visible = s.bR.visible = e.brushes; }
+      break;
+    case 'song': REACT.onSong(e); break;
+  }
+}
+// 드럼 손 예약 (미리 보기용) — 큐에서 꺼내기 전에 넣어 둠
+function peekDrumHits(now) {
+  for (const e of VQ) {
+    if (e._seen || e.who !== 'drums' || e.type !== 'hit') continue;
+    e._seen = true;
+    const limb = e.limb === 'L' ? 'L' : e.limb === 'R' ? 'R' : null;
+    if (!limb) continue;
+    DIR.hits[limb].push({ t: e.t, piece: e.piece, v: e.v });
+    DIR.hits[limb].sort((a, b) => a.t - b.t);
+  }
+}
+function processVQ(now) {
+  peekDrumHits(now);
+  let i = 0;
+  while (i < VQ.length) {
+    if (VQ[i].t <= now) { const e = VQ[i]; VQ.splice(i, 1); try { handleVQ(e); } catch (err) { console.error('VQ', e.who, e.type, err); } }
+    else i++;
+  }
+}
+
+// ---------- 내 손 ----------
+function updateMe(dt, t) {
+  const h = ME.horns[TP.instr === 'flugel' ? 'flugel' : 'tp'];
+  for (const k in ME.horns) ME.horns[k].visible = ME.horns[k] === h && ME.swap < 0.5 || (ME.horns[k] !== h && ME.swap >= 0.5 && ME.swapFrom === k);
+  for (let i = 0; i < 3; i++) {
+    const down = (TP.rawMask >> i) & 1;
+    ME.press[i] = damp(ME.press[i], down, 30, dt);
+    for (const k in ME.horns) ME.horns[k].valves[i].position.y = 0.075 - ME.press[i] * 0.016;
+    ME.hands.R.fingers[i].position.y = 0.125 - ME.press[i] * 0.016;
+  }
+  // 교체 동작: 내렸다 올리기
+  if (ME.swapT > 0) { ME.swapT -= dt; ME.swap = ME.swapT > 0 ? Math.sin(clamp(1 - ME.swapT / ME.swapDur, 0, 1) * Math.PI) : 0; }
+  ME.hold.position.y = -ME.swap * 0.22; ME.hold.rotation.x = ME.swap * 0.6;
+  // 뮤트
+  const mute = ME.swap > 0.5 ? ME.muteFrom : TP.mute;
+  for (const k in ME.mutes) {
+    const m = ME.mutes[k]; m.visible = mute === k && TP.instr !== 'flugel';
+    if (m.visible) { const bm = h.bellMouth; m.position.set(bm.x, bm.y, bm.z + 0.075); m.rotation.set(Math.PI / 2, 0, 0); }
+  }
+  // 스탠드에 남은 것
+  BAND.standFlugel.visible = !(TP.instr === 'flugel');
+  for (const k in BAND.standMutes) BAND.standMutes[k].visible = TP.mute !== k;
+  // 숨 쉴 때 아주 살짝 움직임
+  ME.rig.position.y = ME.baseY + (TP.blowing ? -0.004 : Math.sin(t * 1.3) * 0.0015);
+}
+TP.listeners.push((type, d) => {
+  if (type === 'swap') { ME.swapT = ME.swapDur = d.big ? 0.9 : 0.65; ME.swapFrom = d.from.instr; ME.muteFrom = d.from.mute; }
+});
+
+// ---------- 손님 기본 동작 ----------
+function updateAudience(dt, t, beat) {
+  for (const p of AUD) {
+    p.update(dt, t, beat);
+    // 팔: 테이블 위에 두거나 박수 등
+    const act = p.act;
+    if (act && t > act.until) p.act = null;
+    if (p.act) runAct(p, p.act, t);
+    else if (!p.standing) restOnTable(p, t);
+    else standIdle(p);
+  }
+  const bt = BAND.bartender; bt.update(dt, t, beat);
+  if (bt.shaking) {
+    const ph = t * 8.5;
+    bt.ik('R', localToWorld(bt.root, -0.12, 1.32 + Math.sin(ph) * 0.07, 0.3, new THREE.Vector3()), new THREE.Vector3(-1, -0.5, 0).applyQuaternion(bt.root.quaternion));
+    bt.ik('L', localToWorld(bt.root, 0.05, 1.3 + Math.sin(ph) * 0.07, 0.32, new THREE.Vector3()), new THREE.Vector3(1, -0.5, 0).applyQuaternion(bt.root.quaternion));
+    bt.setHand('R', 'grip'); bt.setHand('L', 'flat');
+  } else {
+    bt.ik('R', localToWorld(bt.root, -0.18, 1.08, 0.35, new THREE.Vector3()), new THREE.Vector3(-1, -0.5, 0).applyQuaternion(bt.root.quaternion));
+    bt.ik('L', localToWorld(bt.root, 0.18, 1.08, 0.35, new THREE.Vector3()), new THREE.Vector3(1, -0.5, 0).applyQuaternion(bt.root.quaternion));
+  }
+}
+function restOnTable(p, t) {
+  const tb = p.table; if (!tb) return;
+  // 테이블 쪽으로 손을 올려 둠 (팔짱 대신)
+  for (const s of ['L', 'R']) {
+    const off = s === 'L' ? 0.13 : -0.13;
+    const w = localToWorld(p.root, off, p.stand > 0.5 ? 0.9 : 0.8, p.stand > 0.5 ? 0.2 : 0.33, new THREE.Vector3());
+    p.ik(s, w, new THREE.Vector3(s === 'L' ? 1 : -1, -0.6, -0.5).applyQuaternion(p.root.quaternion), p.root.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.3, 0, 0))));
+    p.setHand(s, 'relax');
+  }
+}
+function standIdle(p) {
+  for (const s of ['L', 'R']) {
+    const w = localToWorld(p.root, s === 'L' ? 0.2 : -0.2, 0.92, 0.12, new THREE.Vector3());
+    p.ik(s, w, new THREE.Vector3(s === 'L' ? 1 : -1, -0.2, -0.6).applyQuaternion(p.root.quaternion));
+    p.setHand(s, 'relax');
+  }
+}
+// 손님 동작: clap, snap, point, raise, sip, slap, chin
+function runAct(p, a, t) {
+  const R = p.root, up = p.stand > 0.5;
+  const q0 = R.getWorldQuaternion(new THREE.Quaternion());
+  const yb = up ? 0.42 : 0;
+  if (a.k === 'clap') {
+    const ph = (t - a.t0) * (a.rate || 4.5) * Math.PI * 2;
+    const sep = 0.035 + Math.max(0, Math.cos(ph)) * 0.09;
+    const hy = (a.high ? 1.45 : 1.05) + yb;
+    p.ik('L', localToWorld(R, sep, hy, 0.32, new THREE.Vector3()), new THREE.Vector3(1, -0.4, -0.3).applyQuaternion(R.quaternion), q0.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.6, Math.PI / 2, 0))));
+    p.ik('R', localToWorld(R, -sep, hy, 0.32, new THREE.Vector3()), new THREE.Vector3(-1, -0.4, -0.3).applyQuaternion(R.quaternion), q0.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.6, -Math.PI / 2, 0))));
+    p.setHand('L', 'flat'); p.setHand('R', 'flat');
+    // 박수 소리 (가까운 사람만 따로 들림)
+    const n = Math.floor((t - a.t0) * (a.rate || 4.5));
+    if (n !== a.lastN && a.sound) { a.lastN = n; if (AE.decoded) playBuf(pick(AE.syn.claps), AE.ctx.currentTime + 0.005, a.sound * rand(0.7, 1), AE.buses.crowd, { pan: clamp(p.root.position.x / 4, -0.9, 0.9) }); }
+  } else if (a.k === 'snap') {
+    const beat = songBeatNow(), ph = ((beat % 2) + 2) % 2, hit = Math.exp(-Math.pow((ph - 1) / 0.12, 2));
+    p.ik('R', localToWorld(R, -0.2, 1.1 + yb + hit * 0.04, 0.28, new THREE.Vector3()), new THREE.Vector3(-1, -0.6, -0.2).applyQuaternion(R.quaternion), q0.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.2, 0, 0.3))));
+    p.setHand('R', hit > 0.5 ? 'snap' : 'curl');
+    if (!p.lo || p.arms.R.hands.snap === undefined) p.setHand('R', 'point');
+    restLeft(p, yb);
+  } else if (a.k === 'point' || a.k === 'raise') {
+    const tgt = a.k === 'raise' ? localToWorld(R, -0.12, 1.75 + yb, 0.2, new THREE.Vector3()) : a.target.clone().sub(p.headWorld(new THREE.Vector3())).setLength(0.55).add(p.chest.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0.25, 0));
+    p.ik('R', tgt, new THREE.Vector3(-1, -0.4, -0.3).applyQuaternion(R.quaternion));
+    p.setHand('R', a.k === 'raise' ? 'flat' : 'point');
+    restLeft(p, yb);
+  } else if (a.k === 'sip') {
+    const ph = clamp((t - a.t0) / (a.until - a.t0), 0, 1), up2 = Math.sin(ph * Math.PI);
+    const mouth = localToWorld(p.head, -0.02, -0.07, 0.17, new THREE.Vector3());
+    const rest = localToWorld(R, -0.13, 0.82 + yb, 0.33, new THREE.Vector3());
+    p.ik('R', rest.lerp(mouth, smooth01(up2 * 1.3)), new THREE.Vector3(-1, -0.6, -0.2).applyQuaternion(R.quaternion));
+    p.setHand('R', 'grip'); restLeft(p, yb);
+  } else if (a.k === 'slap') {
+    const ph = (t - a.t0) * 6, d = Math.abs(Math.sin(ph * Math.PI));
+    p.ik('R', localToWorld(R, -0.1, 0.8 + d * 0.15, 0.36, new THREE.Vector3()), new THREE.Vector3(-1, -0.4, -0.3).applyQuaternion(R.quaternion), q0.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.5, 0, 0))));
+    p.setHand('R', 'flat'); restLeft(p, yb);
+  } else if (a.k === 'chin') {
+    p.ik('R', localToWorld(p.head, -0.02, -0.17, 0.08, new THREE.Vector3()), new THREE.Vector3(-0.5, -1, 0.3).applyQuaternion(R.quaternion));
+    p.setHand('R', 'fist'); restLeft(p, yb);
+  } else if (a.k === 'talk') {
+    const ph = (t - a.t0) * 3;
+    p.ik('R', localToWorld(R, -0.16, 1.0 + Math.sin(ph) * 0.05, 0.3, new THREE.Vector3()), new THREE.Vector3(-1, -0.5, -0.3).applyQuaternion(R.quaternion), q0.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.9 + Math.sin(ph * 1.7) * 0.3, 0, 0.4))));
+    p.setHand('R', 'relax'); restLeft(p, yb);
+  }
+}
+function restLeft(p, yb) {
+  const w = localToWorld(p.root, 0.13, 0.8 + yb, p.stand > 0.5 ? 0.2 : 0.33, new THREE.Vector3());
+  p.ik('L', w, new THREE.Vector3(1, -0.6, -0.5).applyQuaternion(p.root.quaternion));
+  p.setHand('L', 'relax');
+}
+function doAct(p, k, dur, extra = {}) { p.act = { k, t0: NOW.t, until: NOW.t + dur, ...extra }; }
+
+// ---------- 매 프레임 ----------
+function frame(dt) {
+  const t = NOW.t;
+  const audible = AE.ctx ? AE.ctx.currentTime - (AE.ctx.outputLatency || 0) : 0;
+  if (MUS.running) { processVQ(audible); trumpetTick(); }
+  DIR.countOff = Math.max(0, DIR.countOff - dt);
+  if (DIR.tbState === 'play' && DIR.tbLastNote && audible > DIR.tbLastNote + MUS.spb * 2.5) DIR.tbState = 'rest';
+  const beat = songBeatNow();
+  REACT.update(dt, t, beat);
+  for (const m of BAND.members) m.update(dt, t, beat);
+  updateTrombone(dt, t); updateBass(dt, t); updatePiano(dt, t); updateDrums(dt, audible);
+  updateAudience(dt, t, beat);
+  updateMe(dt, t);
+  uiTick();
+}
+
+// ===== 80_ui.js =====
+// ===================== 화면 조작 =====================
+const UI = { el: {}, segs: [], playing: false, started: false };
+const ZCOL = ['#7b3f19', '#b5541f', '#c96a26', '#d9822c', '#e69a33', '#efb13a', '#f4c64a', '#ffe08a', '#fff4d0'];
+function initUI() {
+  const $ = id => document.getElementById(id);
+  Object.assign(UI.el, { air: $('air'), thumb: $('thumb'), controls: $('controls'), title: $('title'), start: $('start'), loadbar: document.querySelector('#loadbar i'), paused: $('paused'), ended: $('ended'), pause: $('pause'), banner: $('banner') });
+  // 바람 띠 칸
+  for (let i = 0; i < NZ; i++) {
+    const d = document.createElement('div'); d.className = 'seg';
+    d.style.bottom = `calc(${(i / NZ) * 100}% + 3px)`; d.style.height = `calc(${100 / NZ}% - 6px)`;
+    d.style.background = `linear-gradient(90deg, ${ZCOL[i]}, ${shadeCol(ZCOL[i], 1.18)} 55%, ${ZCOL[i]})`;
+    if (i >= 7) d.style.boxShadow = '0 0 12px rgba(255,230,150,.8) inset';
+    UI.el.air.appendChild(d); UI.segs.push(d);
+  }
+  bindInput();
+  $('resume').onclick = () => resumeGame();
+  $('toTitle').onclick = () => location.reload();
+  $('toTitle2').onclick = () => location.reload();
+  $('again').onclick = () => { UI.el.ended.classList.add('hide'); startGame(); };
+  UI.el.pause.onclick = () => pauseGame();
+  UI.el.start.onclick = () => startGame();
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { if (UI.playing) pauseGame(); else if (AE.ctx && AE.ctx.state === 'running') AE.ctx.suspend(); } });
+  window.addEventListener('pagehide', () => { if (UI.playing) pauseGame(); });
+  window.addEventListener('blur', () => { releaseAllInput(); UI.syncValves(); });
+  // 소리 묶음 불러오기
+  const tryDecode = async () => {
+    if (!window.JAZZ_AUDIO) return;
+    try {
+      createAudio();
+      await decodePack(f => { UI.el.loadbar.style.width = Math.round(f * 100) + '%'; });
+      initTrumpet(); startBeds();
+      if (AE.ctx.state === 'running') AE.ctx.suspend();
+      UI.el.start.disabled = false; UI.el.start.textContent = '시작';
+      document.getElementById('loadbar').style.visibility = 'hidden';
+    } catch (e) { UI.el.start.textContent = '소리를 못 불러왔습니다'; console.error(e); }
+  };
+  if (window.__audioReady) tryDecode(); else window.addEventListener('audiopack', () => { if (window.__audioFailed) UI.el.start.textContent = '소리 파일(audio.js)을 못 찾았습니다'; else tryDecode(); });
+}
+function shadeCol(hex, k) { const c = new THREE.Color(hex); c.r = Math.min(1, c.r * k); c.g = Math.min(1, c.g * k); c.b = Math.min(1, c.b * k); return '#' + c.getHexString(); }
+function showBanner(text) {
+  const b = UI.el.banner; b.querySelector('span').textContent = text; b.classList.add('show');
+  clearTimeout(UI.bt); UI.bt = setTimeout(() => b.classList.remove('show'), 2300);
+}
+async function startGame() {
+  if (!AE.decoded) return;
+  try { await AE.ctx.resume(); } catch (e) { }
+  UI.el.title.classList.add('hide'); UI.el.ended.classList.add('hide');
+  UI.el.controls.classList.remove('off'); UI.el.pause.style.display = 'flex';
+  releaseAllInput(); TP.instr = 'tp'; TP.mute = null; applyInstrumentTone(); TP.busyUntil = 0; TP.notes.length = 0; TP.lastSoundT = -9;
+  UI.syncStand();
+  REACT.reset();
+  setBed('room', 0.05); setBed('applause', 0);
+  startSong();
+  UI.playing = true; GAME.state = 'play';
+}
+function pauseGame() {
+  if (!UI.playing) return;
+  releaseAllInput(); UI.syncValves(); airVisual(null);
+  if (AE.ctx) AE.ctx.suspend();
+  UI.playing = false; GAME.state = 'paused';
+  UI.el.paused.classList.remove('hide');
+}
+async function resumeGame() {
+  UI.el.paused.classList.add('hide');
+  try { await AE.ctx.resume(); } catch (e) { }
+  UI.playing = true; GAME.state = 'play';
+}
+function endGame() {
+  if (!UI.playing) return;
+  releaseAllInput(); UI.syncValves(); airVisual(null);
+  stopSong(); UI.playing = false; GAME.state = 'ended';
+  UI.el.controls.classList.add('off'); UI.el.pause.style.display = 'none';
+  fillResult();
+  UI.el.ended.classList.remove('hide');
+}
+// 끝 화면: 솔로에서 실제로 있었던 일만 적음
+const GNAME = { high: '초고음 길게', run: '빠른 패시지', riff: '리프 반복', space: '쉬었다가 정박에 들어가기', fall: '폴', pedal: '페달 톤', shake: '셰이크', brk: '절정 브레이크' };
+function fillResult() {
+  const R = REACT, $ = id => document.getElementById(id);
+  const solo = MUS.plan.find(p => p.type === 'me');
+  const ch = solo ? Math.max(1, Math.round(solo.bars / 12)) : 0;
+  $('resTitle').textContent = R.big ? '기립박수' : '박수';
+  $('resLine').innerHTML = `솔로 <b>${ch}코러스</b> · 밴드가 놀라서 쳐다본 순간 <b>${R.awes}번</b>`;
+  const did = [...R.did]; if (R.breakUsed) did.push('brk');
+  const order = ['high', 'run', 'riff', 'space', 'fall', 'pedal', 'shake', 'brk'];
+  const yes = order.filter(k => did.includes(k)), no = order.filter(k => !did.includes(k));
+  $('resDid').innerHTML = yes.length ? `들려준 것: ${yes.map(k => GNAME[k]).join(', ')}` : '들려준 것: 아직 없음';
+  $('resNot').textContent = no.length ? `안 나온 것: ${no.map(k => GNAME[k]).join(', ')}` : '';
+}
+UI.syncValves = () => document.querySelectorAll('.valve').forEach(el => { const b = { 1: 1, 2: 2, 3: 4 }[el.dataset.v]; el.classList.toggle('on', !!(TP.rawMask & b)); });
+UI.syncStand = () => document.querySelectorAll('.item').forEach(el => {
+  const k = el.dataset.item;
+  el.classList.toggle('on', k === 'flugel' ? TP.instr === 'flugel' : TP.mute === k);
+});
+function airVisual(pos) {
+  const th = UI.el.thumb;
+  if (pos == null) th.style.display = 'none';
+  else { th.style.display = 'block'; th.style.top = `${(1 - pos / NZ) * 100}%`; }
+}
+function airPos(clientY) { const r = UI.el.air.getBoundingClientRect(); return clamp((r.bottom - clientY) / r.height * NZ, 0, NZ - 0.001); }
+function bindInput() {
+  const air = UI.el.air; let airId = null;
+  air.addEventListener('pointerdown', e => {
+    e.preventDefault(); if (!UI.playing || airId != null) return;
+    airId = e.pointerId; try { air.setPointerCapture(e.pointerId); } catch (x) { }
+    const p = airPos(e.clientY); airVisual(p); airDown(p);
+  });
+  air.addEventListener('pointermove', e => { if (e.pointerId !== airId) return; const p = airPos(e.clientY); airVisual(p); airMove(p); });
+  const end = e => { if (e.pointerId !== airId) return; airId = null; airVisual(null); airUp(); };
+  air.addEventListener('pointerup', end); air.addEventListener('pointercancel', end); air.addEventListener('lostpointercapture', end);
+  document.querySelectorAll('.valve').forEach(el => {
+    const v = +el.dataset.v, ids = new Set();
+    el.addEventListener('pointerdown', e => { e.preventDefault(); ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (x) { } setValve(v, true); el.classList.add('on'); });
+    const up = e => { if (!ids.has(e.pointerId)) return; ids.delete(e.pointerId); if (!ids.size) { setValve(v, false); el.classList.remove('on'); } };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+  });
+  const tg = document.getElementById('tongue');
+  tg.addEventListener('pointerdown', e => { e.preventDefault(); if (!UI.playing) return; tongueTap(); tg.classList.add('on'); });
+  const tup = () => tg.classList.remove('on');
+  tg.addEventListener('pointerup', tup); tg.addEventListener('pointercancel', tup); tg.addEventListener('pointerleave', tup);
+  document.querySelectorAll('.item').forEach(el => el.addEventListener('click', e => { e.preventDefault(); if (!UI.playing) return; if (swapItem(el.dataset.item)) setTimeout(UI.syncStand, 480); }));
+  // 키보드
+  const KV = { KeyJ: 1, KeyK: 2, KeyL: 3 };
+  let spaceDown = false, shakeKey = false;
+  window.addEventListener('keydown', e => {
+    if (!UI.playing) { if ((e.code === 'Space' || e.code === 'Enter') && !UI.el.title.classList.contains('hide') && AE.decoded) { e.preventDefault(); startGame(); } return; }
+    if (KV[e.code]) { e.preventDefault(); if (!e.repeat) { setValve(KV[e.code], true); UI.syncValves(); } }
+    else if (e.code === 'Space') { e.preventDefault(); if (!e.repeat && !spaceDown) { spaceDown = true; airDown(TP.zone + 0.5); } }
+    else if (e.code === 'KeyW' || e.code === 'ArrowUp') { e.preventDefault(); keyZone(+1); }
+    else if (e.code === 'KeyS' || e.code === 'ArrowDown') { e.preventDefault(); keyZone(-1); }
+    else if (e.code === 'KeyD') { e.preventDefault(); if (!e.repeat) tongueTap(); }
+    else if (e.code === 'KeyF') { e.preventDefault(); if (TP.blowing) { TP.blowing = false; spaceDown = false; noteOff('fall'); } }
+    else if (e.code === 'KeyR') { e.preventDefault(); if (!e.repeat && TP.blowing && TP.voice && !TP.shake) { shakeKey = true; startShake(AE.ctx.currentTime + 0.003); } }
+    else if (e.code === 'KeyQ') { if (!e.repeat && swapItem('flugel')) setTimeout(UI.syncStand, 480); }
+    else if (e.code === 'KeyE') { if (!e.repeat) { const nx = TP.mute === null || TP.instr === 'flugel' ? 'harmon' : TP.mute === 'harmon' ? 'straight' : 'straight'; if (swapItem(nx)) setTimeout(UI.syncStand, 480); } }
+    else if (e.code === 'Escape' || e.code === 'KeyP') pauseGame();
+  });
+  window.addEventListener('keyup', e => {
+    if (KV[e.code]) { setValve(KV[e.code], false); UI.syncValves(); }
+    else if (e.code === 'Space') { if (spaceDown) { spaceDown = false; if (TP.blowing) airUp(); } }
+    else if (e.code === 'KeyR') { if (shakeKey) { shakeKey = false; if (TP.shake) endShake(AE.ctx.currentTime + 0.003); } }
+  });
+  document.addEventListener('contextmenu', e => e.preventDefault());
+}
+function keyZone(d) {
+  const z = clamp(TP.zone + d, 0, NZ - 1);
+  if (TP.blowing) { TP.pos = z + 0.5; stepZones(z); } else TP.zone = z;
+}
+// 띠 칸 강조 (매 프레임)
+function uiTick() {
+  for (let i = 0; i < NZ; i++) { const on = (TP.blowing || UI.kbShow) && i === TP.zone; if (UI.segs[i]._on !== on) { UI.segs[i]._on = on; UI.segs[i].classList.toggle('on', on); } }
+}
+
+// ===== 90_main.js =====
+// ===================== 시작 · 루프 =====================
+const NOW = { t: 0, dt: 0.016, last: performance.now() };
+const GAME = { state: 'title', loaded: false };
+
+function boot() {
+  initScene();
+  setupBand();
+  setupAudience();
+  setupMe();
+  if (typeof initDirector === 'function') initDirector();
+  if (typeof initUI === 'function') initUI();
+  requestAnimationFrame(loop);
+}
+function songBeatNow() {
+  if (!AE.ctx || !MUS.running) return NOW.t * (MUS.bpm / 60);
+  const lat = (AE.ctx.outputLatency || 0) + (AE.ctx.baseLatency || 0) * 0.5;
+  return songBeats(AE.ctx.currentTime - lat);
+}
+function loop() {
+  requestAnimationFrame(loop);
+  const n = performance.now();
+  let dt = (n - NOW.last) / 1000; NOW.last = n;
+  dt = clamp(dt, 0, 0.1);
+  if (GAME.state === 'paused') dt = 0; // 멈춤 동안에는 게임 시계도 멈춤 (예약된 반응·끝내기 타이머 보존)
+  NOW.dt = dt; NOW.t += dt;
+  try { if (typeof frame === 'function') frame(dt); } catch (err) { if (!loop.errs) loop.errs = 0; if (loop.errs++ < 5) console.error(err); }
+  SC.renderer.clear();
+  // 그림자 지도는 두 프레임에 한 번만 다시 그림 (사람들 움직임이 느려서 티가 안 남)
+  NOW.frame = (NOW.frame || 0) + 1; if (NOW.frame % 2 === 1) SC.renderer.shadowMap.needsUpdate = true;
+  SC.renderer.render(SC.scene, SC.camera);
+  SC.renderer.clearDepth();
+  SC.renderer.render(SC.vmScene, SC.vmCam);
+}
+window.__G = { SC, BAND, AUD, ME, MUS, TP, AE, NOW, GAME, REACT, DIR, VQ, DEBUG, startGame, endGame, pauseGame, resumeGame, airDown, airMove, airUp, setValve, tongueTap, swapItem, gesture, segAt, songBeats };
+boot();
+
+</script>
+</body>
+</html>
