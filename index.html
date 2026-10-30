@@ -34,6 +34,13 @@ button{font-family:inherit}
 #air .tick{position:absolute;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:rgba(255,255,255,.75)}
 #thumb{position:absolute;left:-6px;right:-6px;height:30px;margin-top:-15px;border-radius:15px;display:none;
   background:radial-gradient(ellipse at center,rgba(255,255,255,.95),rgba(255,236,170,.55) 55%,rgba(255,236,170,0) 75%)}
+#valves{position:absolute;right:calc(8px + var(--sar));bottom:calc(10px + var(--sab));display:flex;flex-direction:column-reverse;gap:12px;pointer-events:none}
+.valve{pointer-events:auto;width:min(22vw,96px);height:min(22vw,96px);border:0;padding:0;border-radius:50%;position:relative;touch-action:none;-webkit-appearance:none;appearance:none;
+  background:radial-gradient(circle at 34% 30%,#fff 0%,#f6eef7 22%,#e7dcf0 48%,#d6e7ef 70%,#efe4d4 100%);
+  box-shadow:0 0 0 5px var(--brass),0 0 0 7px var(--brass-d),0 7px 0 7px rgba(28,31,51,.28),inset 0 -6px 12px rgba(120,90,140,.25);
+  transition:transform .05s,box-shadow .05s}
+.valve span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 22px var(--fd);color:rgba(155,106,20,.75)}
+.valve.on{transform:translateY(5px) scale(.94);box-shadow:0 0 0 5px #f0c255,0 0 0 7px var(--brass-d),0 2px 0 7px rgba(28,31,51,.28),inset 0 6px 14px rgba(120,90,140,.35)}
 #stand{position:absolute;right:calc(10px + var(--sar));top:calc(10px + var(--sat));display:flex;flex-direction:row;gap:7px;pointer-events:none}
 .item{pointer-events:auto;width:min(17vw,70px);height:min(15vw,62px);border-radius:16px;border:none;padding:4px;position:relative;
   background:rgba(255,248,234,.9);box-shadow:0 0 0 2px var(--ink),0 4px 0 2px rgba(28,31,51,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
@@ -83,6 +90,7 @@ h2{margin:4px 0 6px;font:900 clamp(32px,9vw,44px)/1.05 var(--fd);color:var(--ver
 #loadbar i{display:block;height:100%;width:0;background:var(--teal);transition:width .2s}
 @media (min-aspect-ratio:1/1){
   #air{top:calc(14% + var(--sat));width:100px}
+  .valve{width:84px;height:84px}
 }
 </style>
 </head>
@@ -91,6 +99,11 @@ h2{margin:4px 0 6px;font:900 clamp(32px,9vw,44px)/1.05 var(--fd);color:var(--ver
 
 <div id="controls" class="off">
   <div id="air"><div id="thumb"></div></div>
+  <div id="valves">
+    <button type="button" class="valve" data-v="1" aria-label="1번 밸브" aria-pressed="false"><span>1</span></button>
+    <button type="button" class="valve" data-v="2" aria-label="2번 밸브" aria-pressed="false"><span>2</span></button>
+    <button type="button" class="valve" data-v="3" aria-label="3번 밸브" aria-pressed="false"><span>3</span></button>
+  </div>
   <div id="stand">
     <button class="item" data-item="flugel" aria-label="플루겔혼"><svg viewBox="0 0 64 40"><path d="M6 24h22l8-6h14c6 0 10-5 10-10v24c0-5-4-10-10-10H36l-8 4H6z" fill="#d6a033" stroke="#1c1f33" stroke-width="2.5" stroke-linejoin="round"/><circle cx="22" cy="20" r="3" fill="#fff8ea" stroke="#1c1f33" stroke-width="2"/><circle cx="29" cy="20" r="3" fill="#fff8ea" stroke="#1c1f33" stroke-width="2"/></svg><b>플루겔혼</b></button>
     <button class="item" data-item="harmon" aria-label="하먼 뮤트"><svg viewBox="0 0 64 40"><path d="M8 20c0-10 14-14 26-14s22 6 22 14-10 14-22 14S8 30 8 20z" fill="#cfd6de" stroke="#1c1f33" stroke-width="2.5"/><ellipse cx="34" cy="20" rx="8" ry="8" fill="#8b929c" stroke="#1c1f33" stroke-width="2.5"/><rect x="4" y="15" width="8" height="10" rx="3" fill="#c48a52" stroke="#1c1f33" stroke-width="2.5"/></svg><b>하먼</b></button>
@@ -111,10 +124,11 @@ h2{margin:4px 0 6px;font:900 clamp(32px,9vw,44px)/1.05 var(--fd);color:var(--ver
     <div id="loadbar"><i></i></div>
     <ul class="guide">
       <li><svg viewBox="0 0 38 38"><rect x="12" y="2" width="14" height="34" rx="7" fill="#f2b531" stroke="#1c1f33" stroke-width="2.5"/><rect x="12" y="2" width="14" height="8" rx="4" fill="#fff3c7" stroke="#1c1f33" stroke-width="2.5"/><rect x="12" y="28" width="14" height="8" rx="4" fill="#8a4b1f" stroke="#1c1f33" stroke-width="2.5"/></svg><span><b>왼쪽 띠</b> — 위아래로 음의 높낮이를 정합니다. 누르고 떼는 타이밍이 리듬이고, 실제 음은 진행에 맞게 자동으로 나옵니다.</span></li>
+      <li><svg viewBox="0 0 38 38"><circle cx="19" cy="7" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="19" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/><circle cx="19" cy="31" r="5.5" fill="#efe4f3" stroke="#d6a033" stroke-width="2.5"/></svg><span><b>오른쪽 키</b> — 밸브는 그대로 눌립니다. 실제 음은 운지와 상관없이 진행에 맞춰 나옵니다.</span></li>
       <li><svg viewBox="0 0 38 38"><path d="M6 10c6 0 6 6 12 6s6-6 12-6" fill="none" stroke="#2346b8" stroke-width="3" stroke-linecap="round"/><path d="M8 24c8 0 14 2 22 10" fill="none" stroke="#e2452b" stroke-width="3" stroke-linecap="round"/></svg><span>띠를 누른 채 위아래로 빠르게 떨면 <b>셰이크</b>, 떼면서 아래로 쓸어내리면 <b>폴</b>.</span></li>
       <li><svg viewBox="0 0 38 38"><path d="M5 22h12l5-4h7c3 0 5-3 5-6v16c0-3-2-6-5-6h-7l-5 3H5z" fill="#d6a033" stroke="#1c1f33" stroke-width="2.2" stroke-linejoin="round"/></svg><span><b>오른쪽 위</b> — 플루겔혼으로 바꾸거나 뮤트를 끼웁니다.</span></li>
     </ul>
-    <p class="pc">소리를 켜고 하세요(무음 모드에서는 안 들릴 수 있습니다).<br>PC: 스페이스 불기 · W/S 음 높이 · R 셰이크 · F 폴 · Q 플루겔혼 · E 뮤트 · Esc 멈춤</p>
+    <p class="pc">소리를 켜고 하세요(무음 모드에서는 안 들릴 수 있습니다).<br>PC: 스페이스 불기 · W/S 음 높이 · J K L 밸브 · R 셰이크 · F 폴 · Q 플루겔혼 · E 뮤트 · Esc 멈춤</p>
     <p class="credit">소리: VSCO 2 Community Edition (CC0), Sonatina Symphonic Orchestra (CC Sampling+ 1.0)</p>
   </div>
 </div>
@@ -1171,7 +1185,7 @@ function nextSlot(after) {
 const NZ = AUTO_ZONE_TARGET.length;
 const ZLEVEL = [0.95, 0.86, 0.88, 0.92, 0.95, 0.99, 1.04, 1.1, 1.16];
 const TP = {
-  zone: 3, pos: 3.5, blowing: false, instr: 'tp', mute: null, busyUntil: 0,
+  zone: 3, pos: 3.5, blowing: false, valveMask: 0, valveHolds: [new Set(), new Set(), new Set()], instr: 'tp', mute: null, busyUntil: 0,
   voice: null, cur: null, raw: null, chord: null, noteT0: 0, pitchT0: 0, lastAttackT: -9, lastSoundT: -9, alt: false, rr: 1,
   notes: [], listeners: [], air: [], shake: null, vibOn: false, pending: null, in: null,
 };
@@ -1373,8 +1387,20 @@ function airUp() {
   else if (sp > 9) flick = 'doit';
   noteOff(flick);
 }
+// 밸브는 연주 동작과 화면 애니메이션만 담당한다. 자동 음 선택에는 관여하지 않는다.
+function setValve(i, down, source = 'direct') {
+  const holds = TP.valveHolds[i - 1];
+  if (!holds) return;
+  if (down) holds.add(source); else holds.delete(source);
+  const bit = 1 << (i - 1);
+  TP.valveMask = holds.size ? (TP.valveMask | bit) : (TP.valveMask & ~bit);
+  if (UI.syncValves) UI.syncValves();
+}
 function releaseAllInput() {
   if (TP.blowing) { TP.blowing = false; noteOff(null); }
+  for (const holds of TP.valveHolds) holds.clear();
+  TP.valveMask = 0;
+  if (UI.syncValves) UI.syncValves();
 }
 
 // ---------- 악기·뮤트 교체 ----------
@@ -2964,7 +2990,8 @@ function updateMe(dt, t) {
   const h = ME.horns[TP.instr === 'flugel' ? 'flugel' : 'tp'];
   for (const k in ME.horns) ME.horns[k].visible = ME.horns[k] === h && ME.swap < 0.5 || (ME.horns[k] !== h && ME.swap >= 0.5 && ME.swapFrom === k);
   for (let i = 0; i < 3; i++) {
-    ME.press[i] = damp(ME.press[i], 0, 30, dt);
+    const down = (TP.valveMask >> i) & 1;
+    ME.press[i] = damp(ME.press[i], down, 30, dt);
     for (const k in ME.horns) ME.horns[k].valves[i].position.y = 0.075 - ME.press[i] * 0.016;
     ME.hands.R.fingers[i].position.y = 0.125 - ME.press[i] * 0.016;
   }
@@ -3186,6 +3213,11 @@ function fillResult() {
   $('resDid').innerHTML = yes.length ? `들려준 것: ${yes.map(k => GNAME[k]).join(', ')}` : '들려준 것: 아직 없음';
   $('resNot').textContent = no.length ? `안 나온 것: ${no.map(k => GNAME[k]).join(', ')}` : '';
 }
+UI.syncValves = () => document.querySelectorAll('.valve').forEach(el => {
+  const bit = 1 << (+el.dataset.v - 1), down = !!(TP.valveMask & bit);
+  el.classList.toggle('on', down);
+  el.setAttribute('aria-pressed', down ? 'true' : 'false');
+});
 UI.syncStand = () => document.querySelectorAll('.item').forEach(el => {
   const k = el.dataset.item;
   el.classList.toggle('on', k === 'flugel' ? TP.instr === 'flugel' : TP.mute === k);
@@ -3206,12 +3238,27 @@ function bindInput() {
   air.addEventListener('pointermove', e => { if (e.pointerId !== airId) return; const p = airPos(e.clientY); airVisual(p); airMove(p); });
   const end = e => { if (e.pointerId !== airId) return; airId = null; airVisual(null); airUp(); };
   air.addEventListener('pointerup', end); air.addEventListener('pointercancel', end); air.addEventListener('lostpointercapture', end);
+  document.querySelectorAll('.valve').forEach(el => {
+    const v = +el.dataset.v, ids = new Set();
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault(); if (!UI.playing) return;
+      ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (x) { }
+      setValve(v, true, `pointer:${e.pointerId}`);
+    });
+    const up = e => {
+      if (!ids.has(e.pointerId)) return;
+      ids.delete(e.pointerId); setValve(v, false, `pointer:${e.pointerId}`);
+    };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+  });
   document.querySelectorAll('.item').forEach(el => el.addEventListener('click', e => { e.preventDefault(); if (!UI.playing) return; if (swapItem(el.dataset.item)) setTimeout(UI.syncStand, 480); }));
   // 키보드
+  const KV = { KeyJ: 1, KeyK: 2, KeyL: 3 };
   let spaceDown = false, shakeKey = false;
   window.addEventListener('keydown', e => {
     if (!UI.playing) { if ((e.code === 'Space' || e.code === 'Enter') && !UI.el.title.classList.contains('hide') && AE.decoded) { e.preventDefault(); startGame(); } return; }
-    if (e.code === 'Space') { e.preventDefault(); if (!e.repeat && !spaceDown) { spaceDown = true; airDown(TP.zone + 0.5); } }
+    if (KV[e.code]) { e.preventDefault(); if (!e.repeat) setValve(KV[e.code], true, `key:${e.code}`); }
+    else if (e.code === 'Space') { e.preventDefault(); if (!e.repeat && !spaceDown) { spaceDown = true; airDown(TP.zone + 0.5); } }
     else if (e.code === 'KeyW' || e.code === 'ArrowUp') { e.preventDefault(); keyZone(+1); }
     else if (e.code === 'KeyS' || e.code === 'ArrowDown') { e.preventDefault(); keyZone(-1); }
     else if (e.code === 'KeyF') { e.preventDefault(); if (TP.blowing) { TP.blowing = false; spaceDown = false; noteOff('fall'); } }
@@ -3221,7 +3268,8 @@ function bindInput() {
     else if (e.code === 'Escape' || e.code === 'KeyP') pauseGame();
   });
   window.addEventListener('keyup', e => {
-    if (e.code === 'Space') { if (spaceDown) { spaceDown = false; if (TP.blowing) airUp(); } }
+    if (KV[e.code]) setValve(KV[e.code], false, `key:${e.code}`);
+    else if (e.code === 'Space') { if (spaceDown) { spaceDown = false; if (TP.blowing) airUp(); } }
     else if (e.code === 'KeyR') { if (shakeKey) { shakeKey = false; if (TP.shake) endShake(AE.ctx.currentTime + 0.003); } }
   });
   document.addEventListener('contextmenu', e => e.preventDefault());
@@ -3269,7 +3317,7 @@ function loop() {
   SC.renderer.clearDepth();
   SC.renderer.render(SC.vmScene, SC.vmCam);
 }
-window.__G = { SC, BAND, AUD, ME, MUS, TP, AE, NOW, GAME, REACT, DIR, VQ, DEBUG, startGame, endGame, pauseGame, resumeGame, airDown, airMove, airUp, swapItem, gesture, segAt, songBeats };
+window.__G = { SC, BAND, AUD, ME, MUS, TP, AE, NOW, GAME, REACT, DIR, VQ, DEBUG, startGame, endGame, pauseGame, resumeGame, airDown, airMove, airUp, setValve, swapItem, gesture, segAt, songBeats };
 boot();
 
 </script>
