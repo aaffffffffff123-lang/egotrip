@@ -46,6 +46,11 @@ button{font-family:inherit;color:inherit}
 /* ---------- 위쪽 버튼 ---------- */
 #pause{position:fixed;left:calc(10px + var(--sal));top:calc(10px + var(--sat));z-index:6;width:46px;height:46px;border-radius:50%;border:none;
   background:var(--paper);box-shadow:0 0 0 3px var(--ink),0 4px 0 3px rgba(34,26,43,.3);display:none;align-items:center;justify-content:center;gap:5px;cursor:pointer}
+#nextSong{position:fixed;left:calc(70px + var(--sal));top:calc(10px + var(--sat));z-index:6;height:46px;padding:0 13px;border:0;border-radius:999px;
+  background:var(--paper);box-shadow:0 0 0 3px var(--ink),0 4px 0 3px rgba(34,26,43,.3);display:none;align-items:center;gap:7px;font:700 14px var(--ft);cursor:pointer}
+#nextSong svg{width:14px;height:14px;fill:currentColor}
+#nextSong:active{transform:translateY(2px)}
+#nextSong:disabled{opacity:.55;cursor:default}
 #pause i{display:block;width:5px;height:16px;border-radius:2px;background:var(--ink)}
 .mode{display:inline-flex;border-radius:999px;background:var(--paper);box-shadow:0 0 0 3px var(--ink),0 4px 0 3px rgba(34,26,43,.3);padding:3px;gap:2px}
 .mode button{border:none;border-radius:999px;background:transparent;font:700 14px var(--ft);padding:7px 13px;cursor:pointer;white-space:nowrap}
@@ -84,6 +89,7 @@ h1 em{font-style:normal;color:var(--vermilion)}
 @media (min-aspect-ratio:1/1){
   #stem{top:calc(14px + var(--sat));bottom:calc(58px + var(--sab));width:84px}
   #hudMode{right:auto;left:calc(68px + var(--sal))}
+  #nextSong{left:calc(208px + var(--sal))}
 }
 </style>
 </head>
@@ -93,6 +99,7 @@ h1 em{font-style:normal;color:var(--vermilion)}
   <div id="stem"><div id="stemBody"></div><div id="ribbon"><div class="hi"></div><div id="marks"></div></div><div id="headKnob"></div><div id="finger"></div></div>
 </div>
 <button id="pause" aria-label="멈춤"><i></i><i></i></button>
+<button id="nextSong" aria-label="다음 곡으로 넘기기">다음 곡<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2v12l9-6zM12 2h2v12h-2z"/></svg></button>
 <div id="hudMode" class="mode"><button data-m="snap">보정</button><button data-m="free">자유</button></div>
 
 <div id="title" class="screen">
@@ -635,6 +642,25 @@ function nearestSample(set, midi, rr = 0) {
 }
 const rateFor = (s, midi, cents = 0) => Math.pow(2, (midi - s.m) / 12 + ((s.c || 0) + cents) / 1200);
 
+const bandVoices = new Set();
+function trackBandVoice(src, g, dest, lfo = null) {
+  const b = AE.buses;
+  if (dest !== b.tbn && dest !== b.pno && dest !== b.pnoSolo && dest !== b.bass && dest !== b.drums) return;
+  const voice = { src, g, lfo };
+  bandVoices.add(voice);
+  src.addEventListener('ended', () => bandVoices.delete(voice), { once: true });
+}
+function stopBandVoices(now) {
+  for (const { src, g, lfo } of bandVoices) {
+    const gain = g.gain;
+    if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
+    else { const level = gain.value; gain.cancelScheduledValues(now); gain.setValueAtTime(level, now); }
+    gain.linearRampToValueAtTime(0, now + 0.04);
+    try { src.stop(now + 0.05); if (lfo) lfo.stop(now + 0.05); } catch (e) { }
+  }
+  bandVoices.clear();
+}
+
 // 한 번 치는 소리
 function playOne(sample, midi, when, vel, dest, o = {}) {
   if (!sample) return null;
@@ -649,6 +675,7 @@ function playOne(sample, midi, when, vel, dest, o = {}) {
   let out = g;
   if (o.pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = o.pan; g.connect(p); out = p; }
   out.connect(dest);
+  trackBandVoice(src, g, dest);
   const offset = (sample.start || 0) + (o.offset || 0);
   if (o.dur != null) {
     const rel = o.release || 0.08, end = when + Math.max(o.dur, a + 0.01);
@@ -666,6 +693,7 @@ function playBuf(buf, when, vel, dest, o = {}) {
   let out = g;
   if (o.pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = clamp(o.pan, -1, 1); g.connect(p); out = p; }
   out.connect(dest);
+  trackBandVoice(src, g, dest);
   src.start(when, o.offset || 0);
   src.onended = () => { src.disconnect(); g.disconnect(); if (out !== g) out.disconnect(); };
   return { src, g };
@@ -694,6 +722,7 @@ class SusVoice {
     tail.connect(g); g.connect(dest);
     const off = o.offset != null ? o.offset : (sample.start || 0);
     src.start(when, Math.min(off, (sample.le || sample.buf.duration) - 0.05)); lfo.start(when);
+    trackBandVoice(src, g, dest, lfo);
     Object.assign(this, { src, g, lfo, lg, t0: when, level: lvl, dead: false });
     src.onended = () => {
       this.dead = true;
@@ -4016,13 +4045,44 @@ function fermataCut(t) {
 }
 
 // ---------- 곡 사이 ----------
+function advanceSetPosition() {
+  MUS.songsPlayed++;
+  MUS.setPos++;
+  if (MUS.setPos >= MUS.setOrder.length) { MUS.setOrder = buildSetOrder(false); MUS.setPos = 0; MUS.round++; }
+}
+function nextSong() {
+  if (!UI.playing || !MUS.running || !AE.ctx || (!MUS.song && !MUS.gap)) return;
+  const now = AE.ctx.currentTime;
+  if (now < (MUS.skipUntil || 0)) return;
+  MUS.skipUntil = now + 0.6;
+  releaseAllInput(); fingerVisual(null);
+  if (REACT.meSolo) { REACT.meSolo = false; myApplause(); }
+  stopBandVoices(now);
+  // During the applause gap, setPos already points to the upcoming tune.
+  if (!MUS.gap) advanceSetPosition();
+  MUS.gap = null; MUS.fermata = null; MUS.endAt = 0;
+  MUS.bars.length = 0; MUS.soloH.length = 0; VQ.length = 0;
+  MUS.beatCount = 0; MUS.soloWho = null;
+  _later.length = 0;
+  DIR.hits.L.length = 0; DIR.hits.R.length = 0;
+  DIR.tbLastNote = now; DIR.tbState = 'rest'; DIR.countOff = 0;
+  DIR.pnPress.L = 0; DIR.pnPress.R = 0; DIR.pluck = 0;
+  REACT.timers.length = 0; REACT.inBreak = false;
+  REACT.phrase = null; REACT.prevPhrase = null; REACT.onsets.length = 0; REACT.riffN = 0;
+  TP.notes.length = 0; TP.lastSoundT = -9; TP.cur = null;
+  BASS.last = 41; PNO.voicing = null; UI.marksKey = '';
+  const S = compileSong(tuneById(MUS.setOrder[MUS.setPos]), MUS.setPos);
+  // A manual skip starts the new theme immediately, without another count-in.
+  startSong(S, now + 0.12, true);
+  schedTick();
+  UI.el.nextSong.disabled = true;
+  dlog('skipSong', { id: S.tune.id });
+}
 function endSong(now) {
   const S = MUS.song; if (!S || S.ended) return;
   if (MUS.endAt && now < MUS.endAt) return;
   S.ended = true; MUS.song = null;
-  MUS.songsPlayed++;
-  MUS.setPos++;
-  if (MUS.setPos >= MUS.setOrder.length) { MUS.setOrder = buildSetOrder(false); MUS.setPos = 0; MUS.round++; }
+  advanceSetPosition();
   const nextTune = tuneById(MUS.setOrder[MUS.setPos]);
   const nf = parseForm(nextTune.form);
   MUS.gapChord = nf[0][0]; MUS.gapSpb = 60 / nextTune.bpm;
@@ -4761,7 +4821,7 @@ function finishCrowdScene(m, t) {
 function resetCrowdScenes() {
   for (const m of [...CROWD.list, CROWD.bartender].filter(Boolean)) {
     m.pending = null; m.nextScene = 0; m.sceneCount = 0; m.converted = false;
-    m.standWish = 0; m.standNow = 0; m.standAt = 0;
+    m.standWish = 0; m.standNow = 0; m.standAt = 0; m.standHoldUntil = 0;
     finishCrowdScene(m, NOW.t); m.p.c.headShake = 0; m.p.c.headTilt = 0; m.p.c.side = 0;
     m.animElapsed = 0;
     if (m.p.seated) { m.p.c.stand = 0; m.p.s.stand = 0; m.rush = 0; if (m.spot) m.p.root.position.copy(m.spot.pos); m.p.update(0, NOW.t, 0); }
@@ -5007,7 +5067,8 @@ function crowdUpdate(dt, t, beat) {
       startCrowdScene(m, q.k, q.dur, q.extra);
     }
     // 서 있기 (앉은 사람): 광기·박수 세례
-    const standNow = f > m.standThreshold ? 1 : (f < 0.38 ? 0 : m.standWish);
+    const holdStanding = t < (m.standHoldUntil || 0);
+    const standNow = holdStanding || f > m.standThreshold ? 1 : (f < 0.38 ? 0 : m.standWish);
     if (standNow !== m.standWish) { m.standAt = t + m.standDelay; m.standWish = standNow; }
     if (t >= (m.standAt || 0)) m.standNow = standNow;
     p.c.stand = m.reserved && !m.converted ? 0 : (m.standNow || 0);
@@ -5037,6 +5098,7 @@ function crowdUpdate(dt, t, beat) {
     // 동작
     if (!m.act && !m.pending && t > m.nextAct) chooseAct(m, f, burst, watching, t);
     if (m.act) runCrowdAct(m, t, beat); else { p.rest('L'); p.rest('R'); }
+    if (holdStanding) p.c.stand = 1;
     p.update(actorDt, t, beat);
     updateCrowdProps(m, t);
   }
@@ -5052,7 +5114,7 @@ function chooseAct(m, f, burst, watching, t) {
   if (m.reserved && !m.converted && f < 0.72 && !(burst && burst.k > 0.7)) {
     crowdAct(m, 'reserved', rand(3.5, 5), { story: true }); return;
   }
-  if ((REACT.meSolo || (burst && burst.owner === 'me')) && f > 0.3 && t >= m.nextScene && Math.random() < 0.46) {
+  if ((REACT.meSolo || (burst && burst.owner === 'me' && burst.until - t > 7)) && f > 0.3 && t >= m.nextScene && Math.random() < 0.46) {
     if (queueCrowdScene(m, sceneFor(m, f), rand(0.1, 1.6))) return;
   }
   if (burst) {
@@ -5101,7 +5163,7 @@ function chooseAct(m, f, burst, watching, t) {
 function crowdOnEvent(ev) {
   const W = CROWD.list.filter(m => m.watch < 0.25 + REACT.frenzy);
   const some = n => shuffle(W.slice()).slice(0, n);
-  if (ev.kind === 'tuneStart' || ev.kind === 'bandSolo') {
+  if ((ev.kind === 'tuneStart' || ev.kind === 'bandSolo') && !playerApplauseActive()) {
     for (const m of [...CROWD.list, CROWD.bartender].filter(Boolean)) {
       m.pending = null;
       if (m.act?.story) m.act.until = Math.min(m.act.until, NOW.t + 0.9);
@@ -5153,12 +5215,12 @@ function crowdSound(dt, t, f, burst) {
   if (!AE.decoded || !BED.applause) return;
   // 박수 바탕
   let clap = 0, big = 0;
-  if (burst) { const age = t - burst.t, left = burst.until - t; const env = clamp(age / 0.4, 0, 1) * clamp(left / 1.2, 0, 1); if (burst.kind === 'polite') clap = 0.18 * env; else if (burst.kind === 'ovation') { big = 0.75 * burst.k * env; clap = 0.3 * env; } else { clap = 0.32 * burst.k * env; big = burst.k > 0.85 ? 0.35 * env : 0; } }
+  if (burst) { const age = t - burst.t, left = burst.until - t; const env = clamp(age / 0.4, 0, 1) * smoothstep(0, burst.fade || 1.2, left); if (burst.kind === 'polite') clap = 0.18 * env; else if (burst.kind === 'ovation') { big = 0.75 * burst.k * env; clap = 0.3 * env; } else { clap = 0.32 * burst.k * env; big = burst.k > 0.85 ? 0.35 * env : 0; } }
   CROWD.clapBed = damp(CROWD.clapBed, clap, 6, dt); CROWD.bigBed = damp(CROWD.bigBed || 0, big, 6, dt);
   BED.applause.g.gain.setTargetAtTime(CROWD.clapBed, AE.ctx.currentTime, 0.08);
   BED.applauseBig.g.gain.setTargetAtTime(CROWD.bigBed, AE.ctx.currentTime, 0.08);
   // 함성 바탕: 광기가 높을 때만 (음악을 덮지 않게)
-  const roar = (REACT.meSolo ? smoothstep(0.62, 1, f) * 0.22 : 0) + (burst && burst.k > 0.8 ? 0.28 * clamp(burst.until - t, 0, 1) : 0);
+  const roar = (REACT.meSolo ? smoothstep(0.62, 1, f) * 0.22 : 0) + (burst && burst.k > 0.8 ? 0.28 * smoothstep(0, burst.fade || 1, burst.until - t) : 0);
   CROWD.roar = damp(CROWD.roar, roar, 3, dt);
   BED.roar.g.gain.setTargetAtTime(CROWD.roar, AE.ctx.currentTime, 0.1);
   // 광기 중 간간이 "우—!"
@@ -5276,7 +5338,7 @@ function beginPlayerReaction() {
 }
 function reactOnSong(e) {
   const R = REACT;
-  if (e.type === 'tuneStart') { R.songPeak = 0; R.breakUsed = false; R.awes = 0; R.aweIdx = randi(0, 3); R.phase = 'head'; R.meSolo = false; R.soloPeak = 0; R.heat = 0; R.soloTime = 0; R.burst = null; reactEvent('tuneStart', { first: e.first }); }
+  if (e.type === 'tuneStart') { R.songPeak = 0; R.breakUsed = false; R.awes = 0; R.aweIdx = randi(0, 3); R.phase = 'head'; R.meSolo = false; R.soloPeak = 0; R.heat = 0; R.soloTime = 0; R.floor = null; if (!playerApplauseActive()) R.burst = null; reactEvent('tuneStart', { first: e.first }); }
   else if (e.type === 'seg') {
     const wasMe = R.meSolo;
     R.phase = e.phase; R.floor = e.floor;
@@ -5289,9 +5351,9 @@ function reactOnSong(e) {
     reactEvent('takeover', { from: e.from });
   } else if (e.type === 'solo') {
     if (R.meSolo) { R.meSolo = false; myApplause(); }
-    R.floor = e.player; R.burst = null; R.heat = 0; reactEvent('bandSolo', { player: e.player, trade: e.trade });
+    R.floor = e.player; if (!playerApplauseActive()) R.burst = null; R.heat = 0; reactEvent('bandSolo', { player: e.player, trade: e.trade });
   } else if (e.type === 'soloEnd') {
-    if (e.player && e.player !== 'dr') { R.burst = { kind: 'polite', t: NOW.t, until: NOW.t + 1.2, k: 0.08 }; reactEvent('politeApplause', { player: e.player }); }
+    if (e.player && e.player !== 'dr' && !playerApplauseActive()) { R.burst = { kind: 'polite', t: NOW.t, until: NOW.t + 1.2, k: 0.08 }; reactEvent('politeApplause', { player: e.player }); }
   } else if (e.type === 'break') {
     R.inBreak = e.on; reactEvent(e.on ? 'breakOn' : 'breakOff', {});
   } else if (e.type === 'cue') reactEvent('cue', { kind: e.kind, player: e.player });
@@ -5299,9 +5361,13 @@ function reactOnSong(e) {
   else if (e.type === 'cut') { R.meSolo = false; ovation(); }
   else if (e.type === 'gap') reactEvent('gap', {});
 }
+function playerApplauseActive() {
+  return REACT.burst && REACT.burst.owner === 'me' && NOW.t < REACT.burst.until;
+}
 function myApplause() {
   const R = REACT, k = clamp(R.soloPeak / 100 * 1.1, 0.08, 1.1);
-  R.burst = { kind: 'solo', owner: 'me', t: NOW.t, until: NOW.t + 2.4 + k * 2.2, k };
+  R.burst = { kind: 'solo', owner: 'me', t: NOW.t, until: NOW.t + 8 + k * 4, k, energy: Math.max(R.frenzy, clamp(k * 0.9, 0, 1)), fade: 3 };
+  for (const m of CROWD.list) if (m.p.s.stand > 0.6) m.standHoldUntil = R.burst.until - 1.5 + m.standDelay;
   reactEvent('myApplause', { k });
   dlog('myApplause', { k: +k.toFixed(2), peak: Math.round(R.soloPeak) });
 }
@@ -5345,7 +5411,8 @@ function reactUpdate(dt, t) {
   let ft = 0.025;
   if (R.meSolo) ft = smoothstep(4, 90, R.heat) * smoothstep(0, 18, R.soloTime);
   if (R.burst && t < R.burst.until) {
-    const afterglow = R.burst.owner === 'me' ? clamp(R.burst.k * 0.9, 0, 1) : 0.06;
+    const fade = R.burst.fade ? smoothstep(0, R.burst.fade, R.burst.until - t) : 1;
+    const afterglow = R.burst.owner === 'me' ? (R.burst.energy ?? clamp(R.burst.k * 0.9, 0, 1)) * fade : 0.06;
     ft = Math.max(ft, afterglow);
   }
   R.frenzyT = ft;
@@ -5357,13 +5424,14 @@ function reactUpdate(dt, t) {
 const UI = { el: {}, playing: false, marksKey: '', kbPos: null, inputRect: null, fingerPos: null, fingerDirty: false, cancelInput: null };
 function initUI() {
   const $ = id => document.getElementById(id);
-  Object.assign(UI.el, { stem: $('stem'), ribbon: $('ribbon'), marks: $('marks'), finger: $('finger'), controls: $('controls'), title: $('title'), start: $('start'), loadbar: document.querySelector('#loadbar i'), paused: $('paused'), pause: $('pause'), hudMode: $('hudMode') });
+  Object.assign(UI.el, { stem: $('stem'), ribbon: $('ribbon'), marks: $('marks'), finger: $('finger'), controls: $('controls'), title: $('title'), start: $('start'), loadbar: document.querySelector('#loadbar i'), paused: $('paused'), pause: $('pause'), hudMode: $('hudMode'), nextSong: $('nextSong') });
   bindInput();
   document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); setMode(b.dataset.m); syncMode(); }));
   syncMode();
   $('resume').onclick = () => resumeGame();
   $('toTitle').onclick = () => location.reload();
   UI.el.pause.onclick = () => pauseGame();
+  UI.el.nextSong.onclick = () => nextSong();
   UI.el.start.onclick = () => startGame();
   // 앱이 뒤로 가면 소리까지 멈춤
   document.addEventListener('visibilitychange', () => { if (document.hidden) { if (UI.playing) pauseGame(); else if (AE.ctx && AE.ctx.state === 'running') AE.ctx.suspend(); } });
@@ -5387,7 +5455,7 @@ async function startGame() {
   if (!AE.decoded) return;
   try { await AE.ctx.resume(); } catch (e) { }
   UI.el.title.classList.add('hide');
-  UI.el.controls.classList.remove('off'); UI.el.pause.style.display = 'flex'; UI.el.hudMode.style.display = 'inline-flex';
+  UI.el.controls.classList.remove('off'); UI.el.pause.style.display = 'flex'; UI.el.hudMode.style.display = 'inline-flex'; UI.el.nextSong.style.display = 'inline-flex';
   releaseAllInput(); TP.notes.length = 0; TP.lastSoundT = -9; TP.cur = null;
   REACT.reset();
   resetCrowdScenes();
@@ -5459,6 +5527,7 @@ function bindInput() {
 }
 // 줄기 표시: 보정 모드는 지금 화음의 음 자리, 자유 모드는 반음 눈금
 function uiTick() {
+  if (UI.el.nextSong && AE.ctx) UI.el.nextSong.disabled = !UI.playing || AE.ctx.currentTime < (MUS.skipUntil || 0);
   flushFingerVisual();
   if (!UI.playing && UI.marksKey) return;
   const now = AE.ctx ? AE.ctx.currentTime : 0;
@@ -5746,4 +5815,5 @@ if (/shot/.test(location.search)) { window.__step(1.5); }
 </script>
 </body>
 </html>
+
 
