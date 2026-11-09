@@ -41,6 +41,7 @@ button{font-family:inherit;color:inherit}
 #marks i{position:absolute;left:50%;border-radius:50%;transform:translate(-50%,-50%);transition:opacity .18s}
 #marks i.ct{width:15px;height:15px;background:var(--vermilion);box-shadow:0 0 0 2px var(--ink)}
 #marks i.st{width:7px;height:7px;background:#5d5670}
+#marks i.bl{width:9px;height:9px;background:#2f6fe0;box-shadow:0 0 0 1.5px var(--ink)}
 #marks i.tk{width:12px;height:2px;border-radius:1px;background:#8f879f}
 #marks i.tk.c{width:20px;height:3px;background:#5d5670}
 #headKnob{position:absolute;left:50%;bottom:-52px;width:72px;height:56px;margin-left:-36px;pointer-events:none;
@@ -873,6 +874,24 @@ class SusVoice {
     this.midi = midi; this.rate = rateFor(this.s, midi);
     const p = this.src.playbackRate;
     p.cancelScheduledValues(when); p.setTargetAtTime(this.rate, when, Math.max(0.004, time / 2.5));
+  }
+  // 밸브 바꾸듯 또렷하게: 음높이는 곧바로, 소리는 아주 잠깐 눌렸다가 다시 (d를 주면 셈여림도 같이)
+  stepTo(midi, when, d) {
+    if (this.ended) return;
+    this.midi = midi; this.rate = rateFor(this.s, midi);
+    const p = this.src.playbackRate;
+    p.cancelScheduledValues(when); p.setTargetAtTime(this.rate, when, 0.0022);
+    if (this.dead) return;
+    const lvl = d != null ? dynGain(midi, d) : this.level; this.level = lvl;
+    const g = this.g.gain;
+    g.setTargetAtTime(lvl * 0.7, Math.max(this.t0 + 0.012, when - 0.006), 0.0028); g.setTargetAtTime(lvl, when + 0.007, 0.009);
+    if (this.f && d != null) { this.f.frequency.setTargetAtTime(dynCut(d), when, 0.008); this.d = d; }
+  }
+  setDyn(d, when, time = 0.03) {
+    if (this.dead) return;
+    const lvl = dynGain(this.midi, d); this.level = lvl; this.d = d;
+    this.g.gain.setTargetAtTime(lvl, when, time / 2.5);
+    if (this.f) this.f.frequency.setTargetAtTime(dynCut(d), when, time / 2.5);
   }
   bend(semis, when, time) {
     if (this.dead) return;
@@ -3615,14 +3634,15 @@ function stepAllowed(from, dir, ch, key) {
   return from + dir;
 }
 // 보정 모드: 손가락 위치(연속 음높이) → 지금 화음에 맞는 음
-// o: { strong, prev, cur(지금 울리는 음), nextCh, lo, hi }
+// o: { strong, cur(지금 울리는 음), nextCh, lo, hi, ok(허용 음 판정: 블루노트·접근음까지) }
 function snapPitch(target, ch, o = {}) {
-  const key = o.strong ? 'S' : 'W';
+  const key = o.strong ? 'S' : 'W', ok = o.ok || (m => inSet(m, ch, key));
   const lo = o.lo || 48, hi = o.hi || 90;
   let best = null, bs = Infinity;
   for (let m = Math.max(lo, Math.floor(target) - 6); m <= Math.min(hi, Math.ceil(target) + 6); m++) {
-    if (!inSet(m, ch, key)) continue;
+    if (!ok(m)) continue;
     let s = Math.abs(m - target) * 1.0;
+    if (!inSet(m, ch, key)) s += 0.18;          // 블루노트·접근음은 손가락이 그 자리에 가까울 때만
     if (o.strong && isChordTone(m, ch)) s -= 0.35;
     if (isGuide(m, ch)) s -= 0.25;
     if (o.nextCh && o.nextCh !== ch && !inSet(m, o.nextCh, 'W')) s += 0.3;
@@ -3630,7 +3650,7 @@ function snapPitch(target, ch, o = {}) {
   }
   if (best == null) best = nearestAllowed(target, ch, key);
   // 히스테리시스: 지금 음이 여전히 맞고 손가락이 많이 안 움직였으면 유지
-  if (o.cur != null && o.cur !== best && inSet(o.cur, ch, key) && Math.abs(target - o.cur) < Math.abs(target - best) + 0.45) return o.cur;
+  if (o.cur != null && o.cur !== best && ok(o.cur) && Math.abs(target - o.cur) < Math.abs(target - best) + 0.45) return o.cur;
   return best;
 }
 // 피아노 왼손 보이싱 (앞 보이싱에서 가장 덜 움직이는 것)
@@ -4148,6 +4168,7 @@ function startSong(S, t0, first) {
   for (const w of ['tb', 'pn', 'bs']) S.imp[w] = makeImprov(w, S);
   vq(t0, 'song', 'tuneStart', { idx: S.idx, id: S.tune.id, feel: f, first });
   dlog('tuneStart', { id: S.tune.id, bpm: S.bpm });
+  autoOnSong();
 }
 function makeImprov(who, S) {
   const blue = /blues|shuffle|boogaloo/.test(S.tune.id) || S.tune.feel === 'shuffle';
@@ -4158,8 +4179,9 @@ function makeImprov(who, S) {
 
 // ---------- 내 연주 상태 ----------
 const quietSec = S => clamp(1.5 * 4 * S.spb, 3.0, 5.0);
-function meQuiet(now, S) { return !AUTO.on && !TP.blowing && now - TP.lastSoundT > quietSec(S); }
-function meActive(now) { return AUTO.on || TP.blowing || now - TP.lastSoundT < 1.3; }
+// 자동일 때는 소리가 아니라 자동 연주의 계획으로 판단 (솔로 중이면 붙잡고 있고, 다 불면 바로 넘김)
+function meQuiet(now, S) { if (AUTO.on) return AUTO.state === 'rest'; return !TP.blowing && now - TP.lastSoundT > quietSec(S); }
+function meActive(now) { if (AUTO.on) return AUTO.state === 'solo'; return TP.blowing || now - TP.lastSoundT < 1.3; }
 // 내 음 하나가 시작될 때 (트럼펫이 부름)
 function musicOnMyAttack(now) {
   const S = MUS.song; if (!S) return;
@@ -4244,6 +4266,7 @@ function makeBar(S) {
 
 // ---------- 마디 시작 전 결정 ----------
 function decide(S, now) {
+  if (AUTO.on && AUTO.wantTake && (S.phase === 'solo' || S.phase === 'trades') && S.floor !== 'me') { AUTO.wantTake = false; takeover(now); }
   switch (S.phase) {
     case 'count': if (S.countLeft <= 0) { S.phase = S.introLeft > 0 ? 'intro' : 'head'; S.introTotal = S.introLeft; S.fb = 0; S.pass = 0; } break;
     case 'intro': if (S.introTotal == null) S.introTotal = S.introLeft; if (S.introLeft <= 0) { S.phase = 'head'; S.fb = 0; S.pass = 0; segEvent(S, 'head'); } break;
@@ -4256,6 +4279,7 @@ function decide(S, now) {
 }
 function decideSolo(S, now) {
   if (S.floor === 'me') {
+    if (AUTO.on && AUTO.state === 'solo' && AUTO.sol && MUS.beatCount >= AUTO.sol.endB - 1e-6) autoSoloEnd();   // 자동: 정한 코러스를 다 불었으면 바로 넘김
     if (meQuiet(now, S)) {
       if (S.queue.length) {
         const who = S.queue.shift();
@@ -4310,7 +4334,7 @@ function advance(S, now) {
 function onFormEnd(S, now) {
   if (S.phase === 'head') {
     S.pass++;
-    if (S.pass >= S.passes) { const me = meActive(now) || S.wantYield; S.wantYield = false; enterSolo(S, me ? 'me' : nextBand(S), 'afterHead'); }
+    if (S.pass >= S.passes) { const me = meActive(now) || S.wantYield || autoWantsSolo(); S.wantYield = false; enterSolo(S, me ? 'me' : nextBand(S), 'afterHead'); }
   } else if (S.phase === 'outhead') {
     S.pass++;
     if (S.pass >= S.passes) { if (meActive(now) || S.wantYield) { S.wantYield = false; enterSolo(S, 'me', 'outheadYield'); } else enterEnding(S); }
@@ -4363,6 +4387,7 @@ function genBar(S, b) {
   const ph = S.phase;
   if (ph === 'count') { countOff(b, S.countLeft <= 1); return; }
   if (ph === 'final') { genFinal(S, b); return; }
+  autoOnBar(S, b);
   updateMood(S, b);
   const next = nextChordAfter(S, b);
   // 절정 브레이크
@@ -4482,6 +4507,7 @@ function genFinal(S, b) {
     tbnNote(t, nearestPC(ch.root + QUAL[ch.q].tones[1], 60, 55, 67), 0.35, 1.0, { scoop: 0 });
     vq(t, 'song', 'cut', { button: true });
     MUS.endAt = t + 0.6;
+    autoFinal(S, t, 'button');
     return;
   }
   drum('crash', t, 0.9, 'R'); drum('kick', t, 0.8, 'RF');
@@ -4493,6 +4519,7 @@ function genFinal(S, b) {
   tv.vibrato(14, t + 0.4, 0.4);
   vq(t, 'tbn', 'note', { midi: tm, dur: 99, slide: slidePos(tm) });
   MUS.fermata = { t, tv, ch, root, nextRoll: t + 0.1, nextPiano: t + 2.4, nextBass: t + 1.9, rollV: 0.05, cut: null, wasBlowing: TP.blowing };
+  const autoCut = autoFinal(S, t, 'fermata'); if (autoCut) MUS.fermata.autoCutAt = autoCut;     // 자동: 끝음 길이에 맞춰 같이 끊음
   vq(t, 'song', 'fermata', {});
 }
 function fermataTick(now) {
@@ -4507,6 +4534,7 @@ function fermataTick(now) {
   if (now > F.nextPiano - 0.1) { pianoNotes(F.nextPiano, voicingFor(F.ch, null, 62, 86), 2.6, 0.3, 'R', 0.05); F.nextPiano += 2.4; }
   if (now > F.nextBass - 0.1) { bassNote(F.nextBass, F.root, 2.0, 0.55); F.nextBass += 1.9; }
   const myHold = TP.blowing && F.wasBlowing;
+  if (F.autoCutAt && !FIN.manualWaiting) { if (now >= F.autoCutAt - 0.12 || age > 16) fermataCut(Math.max(now + 0.02, F.autoCutAt)); return; }
   if (FIN.manualWaiting) {
     if (FIN.manualPlayed && FIN.manualReleased && !TP.blowing && age > 0.2) fermataCut(now + 0.04);
   } else if ((!myHold && age > 2.6) || age > 16) fermataCut(now + 0.04);
@@ -4606,15 +4634,24 @@ function nextSlot(after) {
 
 // ===== 50_trumpet.js =====
 // ===================== 내 트럼펫: 오타마톤식 띠 하나 =====================
-// 띠를 누르면 소리, 위치가 높낮이. 떼면 멈춤. 누른 채 미끄러지면 음이 이어짐(슬러).
-// 보정 모드: 지금 화음에 맞는 음으로 붙음 / 자유 모드: 손가락 위치 그대로 (미분음·글리산도)
+// 띠를 누르면 소리, 위치가 높낮이. 떼면 멈춤. 누른 채 움직이면 음이 바뀜 (슬러: 밸브 바꾸듯 또렷하게).
+// 다른 손가락으로 짚으면 그 자리로 혀를 쳐서 뛰고, 그 손가락을 떼면 남아 있는 손가락 자리로 슬러.
+// 보정 모드: 지금 화음에 맞는 음으로 붙음 (블루스 곡은 블루노트, 움직이는 동안 뒷박엔 반음 접근음도).
+//            손가락이 그대로면 한 번 맞춘 음을 유지함 (8분음표마다 다시 고르지 않음).
+// 자유 모드: 멈추면 가장 가까운 반음으로 끌어당김. 천천히 밀면 글리산도, 빠르게 옮기면 도착한 음으로 또렷하게, 멀리 빠르게 훑으면 립.
+// 셈여림은 자동: 뒷박·프레이즈 첫 음·높은 음은 세고 밝게, 촘촘한 줄의 정박·낮은 경과음은 여리게.
 const TP = {
   mode: 'snap', lo: 52, hi: 86,             // 콘서트 음높이 (E3 ~ D6)
   pos: 0.4, target: 66, blowing: false, voice: null, cur: null, curF: null, chord: null,
-  noteT0: 0, pitchT0: 0, lastAttackT: -9, lastSoundT: -9, lastMoveT: 0, alt: false, rr: 1,
-  notes: [], listeners: [], air: [], shake: null, vibOn: false, in: null, still: 0,
-  pendingMove: false, lastPitchUpdate: -99, lastRevoiceT: -99, revoiceDue: false,
+  noteT0: 0, pitchT0: 0, lastAttackT: -9, lastSoundT: -9, lastMoveT: 0, lastMovingT: 0, rr: 1,
+  notes: [], listeners: [], air: [], shake: null, vibOn: false, in: null,
+  pendingMove: false, discrete: false, lastPitchUpdate: -99, lastRevoiceT: -99,
   all: [],                                  // 아직 울리고 있을 수 있는 내 트럼펫 소리들
+  d: 0.74, lastOffT: -9, lastRec: null,     // 지금 음의 셈여림 · 마지막으로 뗀 때
+  mv: { st: 'rest', from: 0, movT: 0, at0: 0 },   // 손가락 움직임 판정
+  semi: null,                               // 자유 모드: 붙어 있는 반음
+  passing: false, passT: 0,                 // 보정 모드: 지나가는 중인 반음 접근음
+  key: '',                                  // 보정 모드: 손가락 그대로 맞춰 둔 화음·박
 };
 const tpEmit = (type, d) => { for (const f of TP.listeners) f(type, d); };
 // 트럼펫은 한 대: 새 음을 낼 때 앞에서 남은 소리를 전부 끊기 위해 기록
@@ -4637,206 +4674,229 @@ function initTrumpet() {
   try { const m = localStorage.getItem('egotrip.mode'); if (m === 'free' || m === 'snap') TP.mode = m; } catch (e) { }
 }
 function setMode(m) { if (AUTO.on) setAuto(false); TP.mode = m; try { localStorage.setItem('egotrip.mode', m); } catch (e) { } }
-// 높은 음일수록 조금 크게
-const levelFor = m => 0.86 + clamp((m - 60) / 26, 0, 1) * 0.3;
 const canPlay = () => !!AE.ctx;
+
+// ---------- 소리 ----------
+// 셈여림 d (0 ~ 1.15)가 크기와 밝기를 같이 바꿈 (금관은 세게 불수록 밝아짐). 높은 음일수록 조금 크게
+const levelFor = m => 0.86 + clamp((m - 60) / 26, 0, 1) * 0.3;
+const dynGain = (m, d) => levelFor(m) * lerp(0.6, 1.1, clamp(d, 0, 1.2));
+const dynCut = d => clamp(3000 * Math.pow(2, clamp(d, 0, 1.2) * 2.5), 2000, 18000);
+// 음 하나의 몸통: 지속음 고리 샘플 + 셈여림 필터
+function hornVoice(m, t, d, o = {}) {
+  const s = nearestSample('T', m); if (!s || !AE.ctx) return null;
+  const f = AE.ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.45; f.frequency.setValueAtTime(dynCut(d), Math.max(0, t - 0.002));
+  const off = o.body ? s.start + 0.11 : o.offset != null ? o.offset : s.start;
+  const v = new SusVoice(s, m, t, o.dest || TP.in, { level: dynGain(m, d), fadeIn: o.fadeIn || 0.005, offset: Math.min(off, s.ls != null ? s.ls - 0.05 : off), scoop: o.scoop || 0, scoopTime: o.scoopTime || 0.07, filter: f });
+  v.f = f; v.d = d;
+  return v;
+}
+// 혀 치는 머리: 스타카토 녹음으로 또렷하게 시작하고 곧바로 지속음 몸통으로 넘김
+function hornHead(m, t, d) {
+  TP.rr = 3 - TP.rr;
+  const a = nearestSample('A', m, TP.rr);
+  if (!a || Math.abs(a.m - m) > 4) return false;
+  tpTrack(playOne(a, m, t, dynGain(m, d) * 0.95, TP.in, { dur: 0.085, release: 0.025 }));
+  return true;
+}
+// 끝내기: 그냥 / 폴(아래로 떨어뜨림) / 두잇(위로 튕김)
+function hornRelease(v, t, flick, rel = 0.06) {
+  if (!v) return;
+  if (flick === 'fall') {
+    v.vibrato(0, t, 0.02); v.bend(-pick([7, 9, 12]), t, 0.34); v.release(t + 0.16, 0.24);
+    if (v.f) { v.f.frequency.cancelScheduledValues(t); v.f.frequency.setTargetAtTime(900, t + 0.04, 0.12); }
+  } else if (flick === 'doit') { v.vibrato(0, t, 0.02); v.bend(5, t, 0.2); v.release(t + 0.1, 0.16); }
+  else v.release(t, rel);
+}
+// 셰이크: 윗음과 빠르게 왔다 갔다 (iv = 반음 수)
+function shakeOn(v, t, iv) {
+  if (!v) return;
+  v.src.playbackRate.setTargetAtTime(v.rate * Math.pow(2, iv / 24), t, 0.012);
+  v.lfo.frequency.setTargetAtTime(7.3, t, 0.02);
+  v.lg.gain.cancelScheduledValues(t); v.lg.gain.setTargetAtTime(v.rate * (Math.pow(2, iv / 24) - 1), t, 0.03);
+}
+function shakeOff(v, t) {
+  if (!v) return;
+  v.lg.gain.cancelScheduledValues(t); v.lg.gain.setTargetAtTime(0, t, 0.02);
+  v.src.playbackRate.setTargetAtTime(v.rate, t, 0.015);
+  v.lfo.frequency.setTargetAtTime(5.4, t + 0.06, 0.05);
+}
+// 셈여림 자동: 뒷박·프레이즈 첫 음·높은 음은 세게, 촘촘한 줄의 정박·낮은 경과음은 여리게
+function autoDyn(t, m, o = {}) {
+  let d = 0.74;
+  const N = TP.notes, sl = phraseSlot(t), spb = curSpb();
+  const dense = N.length > 0 && t - N[N.length - 1].t < spb * 0.8;
+  if (o.first) d += 0.12;
+  if (sl && dense) d += sl.strong ? -0.06 : 0.1;
+  let hi = -1; for (let i = N.length - 1; i >= 0 && N[i].t > t - 2; i--) hi = Math.max(hi, N[i].m);
+  if (hi > 0 && m > hi + 0.5) d += 0.1;
+  if (m >= 79) d += 0.06;
+  if (dense && hi > 0 && m < hi - 7) d -= 0.07;
+  return clamp(d, 0.45, 1.1);
+}
 
 function recordNote(t, m, kind) {
   TP.notes.push({ t, m, kind });
   if (TP.notes.length > 300) TP.notes.splice(0, 100);
 }
-function snapNow(t, cur) {
+
+// ---------- 보정 모드: 어떤 음을 허용하나 ----------
+// 블루스 곡: 으뜸·버금딸림 화음 위에서 조의 ♭5는 뒷박에, ♭3은 뒷박에 (으뜸 화음에선 정박에도)
+function bluesOk(m, ch, strong) {
+  const S = MUS.song; if (!S || !S.tune.blues) return false;
+  const rel = mod12(ch.root - S.keyPc); if (rel !== 0 && rel !== 5) return false;
+  const pc = mod12(m - S.keyPc);
+  if (pc === 6) return !strong;
+  if (pc === 3) return !strong || rel === 0;
+  return false;
+}
+// 움직이는 동안 뒷박: 화음음 반음 아래 접근음
+const passingOk = (m, ch) => isChordTone(m + 1, ch);
+function noteOk(m, ch, strong, o = {}) { return inSet(m, ch, strong ? 'S' : 'W') || bluesOk(m, ch, strong) || (!!o.moving && !strong && passingOk(m, ch)); }
+function snapNow(t, cur, o = {}) {
   const ch = chordAtTime(t + 0.02);
   const nb = barAtTime(t); const nextCh = nb ? chordAtTime(t + nb.spb * 0.6) : null;
-  return snapPitch(TP.target, ch, { strong: isStrongTime(t), cur, nextCh, lo: TP.lo, hi: TP.hi });
+  const strong = o.strong != null ? o.strong : isStrongTime(t);
+  return snapPitch(TP.target, ch, { strong, cur, nextCh, lo: TP.lo, hi: TP.hi, ok: m => noteOk(m, ch, strong, o) });
 }
-function pitchNow(t, cur) { return TP.mode === 'free' && !AUTO.on ? TP.target : snapNow(t, cur); }
-
-// One musical clock drives both held-note resolution and automatic phrasing.
-const AUTO = { on: false, next: 0, n: 0, center: 70, dir: 1, savedMode: 'snap' };
-function autoSync() {
-  const key = [UI.playing, GAME.phase, FIN.req, AUTO.on].join('|');
-  if (AUTO.uiKey === key) return; AUTO.uiKey = key;
-  const el = document.getElementById('autoMode');
-  el.style.display = UI.playing && GAME.phase === 'play' && !FIN.req ? 'inline-flex' : 'none';
-  el.querySelectorAll('button').forEach(b => { const on = (b.dataset.auto === 'on') === AUTO.on; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
-  UI.el.hudMode.style.display = GAME.phase === 'play' && !AUTO.on ? 'inline-flex' : 'none';
-}
-function setAuto(on, keepInput = false) {
-  if (on && (!UI.playing || GAME.phase !== 'play' || FIN.req || FIN.on)) return;
-  if (AUTO.on === on) return;
-  if (on) {
-    releaseAllInput(); AUTO.savedMode = TP.mode; TP.mode = 'snap';
-    AUTO.on = true; AUTO.next = 0; AUTO.n = 0; AUTO.center = clamp(TP.target, 64, 77);
-    if (MUS.song && !['count','final','done'].includes(MUS.song.phase)) takeover(AE.ctx.currentTime);
-    UI.touched = true; UI.el.stem.classList.remove('hint');
-  } else {
-    AUTO.on = false;
-    if (keepInput) { TP.blowing = false; TP.pendingMove = false; noteOff(null); } else releaseAllInput();
-    spPress(false); TP.mode = AUTO.savedMode; if (!keepInput) fingerVisual(null);
-  }
-  syncMode(); autoSync();
-}
+function slotKey(t) { const sl = phraseSlot(t); return chordAtTime(t + 0.01).name + '|' + (sl ? sl.id : ''); }
 function phraseSlot(t) {
   const b = barAtTime(t); if (!b) return null;
   const p = Math.max(0, (t - b.t0) / b.spb), beat = Math.floor(p);
   const off = p - beat >= b.swing;
   return { id: b.beat0 * 2 + beat * 2 + (off ? 1 : 0), strong: !off, next: pt(b, off ? beat + 1 : beat + 0.5) };
 }
-function autoTick(now) {
-  if (!AUTO.on || !UI.playing || GAME.phase !== 'play' || FIN.req || FIN.on || !MUS.running) return;
-  const S = MUS.song;
-  if (!S || ['count','final','done'].includes(S.phase)) return;
-  if (S.floor !== 'me' || S.phase !== 'solo') takeover(now);
-  if (now < AUTO.next && TP.blowing) return;
-  const slot = phraseSlot(now); if (!slot) return;
-  const motifs = [[0,2,4,7,5,2,-1,0],[0,3,2,5,7,4,2,-2],[0,-2,-4,0,3,5,2,0],[0,4,7,9,7,3,2,0]];
-  if (AUTO.n % 8 === 0) { AUTO.motif = pick(motifs); AUTO.center = clamp(AUTO.center + pick([-3,-2,2,3]), 63, 77); }
-  const offset = AUTO.motif[AUTO.n % 8];
-  TP.target = clamp(AUTO.center + offset, TP.lo, TP.hi); TP.pos = pitchToPos(TP.target);
-  TP.blowing = true; TP.lastMoveT = performance.now();
-  if (!TP.voice || AUTO.n % 3 === 0) noteOn('auto');
-  else moveTo(snapNow(now, null), 'slur', now + 0.004);
-  fingerVisual(pitchToPos(TP.cur));
-  AUTO.n++;
-  // Mostly swinging eighths, with quarter/half-note breathing space; never give up the solo.
-  AUTO.next = Math.max(now + 0.06, slot.next);
-  if (AUTO.n % 8 === 0) AUTO.next += curSpb() * pick([0, 0.5, 1]);
-  if (SPX.g >= 0.999 && !SPX.active && slot.strong) spPress(true);
-}
+// 손가락이 그대로일 때: 화음이 바뀌어 지금 음이 안 맞거나, 뒷박 색깔음을 문 채 정박이 오면 한 번만 맞춤 (되돌아가지 않음)
 function heldHarmonyTick(now) {
   const slot = phraseSlot(now); if (!slot) return;
-  const ch = chordAtTime(now + 0.01), changed = TP.chord !== ch.name;
-  if (!changed && TP.flowSlot === slot.id) return;
-  TP.flowSlot = slot.id; TP.chord = ch.name;
-  // Weak-beat colours resolve on the next beat even if the finger never moves.
-  const out = snapPitch(TP.target, ch, { strong: FIN.req || slot.strong, lo: TP.lo, hi: TP.hi });
+  const ch = chordAtTime(now + 0.01), key = ch.name + '|' + slot.id;
+  if (TP.key === key) return;
+  const changed = TP.chord !== ch.name; TP.chord = ch.name; TP.key = key;
+  if (TP.passing) return;
+  const strong = !!FIN.req || slot.strong, cur = Math.round(TP.cur);
+  if (noteOk(cur, ch, strong)) return;
+  const out = snapNow(now, cur, { strong });
   if (out !== TP.cur) moveTo(out, changed ? 'chord' : 'resolve', now + 0.003);
 }
 
-
-// 소리 시작
+// ---------- 소리 시작 (혀를 침) ----------
 function noteOn(kind = 'touch') {
   if (!canPlay()) return;
   const now = AE.ctx.currentTime, t = now + 0.004;
   if (FIN.manualWaiting && kind !== 'auto') { FIN.manualPlayed = true; FIN.manualReleased = false; }
-  TP.flowSlot = phraseSlot(now)?.id;
-  const out = pitchNow(t, null);
+  TP.key = slotKey(t); TP.passing = false; TP.mv = { st: 'rest', from: 0, movT: 0, at0: 0 };
+  const out = TP.mode === 'free' ? clamp(Math.round(TP.target), TP.lo, TP.hi) : snapNow(t, null);
   const fast = t - TP.lastAttackT < 0.28;
-  TP.alt = fast ? !TP.alt : false;
-  const s = nearestSample('T', out);
-  const lvl = levelFor(out) * (TP.alt ? 0.86 : 1);
-  // 한 대만 울리게: 앞 음에서 남은 소리(지속음·스타카토 머리·폴/두잇 꼬리)를 전부 짧게 끊고 시작
+  const d = autoDyn(t, out, { first: kind === 'touch' && t - TP.lastOffT > 0.34 });
   if (TP.shake) endShake(t);
+  // 한 대만 울리게: 앞 음에서 남은 소리를 전부 짧게 끊고 시작
   tpCutAll(t, fast ? 0.008 : 0.014); TP.voice = null;
   TP.lp.frequency.cancelScheduledValues(t); TP.lp.frequency.setValueAtTime(16000, t);
-  let offset = s.start, fadeIn = 0.004, at = t;
-  // 빠른 연타: 스타카토 녹음으로 혀 치는 머리를 내고 곧바로 지속음으로 넘김 (두 녹음이 겹치는 건 넘기는 순간 20ms 남짓)
-  if (fast) {
-    TP.rr = 3 - TP.rr;
-    const a = nearestSample('A', out, TP.rr);
-    if (a && Math.abs(a.m - out) <= 4) {
-      const head = 0.085;
-      tpTrack(playOne(a, out, t, lvl, TP.in, { dur: head, release: 0.025 }));
-      offset = s.start + 0.11; fadeIn = 0.02; at = t + head - 0.008;
-    }
-  }
-  const v = tpTrack(new SusVoice(s, out, at, TP.in, { level: lvl, fadeIn, offset: Math.min(offset, s.ls != null ? s.ls - 0.05 : offset) }));
-  if (SPX.active && SPX.k > 0.4) spVoiceStart(at, out, lvl);
-  TP.voice = v; TP.cur = out; TP.curF = out; TP.chord = chordAtTime(t).name; TP.noteT0 = t; TP.pitchT0 = t; TP.lastAttackT = t; TP.vibOn = false;
-  TP.lastSoundT = t; TP.lastRevoiceT = t; TP.revoiceDue = false; TP.lastRec = out;
+  let at = t, body = false;
+  if ((fast || d >= 0.9) && hornHead(out, t, d)) { at = t + 0.077; body = true; }
+  const v = tpTrack(hornVoice(out, at, d, { body, fadeIn: body ? 0.02 : 0.004 }));
+  if (!v) return;
+  if (SPX.active && SPX.k > 0.4) spVoiceStart(at, out, dynGain(out, d));
+  TP.voice = v; TP.cur = out; TP.curF = out; TP.d = d; TP.semi = TP.mode === 'free' ? out : null;
+  TP.chord = chordAtTime(t).name; TP.noteT0 = t; TP.pitchT0 = t; TP.lastAttackT = t; TP.vibOn = false;
+  TP.lastSoundT = t; TP.lastRevoiceT = t; TP.lastRec = out;
   recordNote(t, out, kind);
-  dlog('note', { m: +out.toFixed(2), mode: TP.mode, ch: TP.chord, strong: isStrongTime(t) });
+  dlog('note', { m: out, mode: TP.mode, ch: TP.chord, strong: isStrongTime(t), d: +d.toFixed(2) });
   tpEmit('attack', { t, m: out, kind });
-  if (typeof musicOnMyAttack === 'function') musicOnMyAttack(now);
+  musicOnMyAttack(now);
 }
-// 음 바꾸기 (끊지 않고)
+// 음 바꾸기 (끊지 않고). kind: slur·land(또렷하게) / gliss·magnet(이어서) / chord·resolve(화음 따라 저절로)
 function moveTo(out, kind, t) {
   const v = TP.voice; if (!v || v.dead) return;
-  const prev = TP.cur;
-  if (TP.mode === 'free') {
-    // Pitch follows immediately; rebasing the sample is limited to ten crossfades/s.
-    let voice = v;
-    const distant = Math.abs(out - v.s.m) > 7;
-    TP.revoiceDue = distant;
-    if (distant && t - TP.lastRevoiceT >= 0.1) {
-      const sample = nearestSample('T', out);
-      if (sample && sample !== v.s) {
-        voice = tpTrack(new SusVoice(sample, out, t, TP.in, { level: levelFor(out), fadeIn: 0.02, offset: Math.min(sample.start + 0.15, sample.ls != null ? sample.ls - 0.05 : 1) }));
-        v.glideTo(out, t, 0.02); v.release(t, 0.025); TP.voice = voice; TP.lastRevoiceT = t;   // 빠지는 소리도 같은 음으로 (두 음이 겹쳐 들리지 않게)
-        TP.vibOn = false;
-      }
-      TP.revoiceDue = false;
-    }
-    voice.glideTo(out, t, 0.025);
-    voice.setLevel(levelFor(out), t, 0.05);
-    if (SPX.voice2) spVoiceMove(t, out, kind);
-    TP.cur = out; TP.curF = out;
-    if (Math.abs(out - prev) >= 0.75) { TP.pitchT0 = t; if (TP.vibOn) voice.vibrato(0, t, 0.025); TP.vibOn = false; }
-    if (Math.abs(out - (TP.lastRec ?? out)) >= 1) { TP.lastRec = out; recordNote(t, out, kind); tpEmit('legato', { t, m: out, prev, kind }); }
-    return;
-  }
-  if (out === TP.cur && !TP.revoiceDue) return;
-  const sample = nearestSample('T', out);
-  const rebase = sample !== v.s && Math.abs(out - v.s.m) > 3;
-  TP.revoiceDue = rebase;
-  if (rebase && t - TP.lastRevoiceT >= 0.08) {
-    const nv = tpTrack(new SusVoice(sample, out, t, TP.in, { level: levelFor(out), fadeIn: 0.018, offset: Math.min(sample.start + 0.12, sample.ls != null ? sample.ls - 0.05 : 1), scoop: clamp(prev - out, -3, 3) * 0.45, scoopTime: 0.045 }));
-    v.glideTo(out, t, 0.02); v.release(t, 0.025); TP.voice = nv; TP.lastRevoiceT = t; TP.revoiceDue = false;
-  } else { v.glideTo(out, t, kind === 'chord' ? 0.06 : 0.032); v.vibrato(0, t, 0.02); }
-  if (SPX.voice2) spVoiceMove(t, out, kind);
-  TP.cur = out; TP.curF = out; TP.vibOn = false;
+  const prev = TP.cur, cont = kind === 'gliss' || kind === 'magnet';
   if (out === prev) return;
-  TP.pitchT0 = t;
-  recordNote(t, out, kind);
-  dlog('note', { m: out, art: kind, ch: chordAtTime(t).name });
-  tpEmit('legato', { t, m: out, prev, kind });
+  const d = (kind === 'slur' || kind === 'land') ? autoDyn(t, out) : TP.d;
+  let voice = v;
+  // 샘플에서 멀어지면 가까운 샘플로 바꿔 끼움 (음색이 늘어지지 않게)
+  if (Math.abs(out - v.s.m) > (cont ? 3.5 : 2.6) && t - TP.lastRevoiceT >= 0.06) {
+    const s = nearestSample('T', out);
+    if (s && s !== v.s) {
+      const nv = tpTrack(hornVoice(out, t, d, { offset: s.start + 0.12, fadeIn: cont ? 0.022 : 0.01 }));
+      if (nv) {
+        if (cont) v.glideTo(out, t, 0.02); else v.stepTo(out, t);
+        cutVoice(v, t + 0.002, cont ? 0.022 : 0.012);
+        voice = nv; TP.voice = nv; TP.lastRevoiceT = t; TP.vibOn = false;
+      }
+    }
+  }
+  if (voice === v) { if (cont) v.glideTo(out, t, kind === 'magnet' ? 0.09 : 0.028); else v.stepTo(out, t, d); }
+  if (!cont) TP.d = d;
+  if (SPX.voice2) spVoiceMove(t, out, cont ? 'gliss' : kind);
+  TP.cur = out; TP.curF = out;
+  if (!cont || Math.abs(out - prev) >= 0.75) { TP.pitchT0 = t; if (TP.vibOn) voice.vibrato(0, t, 0.025); TP.vibOn = false; }
+  const last = TP.lastRec ?? out;
+  if (cont ? Math.abs(out - last) >= 1 : Math.round(out) !== Math.round(last)) {
+    TP.lastRec = out; recordNote(t, out, kind);
+    dlog('note', { m: +out.toFixed(2), art: kind, ch: chordAtTime(t).name });
+    tpEmit('legato', { t, m: out, prev, kind });
+  }
 }
 function noteOff(flick) {
   if (!TP.voice) return;
   const t = AE.ctx.currentTime + 0.003, v = TP.voice, dur = t - TP.noteT0;
   if (TP.shake) endShake(t);
-  if (flick === 'fall') {
-    v.bend(-pick([7, 9, 12]), t, 0.34); v.vibrato(0, t, 0.02);
-    v.release(t + 0.16, 0.24);
-    TP.lp.frequency.cancelScheduledValues(t); TP.lp.frequency.setValueAtTime(12000, t);
-    TP.lp.frequency.exponentialRampToValueAtTime(900, t + 0.4); TP.lp.frequency.setTargetAtTime(16000, t + 0.5, 0.05);
-  } else if (flick === 'doit') { v.bend(5, t, 0.2); v.release(t + 0.1, 0.16); }
-  else v.release(t, 0.06);
+  hornRelease(v, t, flick);
   spVoiceStop(t, 0.06, flick);
-  TP.voice = null; TP.lastSoundT = t + (flick ? 0.3 : 0.05);
+  TP.voice = null; TP.lastSoundT = t + (flick ? 0.3 : 0.05); TP.lastOffT = t;
   tpEmit('release', { t, dur, m: TP.cur, flick });
 }
-// ---------- 셰이크 (보정 모드: 빠르게 떨면 윗음과 왔다갔다) ----------
+// ---------- 셰이크: 빠르게 떨면 윗음과 왔다 갔다 ----------
 function startShake(t) {
-  if (!TP.voice || TP.mode === 'free') return;
-  const ch = chordAtTime(t), base = Math.round(TP.cur);
-  const up = stepAllowed(base, 1, ch, 'W'), iv = clamp(up - base, 2, 4), v = TP.voice;
+  if (!TP.voice) return;
+  const base = Math.round(TP.cur);
+  let iv = 3;
+  if (TP.mode === 'snap') { const ch = chordAtTime(t), up = stepAllowed(base, 1, ch, 'W'); iv = clamp(up - base, 2, 4); }
   TP.shake = { t0: t, iv, base };
-  v.glideTo(base + iv / 2, t, 0.03);
-  v.lfo.frequency.cancelScheduledValues(t); v.lfo.frequency.setTargetAtTime(7.2, t, 0.02);
-  v.lg.gain.cancelScheduledValues(t); v.lg.gain.setTargetAtTime(v.rate * (Math.pow(2, iv / 24) - 1), t, 0.03);
+  shakeOn(TP.voice, t, iv);
   tpEmit('shake', { t, on: true });
 }
 function endShake(t) {
   const sh = TP.shake; TP.shake = null; if (!sh) return;
   const v = TP.voice;
-  if (v && !v.dead) { v.glideTo(sh.base, t, 0.03); v.lg.gain.cancelScheduledValues(t); v.lg.gain.setTargetAtTime(0, t, 0.02); v.lfo.frequency.setTargetAtTime(5.4, t, 0.05); }
+  if (v && !v.dead) shakeOff(v, t);
   TP.vibOn = false; TP.pitchT0 = t;
   tpEmit('shake', { t, on: false, dur: t - sh.t0 });
 }
 // ---------- 입력 (0~1 위치) ----------
+function airReset(pos) { const tn = performance.now(); TP.air = [{ t: tn, pos }]; TP.lastAirT = tn; TP.lastPos = pos; TP.lastMoveT = tn; TP.lastMovingT = 0; }
 function ribbonDown(pos) {
   if (!AE.ctx || GAME.phase === 'finale') return;
   if (AUTO.on) setAuto(false, true);
   if (GAME.phase === 'pre') { preBuzzDown(pos); return; }
   if (!UI.touched) { UI.touched = true; UI.el.stem.classList.remove('hint'); }
-  TP.air = [{ t: performance.now(), pos }]; TP.pendingMove = false; TP.lastPitchUpdate = -99; TP.lastPos = pos; TP.lastAirT = performance.now();
-  TP.pos = pos; TP.target = posToPitch(pos); TP.lastMoveT = performance.now();
+  airReset(pos); TP.pendingMove = false; TP.discrete = false; TP.lastPitchUpdate = -99;
+  TP.pos = pos; TP.target = posToPitch(pos);
   TP.blowing = true;
   noteOn('touch');
 }
-function ribbonMove(pos) {
+// 다른 손가락으로 짚음: 그 자리로 혀를 쳐서 뜀
+function ribbonJump(pos) {
+  if (!AE.ctx || GAME.phase === 'finale') return;
+  if (GAME.phase === 'pre') { preBuzzMove(pos); return; }
+  if (!TP.blowing) { ribbonDown(pos); return; }
+  airReset(pos); TP.pendingMove = false; TP.discrete = false;
+  TP.pos = pos; TP.target = posToPitch(pos);
+  noteOn('jump');
+}
+// 짚던 손가락을 뗐는데 다른 손가락이 남아 있음: 남은 자리로 슬러
+function ribbonBack(pos) {
+  if (!AE.ctx || GAME.phase === 'finale') return;
+  if (GAME.phase === 'pre') { preBuzzMove(pos); return; }
+  if (!TP.blowing || !TP.voice) { ribbonDown(pos); return; }
+  airReset(pos); TP.pendingMove = false; TP.discrete = false;
+  TP.pos = pos; TP.target = posToPitch(pos);
+  const t = AE.ctx.currentTime + 0.003;
+  if (TP.shake) endShake(t);
+  TP.key = slotKey(t); TP.passing = false; TP.mv = { st: 'rest', from: 0, movT: 0, at0: 0 };
+  const out = TP.mode === 'free' ? clamp(Math.round(TP.target), TP.lo, TP.hi) : snapNow(t, null);
+  TP.semi = TP.mode === 'free' ? out : null;
+  moveTo(out, 'slur', t);
+}
+function ribbonMove(pos, o = {}) {
   if (GAME.phase === 'finale') return;
   if (GAME.phase === 'pre') { preBuzzMove(pos); return; }
   const tn = performance.now();
@@ -4847,7 +4907,9 @@ function ribbonMove(pos) {
   while (TP.air.length > 96 || (TP.air.length && tn - TP.air[0].t > 750)) TP.air.shift();
   TP.pos = pos; TP.target = posToPitch(pos);
   if (Math.abs(pos - (TP.lastPos ?? pos)) > 0.0005) TP.lastMoveT = tn;
-  TP.lastPos = pos; TP.pendingMove = true;
+  const h = (UI.inputRect && UI.inputRect.height) || 480;
+  if (Math.abs(fingerSpeed(tn) * h) >= MV.REST) TP.lastMovingT = tn;
+  TP.lastPos = pos; TP.pendingMove = true; if (o.discrete) TP.discrete = true;
   flushRibbonMove();
 }
 function flushRibbonMove(force = false) {
@@ -4855,19 +4917,83 @@ function flushRibbonMove(force = false) {
   const now = AE.ctx.currentTime;
   if (!force && now - TP.lastPitchUpdate < 1 / 60) return;
   TP.pendingMove = false; TP.lastPitchUpdate = now;
-  const t = now + 0.003;
-  if (TP.mode === 'free') { moveTo(TP.target, 'slide', t); return; }
-  detectShake(performance.now());
+  const t = now + 0.003, tn = performance.now();
+  if (TP.discrete) {          // 키보드: 한 칸씩 곧바로
+    TP.discrete = false; if (TP.shake) endShake(t);
+    TP.mv.st = 'rest'; TP.key = slotKey(t); TP.passing = false;
+    const out = TP.mode === 'free' ? clamp(Math.round(TP.target), TP.lo, TP.hi) : snapNow(t, null);
+    TP.semi = TP.mode === 'free' ? out : null;
+    moveTo(out, 'slur', t); return;
+  }
+  detectShake(tn);
   if (TP.shake) return;
-  const out = snapNow(t, Math.round(TP.cur));
-  if (out !== TP.cur) moveTo(out, 'slur', t);
+  fingerStep(t, tn);
+}
+// ---------- 손가락 움직임 판정 (CSS px/초) ----------
+// 멈춤 / 천천히(자유: 글리산도, 보정: 한 음씩) / 빠르게(도착한 음으로 또렷하게. 반음 다섯 개 넘게 가면 자유는 립, 보정은 훑기)
+const MV = { REST: 60, FAST: 240, LAND: 140, RIP: 5, GLISS_T: 90, GLISS_D: 1.0, REST_MS: 70 };
+function fingerSpeed(tn, win = 45) {      // 띠 길이/초 (위가 +)
+  const a = TP.air; if (a.length < 2) return 0;
+  const l = a[a.length - 1]; if (tn - l.t > 90) return 0;
+  let i = a.length - 1; while (i > 0 && l.t - a[i - 1].t <= win) i--;
+  if (i === a.length - 1) {     // 바로 앞 기록이 오래됨 = 멈춰 있다가 막 움직임: 마지막 20ms 사이에 움직인 걸로
+    const q = a[a.length - 2]; return (l.pos - q.pos) / Math.max(0.008, Math.min(0.02, (l.t - q.t) / 1000));
+  }
+  const dt = (l.t - a[i].t) / 1000; if (dt < 0.004) return 0;
+  return (l.pos - a[i].pos) / dt;
+}
+function fingerStep(t, tn) {
+  const h = (UI.inputRect && UI.inputRect.height) || 480;
+  const av = Math.abs(fingerSpeed(tn) * h), M = TP.mv, tgt = clamp(TP.target, TP.lo, TP.hi);
+  if (M.st === 'rest' && av >= MV.FAST) { M.st = 'jump'; M.from = TP.cur; }
+  if (M.st === 'jump') {
+    if (Math.abs(tgt - M.from) >= MV.RIP) M.st = TP.mode === 'free' ? 'gliss' : 'run';
+    else if (av < MV.LAND) { M.st = 'rest'; M.movT = 0; landAt(t, tgt); return; }
+    else return;                         // 가는 중: 앞 음을 그대로 물고 있음
+  }
+  if (TP.mode === 'free') {
+    if (M.st === 'gliss') { moveTo(tgt, 'gliss', t); return; }
+    // 멈춤 근처: 반음에 붙어 있다가, 같은 방향으로 꾸준히 밀면 글리산도로
+    if (av >= MV.REST) { if (!M.movT) { M.movT = tn; M.at0 = tgt; } if (tn - M.movT >= MV.GLISS_T && Math.abs(tgt - M.at0) >= MV.GLISS_D) { M.st = 'gliss'; moveTo(tgt, 'gliss', t); return; } }
+    else M.movT = 0;
+    const s = semiFor(tgt); if (s !== TP.semi) { TP.semi = s; moveTo(s, 'slur', t); }
+    return;
+  }
+  // 보정 모드: 지나가는 음도 하나씩 또렷하게
+  snapTo(t, av >= MV.REST);
+  if (M.st === 'run' && av < MV.REST) M.st = 'rest';
+}
+function semiFor(tgt) { const c = TP.semi; if (c != null && Math.abs(tgt - c) < 0.68) return c; return clamp(Math.round(tgt), TP.lo, TP.hi); }
+function landAt(t, tgt) {
+  if (TP.mode === 'free') { const s = clamp(Math.round(tgt), TP.lo, TP.hi); TP.semi = s; moveTo(s, 'land', t); }
+  else snapTo(t, false, 'land');
+}
+function snapTo(t, moving, kind = 'slur') {
+  let out = snapNow(t, Math.round(TP.cur), { moving });
+  // 미는 방향과 거꾸로 한 칸 되돌아가는 건 막음 (박이 바뀌며 허용 음이 달라져도 올라가는 중엔 올라가기만)
+  if (moving && out !== TP.cur && Math.abs(out - TP.cur) <= 2) { const dir = Math.sign(fingerSpeed(performance.now())); if (dir && Math.sign(out - TP.cur) === -dir && noteOk(Math.round(TP.cur), chordAtTime(t + 0.02), false, { moving: true })) out = TP.cur; }
+  TP.key = slotKey(t);
+  TP.passing = moving && !noteOk(out, chordAtTime(t + 0.02), isStrongTime(t)); if (TP.passing) TP.passT = t;
+  if (out !== TP.cur) moveTo(out, kind, t);
+}
+// 매 프레임: (빠르게 가다 멈춤) 도착 · (자유) 멈추면 반음으로 끌어당김 · (보정) 지나가던 음을 화음에 맞춤 · 손가락이 멈추면 셰이크 끝
+function fingerTick(now, tn) {
+  const M = TP.mv, t = now + 0.003, restFor = tn - TP.lastMovingT;
+  if (TP.shake) { if (tn - TP.lastMoveT > 260) endShake(t); return; }
+  if (M.st === 'jump' && tn - TP.lastMoveT > 40) { M.st = 'rest'; M.movT = 0; landAt(t, clamp(TP.target, TP.lo, TP.hi)); return; }
+  if (TP.mode === 'free') {
+    if (M.st === 'gliss' && restFor > MV.REST_MS) { M.st = 'rest'; M.movT = 0; const s = clamp(Math.round(TP.target), TP.lo, TP.hi); TP.semi = s; moveTo(s, 'magnet', t); }
+  } else {
+    if (M.st === 'run' && restFor > MV.REST_MS) M.st = 'rest';
+    if (TP.passing && restFor > 90 && now - TP.passT > 0.08) { TP.passing = false; const out = snapNow(t, null); if (out !== TP.cur) moveTo(out, 'resolve', t); }
+  }
 }
 function ribbonUp() {
   if (GAME.phase === 'finale' && !TP.blowing) return;
   if (GAME.phase === 'pre') { preBuzzUp(); return; }
   flushRibbonMove(true);
   const sp = ribbonSpeed(110);
-  TP.blowing = false; TP.pendingMove = false; TP.revoiceDue = false;
+  TP.blowing = false; TP.pendingMove = false; TP.discrete = false;
   let flick = null;
   if (sp < -2.2 && TP.cur > 60) flick = 'fall'; else if (sp > 2.6) flick = 'doit';
   noteOff(flick);
@@ -4893,29 +5019,665 @@ function detectShake(tn) {
   if (!TP.shake && recent.length >= 4 && hi - lo < 0.09 && TP.cur >= 62) startShake(AE.ctx.currentTime + 0.003);
   else if (TP.shake && (rev.length === 0 || tn - rev[rev.length - 1] > 240)) endShake(AE.ctx.currentTime + 0.003);
 }
-function releaseAllInput() { if (typeof PRE !== 'undefined' && PRE.buzz) preBuzzUp(); TP.pendingMove = false; TP.revoiceDue = false; if (TP.blowing) { TP.blowing = false; noteOff(null); } if (UI.cancelInput) UI.cancelInput(); }
+function releaseAllInput() { if (typeof PRE !== 'undefined' && PRE.buzz) preBuzzUp(); TP.pendingMove = false; TP.discrete = false; if (TP.blowing) { TP.blowing = false; noteOff(null); } if (UI.cancelInput) UI.cancelInput(); }
 
 function trumpetTick() {
-  flushRibbonMove();
   const now = AE.ctx.currentTime;
-  autoTick(now);
-  if (TP.blowing && TP.revoiceDue && now + 0.003 - TP.lastRevoiceT >= (TP.mode === 'free' ? 0.1 : 0.08)) moveTo(pitchNow(now + 0.003, Math.round(TP.cur)), 'slide', now + 0.003);
-  let v = TP.voice;
+  if (AUTO.on) { autoRender(now); autoEvents(now); autoSide(now); if (TP.blowing) TP.lastSoundT = now; return; }
+  flushRibbonMove();
+  const tn = performance.now();
+  if (TP.blowing && TP.voice && !TP.voice.dead) fingerTick(now, tn);
   if (TP.blowing) TP.lastSoundT = now;
+  let v = TP.voice;
   if (!TP.blowing || !v || v.dead || TP.shake) return;
-  // 화음이 바뀌면 (보정 모드) 맞는 음으로 미끄러짐
-  if (TP.mode === 'snap') {
-    heldHarmonyTick(now);
-  }
+  // 화음이 바뀌거나 정박이 오면 (보정 모드) 맞는 음으로 한 번 옮김
+  if (TP.mode === 'snap') heldHarmonyTick(now);
   v = TP.voice; if (!v || v.dead) return;
   // 오래 끌면 비브라토
-  const still = performance.now() - TP.lastMoveT > 250;
-  if (!TP.vibOn && still && now - TP.pitchT0 > 0.4) { TP.vibOn = true; v.vibrato(TP.cur >= 76 ? 17 : 13, now, 0.35); }
-  else if (TP.vibOn && !still && TP.mode === 'free') { TP.vibOn = false; v.vibrato(0, now, 0.05); TP.pitchT0 = now; }
+  const still = tn - TP.lastMovingT > 250;
+  if (!TP.vibOn && still && now - TP.pitchT0 > 0.4 && TP.mv.st === 'rest') { TP.vibOn = true; v.vibrato(TP.cur >= 76 ? 17 : 13, now, 0.35); }
+  else if (TP.vibOn && !still) { TP.vibOn = false; v.vibrato(0, now, 0.05); }
 }
 // 1인칭 트럼펫 밸브 모양 (실제 운지, 기보 = 콘서트+2)
 const FINGER = { 54: 7, 55: 5, 56: 6, 57: 3, 58: 1, 59: 2, 60: 0, 61: 7, 62: 5, 63: 6, 64: 3, 65: 1, 66: 2, 67: 0, 68: 6, 69: 3, 70: 1, 71: 2, 72: 0, 73: 3, 74: 1, 75: 2, 76: 0, 77: 1, 78: 2, 79: 0, 80: 6, 81: 3, 82: 1, 83: 2, 84: 0, 85: 3, 86: 1, 87: 2, 88: 0, 89: 1, 90: 2 };
 const fingeringFor = m => FINGER[clamp(Math.round(m) + 2, 54, 90)] || 0;
+
+// ===== 52_soloist.js =====
+// ===================== 자동 연주: 숨 쉬는 프레이즈 · 박엔 코드톤 · 반음 접근과 감싸기 · 동기 반복 · 코러스 흐름 · 넘겨주기 =====================
+// 테마가 끝나면 솔로를 받아 1분 남짓(코러스 단위) 불고 손을 놓음 → 밴드 솔로·테마·엔딩·박수 → 다음 곡. 엔딩 태그엔 짧게 받아치고, 마지막 늘임표 음도 붊.
+// 음은 밴드처럼 오디오 시계로 미리 예약하고(0.13초 앞), 화면·관객 쪽 상태(지금 부는 음 등)는 그 음이 실제로 나는 순간에 바꿈.
+const AUTO = { on: false, state: 'off', sol: null, notes: [], ev: [], voice: null, open: false, voiceEnd: 0, lastT: 0, sounding: false, soloDone: false, wantTake: false, uiKey: '' };
+const AUTO_LOOK = 0.13;
+const wpick = opts => { let s = 0; for (const o of opts) s += o[1]; let r = Math.random() * s; for (const o of opts) { r -= o[1]; if (r <= 0) return o[0]; } return opts[opts.length - 1][0]; };
+
+function autoSync() {
+  const key = [UI.playing, GAME.phase, FIN.req, AUTO.on].join('|');
+  if (AUTO.uiKey === key) return; AUTO.uiKey = key;
+  const el = document.getElementById('autoMode');
+  el.style.display = UI.playing && GAME.phase === 'play' && !FIN.req ? 'inline-flex' : 'none';
+  el.querySelectorAll('button').forEach(b => { const on = (b.dataset.auto === 'on') === AUTO.on; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  UI.el.hudMode.style.display = GAME.phase === 'play' && !AUTO.on ? 'inline-flex' : 'none';
+}
+function setAuto(on, keepInput = false) {
+  if (on && (!UI.playing || GAME.phase !== 'play' || FIN.req || FIN.on)) return;
+  if (AUTO.on === on) return;
+  const now = AE.ctx ? AE.ctx.currentTime : 0;
+  if (on) {
+    releaseAllInput();
+    Object.assign(AUTO, { on: true, state: 'wait', sol: null, soloDone: false, wantTake: false, lastT: 0 });
+    AUTO.notes.length = 0; AUTO.ev.length = 0;
+    const S = MUS.song;
+    if (S && !S.ended) {
+      if (['count', 'intro', 'head', 'outhead'].includes(S.phase)) S.wantYield = true;                // 테마의 4마디 프레이즈 끝에서 솔로를 받음
+      else if (S.phase === 'solo' || S.phase === 'trades') { if (S.floor !== 'me') AUTO.wantTake = true; }   // 다음 마디부터 가져옴 (내 솔로 중이었으면 그대로 이어 붊)
+      else AUTO.soloDone = true;                                                                         // 끝나 가는 곡: 다음 곡 테마 뒤에
+    }
+    UI.touched = true; UI.el.stem.classList.remove('hint');
+  } else {
+    autoFlush(now);
+    if (MUS.fermata) MUS.fermata.autoCutAt = null;
+    Object.assign(AUTO, { on: false, state: 'off', sol: null, wantTake: false });
+    if (!keepInput) { releaseAllInput(); fingerVisual(null); }
+    spPress(false);
+  }
+  syncMode(); autoSync();
+}
+// 예약해 둔 소리·상태를 전부 거둠
+function autoFlush(now) {
+  AUTO.notes.length = 0; AUTO.ev.length = 0;
+  tpCutAll(now + 0.004, 0.02);
+  AUTO.voice = null; AUTO.open = false; AUTO.voiceEnd = 0; AUTO.lastT = 0;
+  TP.shake = null;
+  if (AUTO.sounding || TP.blowing) {
+    AUTO.sounding = false; TP.blowing = false; TP.voice = null; TP.lastSoundT = now; TP.lastOffT = now;
+    fingerVisual(null);
+    tpEmit('release', { t: now, dur: now - TP.noteT0, m: TP.cur, flick: null });
+  }
+}
+
+// ---------- 곡 흐름에 붙는 곳 ----------
+function autoOnSong() { if (!AUTO.on) return; autoFlush(AE.ctx.currentTime); Object.assign(AUTO, { state: 'wait', sol: null, soloDone: false, wantTake: false }); }
+const autoWantsSolo = () => AUTO.on && !AUTO.soloDone && (AUTO.state === 'wait' || AUTO.state === 'solo');
+function autoSoloEnd() { AUTO.state = 'rest'; AUTO.soloDone = true; AUTO.sol = null; if (SPX.held) spPress(false); }
+// 마디가 만들어질 때 (밴드 소리를 짜는 순간, 그 마디보다 0.3초 남짓 앞)
+function autoOnBar(S, b) {
+  if (!AUTO.on) return;
+  const ph = S.phase;
+  // 테마 마지막 마디: 솔로로 들어가는 못갖춘 프레이즈부터
+  if (ph === 'head' && AUTO.state === 'wait' && !AUTO.soloDone && S.pass >= S.passes - 1 && S.fb === S.N - 1) { autoStartSolo(S, b, true); return; }
+  if (ph === 'solo' && S.floor === 'me') {
+    if (AUTO.state === 'wait') autoStartSolo(S, b, false);
+    if (AUTO.state === 'solo' && AUTO.sol) {
+      if (S.brk && b.abs === S.brk.from) AUTO.sol.breakAt(b.beat0);
+      AUTO.sol.ensure(b.beat0 + 8);
+    }
+    return;
+  }
+  // 엔딩 태그 · 페이드 반복: 사이사이 짧게 받아침
+  if (ph === 'tag' && AUTO.state === 'rest' && S.tagIdx === 0 && !AUTO.notes.length && Math.random() < 0.7) autoFill(S, b);
+}
+// 솔로 길이: 1분 안팎, 코러스(발라드는 16마디) 끝에서 넘김
+function autoSoloBars(S, fb0) {
+  const unit = S.unit, barSec = 4 * S.spb, remain = unit - (fb0 % unit), target = rand(52, 72);
+  let bars = remain; if (remain < unit * 0.5) bars += unit;
+  while ((bars + unit) * barSec <= target + unit * barSec * 0.45 && bars + unit <= unit * 6) bars += unit;
+  return bars;
+}
+function autoStartSolo(S, b, pickup) {
+  const startBar = pickup ? b.beat0 + 4 : b.beat0;
+  const bars = autoSoloBars(S, pickup ? 0 : b.fb);
+  const sol = new Soloist({ ctx: songCtx(S, b), startB: startBar, endB: startBar + bars * 4, bpm: S.bpm, blues: !!S.tune.blues, keyPc: S.keyPc, straight: S.swing <= 0.52, mode: 'solo' });
+  sol.cursor = pickup ? b.beat0 + pick([2, 2.5, 3]) : b.beat0 + pick([0, 0.5, 0.5, 1]);
+  AUTO.sol = sol; AUTO.state = 'solo';
+  dlog('autoSolo', { bars, from: S.fb, pickup });
+  sol.ensure(b.beat0 + 8);
+}
+// 곡 안의 박 → 화음 · 시간 (시간은 실제로 만들어진 마디에서 읽음)
+function songCtx(S, b) {
+  const ref = { beat0: b.beat0, fb: b.fb };
+  const at = B => { const r = B - ref.beat0, k = Math.floor(r / 4 + 1e-9); return { fb: ((ref.fb + k) % S.N + S.N) % S.N, pos: r - 4 * k }; };
+  const chordOf = (fb, pos) => { const bar = S.form[fb]; let c = bar[0]; for (const x of bar) if (pos >= x.at - 1e-6) c = x; return c; };
+  return {
+    chord(B) { const a = at(B); return chordOf(a.fb, a.pos); },
+    isChange(B) { const a = at(B), c = chordOf(a.fb, a.pos); if (Math.abs(a.pos - c.at) > 1e-6) return false; const p = at(B - 0.01); return chordOf(p.fb, p.pos).name !== c.name; },
+    barStart(B) { return ref.beat0 + 4 * Math.ceil((B - ref.beat0) / 4 - 1e-9); },
+    time: songTime, spb: () => S.spb,
+  };
+}
+function songTime(B, straight) {
+  const L = MUS.bars; if (!L.length) return null;
+  if (B < L[0].beat0 - 1e-6) return -1;
+  for (let i = L.length - 1; i >= 0; i--) {
+    const b = L[i];
+    if (B >= b.beat0 - 1e-6) { if (B > b.beat0 + 4 + 1e-6) return null; const r = B - b.beat0; return straight ? b.t0 + r * b.spb : pt(b, r); }
+  }
+  return null;
+}
+function autoFill(S, b) {
+  const tb = S.tagBars, n = tb.length, ref = b.beat0;
+  const ctx = {
+    chord(B) { const r = B - ref, k = Math.floor(r / 4 + 1e-9), bar = tb[((k % n) + n) % n], pos = r - 4 * k; let c = bar[0]; for (const x of bar) if (pos >= x.at - 1e-6) c = x; return c; },
+    isChange: () => false, barStart: B => ref + 4 * Math.ceil((B - ref) / 4 - 1e-9), time: songTime, spb: () => S.spb,
+  };
+  const sol = new Soloist({ ctx, startB: ref + 4, endB: ref + 4 * n - 1, bpm: S.bpm, blues: !!S.tune.blues, keyPc: S.keyPc, straight: S.swing <= 0.52, mode: 'fill', fixedI: S.tagType === 'vampfade' ? 0.3 : 0.5 });
+  sol.cursor = ref + 4 + pick([0.5, 1, 1.5]);
+  sol.fillOne(6);
+}
+// 곡 끝: 늘임표 화음 위로 높은 음을 길게 (가끔은 다 같이 숨을 참을 만큼 오래) 불고 밴드와 같이 끊음. 버튼 엔딩은 밴드와 같이 짧게 한 방.
+function autoFinal(S, t, kind) {
+  if (!AUTO.on || S.showEnd || !AE.ctx) return null;
+  const ch = S.final;
+  autoFlush(AE.ctx.currentTime);
+  if (kind === 'button') { autoDirect({ t: t + 0.006, m: nearestPC(ch.root + pick([0, 7]), 76, 70, 82), end: t + 0.3, d: 1.06, head: true, rel: 0.05 }); return null; }
+  const c = []; for (let m = 77; m <= 84; m++) if (isChordTone(m, ch) || inSet(m, ch, 'S')) c.push(m);
+  const hiC = c.filter(m => m >= 79), H = hiC.length ? pick(hiC) : c.length ? pick(c) : 79;
+  const endless = (REACT.songPeak >= 70 || REACT.awes >= 2) && Math.random() < 0.3;
+  const hold = endless ? rand(10.5, 12.2) : rand(3.3, 4.6), t0 = t + 0.03, tEnd = t0 + hold;
+  const style = endless ? 'shake' : pick(['shake', 'shake', 'swell', 'fall']);
+  autoDirect({ t: t0, m: H, end: tEnd, d: style === 'swell' ? 0.86 : 1.02, scoop: -2, scoopT: 0.12, vib: true, vibAt: 0.4, rel: 0.04,
+    shake: style === 'shake' ? { t: tEnd - Math.min(1.3, hold * 0.35), len: Math.min(1.1, hold * 0.3) } : null,
+    swell: style === 'swell' ? 0.24 : 0, flick: style === 'fall' ? 'fall' : null });
+  return tEnd;
+}
+// 곡 사이 폰 녹음: 팬이 폰을 내밀면 짧은 릭 하나
+function autoSide(now) {
+  const c = ITL.cur;
+  if (!c || c.kind !== 'sign' || c.stage !== 'aim' || c.autoLick || !MUS.gap || NOW.t - c.stageT < 0.6) return;
+  c.autoLick = true;
+  const spb = MUS.gapSpb || 0.45, ch = MUS.gapChord || parseChord('C6'), t0 = now + 0.12;
+  const ctx = {
+    chord: () => ch, isChange: () => false, barStart: B => 4 * Math.ceil(B / 4 - 1e-9), spb: () => spb,
+    time: (B, straight) => { const w = Math.floor(B + 1e-6), f = B - w, ff = !straight && Math.abs(f - 0.5) < 1e-6 ? 0.62 : f; return t0 + (w + ff) * spb; },
+  };
+  const sol = new Soloist({ ctx, startB: 0, endB: 7, bpm: 60 / spb, blues: false, keyPc: ch.root, straight: false, mode: 'lick', fixedI: 0.55 });
+  sol.cursor = 0.5; sol.fillOne(5);
+}
+
+// ---------- 즉흥 선율 ----------
+// 부르는 리듬 (박, 길이)
+const CALLS_SW = [[[0, 0.5], [0.5, 0.5], [1, 1.5]], [[0, 1], [1, 0.5], [1.5, 1.5]], [[0.5, 0.5], [1, 0.5], [1.5, 0.5], [2, 1.5]], [[0, 1.5], [1.5, 0.5], [2, 1.5]], [[0.5, 0.5], [1, 1], [2, 0.5], [2.5, 1.5]], [[0, 0.5], [0.5, 1], [1.5, 0.5], [2, 2]]];
+const CALLS_ST = [[[0, 0.5], [0.5, 1], [1.5, 1.5]], [[0, 0.75], [0.75, 0.75], [1.5, 1.5]], [[0.5, 0.5], [1, 0.5], [1.5, 2]], [[0, 1], [1, 0.5], [1.5, 0.5], [2, 2]]];
+// 리프 리듬 (한 마디 안에서 되풀이)
+const RIFF_SW = [[[0.5, 0.5], [1, 0.5], [1.5, 1]], [[0, 0.5], [0.5, 0.5], [1, 1.25]], [[0.5, 0.5], [1, 1.25]], [[0, 1 / 3], [1 / 3, 1 / 3], [2 / 3, 1 / 3], [1, 1.25]], [[0.5, 0.5], [1, 0.5], [1.5, 0.5], [2, 1]]];
+const RIFF_ST = [[[0, 0.5], [0.5, 0.5], [1.5, 1]], [[0.5, 1], [1.5, 0.5], [2, 1]], [[0, 0.75], [0.75, 0.75], [1.5, 1]]];
+// 블루스 릭: [박, 길이, 조 으뜸음에서 반음, 꺾어 들어가는 꾸밈음(반음)]
+const BLUES_LICKS = [
+  [[0.5, 0.5, 4, -1], [1, 0.5, 7], [1.5, 0.5, 10], [2, 1.5, 12]],
+  [[0, 0.5, 12], [0.5, 0.5, 10], [1, 0.5, 7], [1.5, 0.5, 6], [2, 0.5, 5], [2.5, 0.5, 3], [3, 1.5, 0]],
+  [[0.5, 0.5, 10], [1, 0.5, 12], [1.5, 0.5, 10], [2, 0.5, 12], [2.5, 0.5, 10], [3, 1.5, 7]],
+  [[0, 1, 7], [1, 0.5, 6], [1.5, 0.5, 5], [2, 0.5, 3], [2.5, 1.5, 0]],
+  [[0.5, 0.5, 7], [1, 0.5, 10], [1.5, 0.5, 12, -1], [2, 0.5, 10], [2.5, 1.5, 7]],
+  [[0, 0.5, 4, -1], [0.5, 0.5, 0], [1, 0.5, 10], [1.5, 0.5, 7], [2, 1, 3], [3, 1.5, 0]],
+];
+class Soloist {
+  constructor(o) {
+    Object.assign(this, { lo: 57, hi: 86, last: 67, dir: 1, phrases: 0, spaceDone: false, climaxN: 0, doubleDone: false, riffDone: false, motif: null, motifN: 0, fixedI: null, mode: 'solo' }, o);
+    this.spb = 60 / this.bpm; this.fast = this.bpm >= 196; this.slow = this.bpm < 116;
+    this.cursor = this.startB;
+  }
+  // 진행도와 세기: 낮고 듬성듬성 → 촘촘하고 높게 → 80% 지점 절정 → 내려와 마무리
+  x(B) { return clamp((B - this.startB) / Math.max(1, this.endB - this.startB), 0, 1); }
+  I(B) {
+    if (this.fixedI != null) return this.fixedI;
+    const x = this.x(B), pk = 0.8;
+    return clamp(x < pk ? 0.2 + 0.8 * Math.pow(smooth01(x / pk), 1.1) : 1 - 0.42 * smooth01((x - pk) / (1 - pk)), 0, 1);
+  }
+  top(I) { return Math.round(lerp(72, 84, I)); }
+  center(I) { return lerp(64.5, 73, I); }
+  ch(B) { return this.ctx.chord(B); }
+  isInt(B) { return Math.abs(B - Math.round(B)) < 1e-6; }
+  okNote(m, ch, strong) { return inSet(m, ch, strong ? 'S' : 'W') || this.blueOk(m, ch, strong); }
+  blueOk(m, ch, strong) {
+    if (!this.blues) return false;
+    const rel = mod12(ch.root - this.keyPc); if (rel !== 0 && rel !== 5) return false;
+    const pc = mod12(m - this.keyPc);
+    return pc === 6 ? !strong : pc === 3 ? (!strong || rel === 0) : false;
+  }
+  fit(m) { while (m < this.lo) m += 12; while (m > this.hi) m -= 12; return m; }
+  emit(ev) {
+    let prev = null;
+    for (const e of ev) {
+      e.m = this.fit(Math.round(e.m)); e.ctx = this.ctx; if (e.strong == null) e.strong = this.isInt(e.B);
+      if (e.art === 'slur' && prev && prev.m === e.m && !prev.ripTo) e.art = 'tongue';
+      AUTO.notes.push(e); prev = e;
+    }
+  }
+  ensure(upto) { let g = 0; while (this.cursor < upto && this.cursor < this.endB - 1.5 && g++ < 8) this.next(); }
+  // 다음 프레이즈 하나
+  next() {
+    const B = this.cursor, I = this.I(B), x = this.x(B), left = this.endB - B;
+    const endBeats = this.fast ? 10 : this.slow ? 6 : 8;
+    let ev, kind;
+    if (left <= endBeats + 3) kind = 'ending';
+    else if (this.climaxN === 0 && x >= 0.6 && x <= 0.9 && left > endBeats + 10 && Math.random() < 0.55) kind = 'climax';
+    else if (!this.doubleDone && x >= 0.42 && x <= 0.86 && I >= 0.6 && this.bpm >= 104 && left > endBeats + 12 && Math.random() < 0.35) kind = 'double';
+    else if (!this.riffDone && x >= 0.22 && x <= 0.75 && left > endBeats + 16 && Math.random() < 0.3) kind = 'riff';
+    else if (this.blues && Math.random() < 0.26) kind = 'blues';
+    else if (this.motif && Math.random() < (I < 0.6 ? 0.4 : 0.2)) kind = 'seq';
+    else if (I < 0.42 && Math.random() < (this.phrases < 3 ? 0.5 : 0.3)) kind = 'call';
+    else if (Math.random() < (this.slow ? 0.22 : 0.13)) kind = 'long';
+    else kind = 'line';
+    switch (kind) {
+      case 'ending': ev = this.ending(B, I); break;
+      case 'climax': ev = this.climax(B, I); break;
+      case 'double': ev = this.double(B, I); this.doubleDone = true; break;
+      case 'riff': ev = this.riff(B, I); this.riffDone = true; break;
+      case 'blues': ev = this.bluesLick(B, I); break;
+      case 'seq': ev = this.seq(B, I); break;
+      case 'call': ev = this.call(B, I); break;
+      case 'long': ev = this.longTone(B, I); break;
+      default: ev = this.line(B, clamp(Math.round(lerp(3, 10, I) + rand(-1.5, 2)), 3, Math.max(3, left - endBeats - 2)), I);
+    }
+    if (!ev || !ev.length) { this.cursor += 1; return; }
+    dlog('autoPhrase', { k: kind, B, I: +I.toFixed(2) });
+    ev = this.fixLong(ev);
+    this.emit(ev);
+    this.phrases++;
+    if (kind === 'ending') { this.cursor = this.endB; return; }
+    if (kind !== 'call' && kind !== 'seq') this.motifN = 0;
+    const end = Math.max(...ev.map(e => e.B + e.len));
+    // 다음 프레이즈까지 숨 (세질수록 짧게, 최소 0.4초 남짓)
+    let rest = lerp(3.6, 1.1, I) * rand(0.75, 1.3) + (kind === 'climax' || kind === 'double' || kind === 'riff' ? 0.6 : 0);
+    rest = Math.max(rest, 0.42 / this.spb + 0.2);
+    let nb = Math.ceil((end + rest) * 2 - 1e-6) / 2;
+    if (this.isInt(nb) && Math.random() < 0.45) nb += 0.5;
+    // 초반 한 번: 오래 쉬었다가 마디 첫 박에서 (여백)
+    if (this.mode === 'solo' && !this.spaceDone && x < 0.35 && this.phrases >= 2 && Math.random() < 0.45) { nb = this.ctx.barStart(end + 3.8); this.spaceDone = true; }
+    this.cursor = nb;
+  }
+  // 박 쪼개기: 8분 둘 / 4분 / 셋잇단 / (느린 곡) 16분 넷, 끝은 긴 음
+  rhythm(B0, len, I, o = {}) {
+    const ev = []; let p = 0;
+    const trip = this.straight ? 0 : this.fast ? 0.03 : this.slow ? 0.18 : 0.11;
+    const six = this.slow ? 0.12 : 0, quarter = this.fast ? 0.2 : 0.1;
+    const endLen = o.endLen ?? (this.fast ? pick([1.5, 2, 2.5]) : pick([1, 1.5, 2]));
+    const body = Math.max(0.5, len - endLen);
+    while (p < body - 1e-6) {
+      const at = B0 + p, room = body - p;
+      if (!this.isInt(at)) { ev.push({ B: at, len: 0.5, strong: false }); p += 0.5; continue; }
+      const r = Math.random();
+      if (r < trip && room >= 1 - 1e-6) { ev.push({ B: at, len: 1 / 3, strong: true, trip: 0 }, { B: at + 1 / 3, len: 1 / 3, strong: false, trip: 1 }, { B: at + 2 / 3, len: 1 / 3, strong: false, trip: 2 }); p += 1; }
+      else if (r < trip + six && room >= 1 - 1e-6) { for (let k = 0; k < 4; k++) ev.push({ B: at + k * 0.25, len: 0.25, strong: k === 0, straight: true }); p += 1; }
+      else if (r < trip + six + quarter) { ev.push({ B: at, len: 1, strong: true }); p += 1; }
+      else { ev.push({ B: at, len: 0.5, strong: true }); if (room > 0.5 + 1e-6) ev.push({ B: at + 0.5, len: 0.5, strong: false }); p += 1; }
+    }
+    const fp = B0 + p;
+    ev.push({ B: fp, len: Math.max(0.5, endLen + (body - p)), strong: this.isInt(fp), last: true });
+    return ev;
+  }
+  line(B0, len, I, o = {}) { const ev = this.rhythm(B0, len, I, o); this.pitchLine(ev, I, o); this.dress(ev, I, { fallOK: true }); return ev; }
+  // 음 고르기: 박 위는 코드톤(화음 바뀌는 박엔 3·7음), 박 사이는 경과음·접근음·감싸기
+  pitchLine(ev, I, o = {}) {
+    const n = ev.length, top = Math.min(this.hi, o.top ?? this.top(I)), ctr = o.center ?? this.center(I);
+    let start = o.start ?? clamp(this.last + rand(-4, 4), this.lo + 2, top - 4);
+    if (o.start == null && Math.random() < 0.3) start = clamp(ctr + rand(-4, 3), this.lo + 2, top - 4);
+    const shape = o.shape || pick(['arch', 'arch', 'arch', 'desc', 'asc', 'wave']);
+    const pk = clamp(top - rand(0, 3.5), start + 2, this.hi), endW = clamp(ctr + rand(-6, 0.5), this.lo + 2, Math.max(this.lo + 3, pk - 3)), pa = rand(0.3, 0.65);
+    const want = f => shape === 'asc' ? lerp(start, pk, f) : shape === 'desc' ? lerp(Math.max(start, pk - 2), endW - 1, f) : shape === 'wave' ? lerp(start, endW, f) + Math.sin(f * Math.PI * 2) * 3.5 : f < pa ? lerp(start, pk, f / pa) : lerp(pk, endW, (f - pa) / (1 - pa));
+    const B0 = ev[0].B, span = Math.max(0.5, ev[n - 1].B - B0);
+    let prev = this.last;
+    for (const e of ev) {
+      if (!(e.strong || e.last) || e.m != null) continue;
+      e.m = this.tone(this.ch(e.B), want((e.B - B0) / span), prev, { change: this.ctx.isChange(e.B), last: !!e.last, color: !!e.last && Math.random() < 0.35 });
+      prev = e.m;
+    }
+    for (let i = 0; i < n; i++) {
+      const e = ev[i]; if (e.m != null) continue;
+      let j = i + 1; while (j < n && ev[j].m == null) j++;
+      const T = j < n ? ev[j].m : null, a = i ? ev[i - 1].m : (T != null ? T + pick([-3, -2, 2]) : this.last), ch = this.ch(e.B);
+      if (e.trip === 1 && T != null && j === i + 2) { e.m = this.upper(T, ch); continue; }      // 셋잇단: 위 이웃음 →
+      if (e.trip === 2 && T != null && j === i + 1) { e.m = T - 1; continue; }                 //         반음 아래 → 목표음
+      e.m = this.between(a, T, ch, e);
+    }
+    this.last = ev[n - 1].m;
+  }
+  tone(ch, w, prev, o = {}) {
+    let best = null, bs = 1e9;
+    for (let m = Math.max(this.lo, Math.round(w) - 9); m <= Math.min(this.hi, Math.round(w) + 9); m++) {
+      const ct = isChordTone(m, ch), ten = !ct && inSet(m, ch, 'S'), blue = !ct && !ten && this.blueOk(m, ch, true);
+      if (!ct && !blue && !(ten && (o.color || Math.random() < 0.2))) continue;
+      let s = Math.abs(m - w) * 0.55 + (prev != null ? Math.abs(m - prev) * 0.3 : 0);
+      if (prev != null && m === prev) s += 2.4;
+      if (prev != null && Math.abs(m - prev) > 9) s += 2.5;
+      if (o.change && isGuide(m, ch)) s -= 1.5;
+      if (o.change && prev != null && Math.abs(m - prev) <= 2) s -= 0.8;
+      if (o.last && isGuide(m, ch)) s -= 0.6;
+      if (ten) s += o.color ? 0.1 : 0.6;
+      if (blue) s += 0.5;
+      s += Math.random() * 0.9;
+      if (s < bs) { bs = s; best = m; }
+    }
+    return best ?? clamp(Math.round(w), this.lo, this.hi);
+  }
+  upper(T, ch) { const u = stepAllowed(T, 1, ch, 'W'); return u - T <= 2 ? u : T + 1; }
+  nextCT(m, dir, ch) { for (let k = m + dir; Math.abs(k - m) <= 12; k += dir) if (isChordTone(k, ch)) return k; return m + dir * 2; }
+  between(a, T, ch, e = {}) {
+    if (T == null) return stepAllowed(a, this.dir, ch, 'W');
+    if (e.len != null && e.len <= 0.26) { const dd = Math.sign(T - a) || this.dir; return Math.abs(T - a) <= 1 ? a + dd : stepAllowed(a, dd, ch, 'W'); }
+    const opts = [];
+    if (T - 1 !== a) opts.push([T - 1, 0.32]);                                                   // 반음 아래에서 접근
+    const up = stepAllowed(T, 1, ch, 'W'); if (up - T <= 2 && up !== a) opts.push([up, 0.22]);    // 음계 위에서
+    if (T + 1 !== a && !inSet(T + 1, ch, 'W')) opts.push([T + 1, 0.08]);                          // 반음 위에서
+    if (Math.abs(T - a) >= 3) {                                                                   // 사이 경과음
+      const dd = Math.sign(T - a), mid = (a + T) / 2; let bm = null;
+      for (let m = a + dd; m !== T; m += dd) if (inSet(m, ch, 'W') && (bm == null || Math.abs(m - mid) < Math.abs(bm - mid))) bm = m;
+      if (bm != null) opts.push([bm, 0.42]);
+    }
+    if (T === a) opts.push([stepAllowed(a, 1, ch, 'W'), 0.5], [a - 1, 0.5]);
+    if (this.blues) for (const m of [T - 1, T + 1]) if (m !== a && (mod12(m - this.keyPc) === 3 || mod12(m - this.keyPc) === 6) && this.blueOk(m, ch, false)) opts.push([m, 0.18]);
+    if (!opts.length) opts.push([stepAllowed(a, Math.sign(T - a) || 1, ch, 'W'), 1]);
+    return wpick(opts);
+  }
+  // 혀·셈여림·끝맺음: 뒷박은 혀를 쳐 세게, 정박은 앞 뒷박에서 이어 여리게, 꼭대기 음 강세, 끝음은 비브라토·폴·두잇
+  dress(ev, I, o = {}) {
+    const base = clamp(0.6 + 0.3 * I, 0.55, 0.92), n = ev.length;
+    let pi = 0; ev.forEach((e, i) => { if (e.m > ev[pi].m) pi = i; });
+    ev.forEach((e, i) => {
+      const p = ev[i - 1], q = ev[i + 1], gap = p ? e.B - (p.B + p.len) : 1;
+      if (!e.art) {
+        let tongue = i === 0 || gap > 0.01 || !e.strong || e.trip === 0 || (p && (e.m === p.m || Math.abs(e.m - p.m) >= 7));
+        if (e.trip === 1 || e.trip === 2) tongue = false;
+        if (e.len <= 0.26 && i > 0 && gap <= 0.01 && e.m !== p.m) tongue = Math.round((e.B - ev[0].B) * 4) % 4 === 0;
+        if (this.straight && !tongue && Math.random() < 0.45) tongue = true;
+        e.art = tongue ? 'tongue' : 'slur';
+      }
+      if (e.d == null) {
+        let d = base + (e.strong ? -0.05 : 0.08);
+        if (i === pi) d += 0.14;
+        if (i === 0) d += 0.06;
+        if (e.strong && p && q && e.m < p.m && e.m < q.m && e.len <= 0.5) { d -= 0.16; e.ghost = true; }
+        e.d = clamp(d, 0.42, 1.08);
+      }
+    });
+    const L = ev[n - 1]; if (!L.end) L.end = 'release';
+    const sec = L.len * this.spb;
+    if (sec >= 0.45 && L.vib == null) L.vib = true;
+    if (L.end === 'release') {
+      if (o.fallOK && L.m >= 72 && sec >= 0.3 && Math.random() < 0.18 + I * 0.3) L.end = 'fall';
+      else if (sec < 0.55 && Math.random() < 0.05 + I * 0.06) L.end = 'doit';
+    }
+    if (sec > 0.9 && I > 0.5 && Math.random() < 0.4) L.swell = 0.14;
+    if (L.m >= 70 && L.scoop == null && Math.random() < 0.3) L.scoop = -1;
+  }
+  // 긴 음이 화음 바뀌는 데를 넘어가며 안 맞게 되면 그 박에서 가까운 맞는 음으로 슬러
+  fixLong(ev) {
+    const out = [];
+    for (const e of ev) {
+      out.push(e);
+      if (e.len < 1 || e.ripTo) continue;
+      let cur = e; const end = e.B + e.len;
+      for (let B = Math.floor(e.B + 1e-6) + 1; B < end - 0.3; B++) {
+        const ch = this.ch(B);
+        if (this.okNote(cur.m, ch, true) || (this.okNote(cur.m, ch, false) && !this.ctx.isChange(B))) continue;
+        const nx = { B, len: end - B, m: nearestAllowed(cur.m, ch, 'S', -1), art: 'slur', d: cur.d, strong: true };
+        for (const k of ['end', 'vib', 'vibAt', 'swell', 'last']) if (cur[k] != null) { nx[k] = cur[k]; delete cur[k]; }
+        if (cur.shake) { nx.shake = { ...cur.shake, at: Math.max(0, cur.shake.at - (B - cur.B)) }; delete cur.shake; }
+        cur.len = B - cur.B;
+        out.push(nx); cur = nx;
+      }
+    }
+    return out;
+  }
+  // 짧게 부르기 (낮은 세기, 동기로 남겨 둠)
+  call(B0, I) {
+    const pat = pick(this.straight ? CALLS_ST : CALLS_SW);
+    const ev = pat.map(([p, len]) => ({ B: B0 + p, len, strong: this.isInt(B0 + p) }));
+    ev[ev.length - 1].last = true;
+    const shape = pick(['arch', 'desc', 'asc']), start = clamp(this.center(I) + rand(-3, 4), this.lo + 2, this.top(I) - 3);
+    this.pitchLine(ev, I, { shape, start });
+    this.dress(ev, I, { fallOK: I > 0.5 });
+    this.motif = { pat, shape, start, off: B0 - this.ctx.barStart(B0 - 3.99) }; this.motifN = 1;
+    return ev;
+  }
+  // 같은 리듬으로 다시 (음은 지금 화음에 맞춰 옮김): 질문과 대답
+  seq(B, I) {
+    const M = this.motif;
+    let B0 = this.ctx.barStart(B - 3.99) + M.off; if (B0 < B - 1e-6) B0 += 4;
+    const ev = M.pat.map(([p, len]) => ({ B: B0 + p, len, strong: this.isInt(B0 + p) }));
+    ev[ev.length - 1].last = true;
+    const start = clamp(M.start + pick([-4, -3, -2, 2, 3, 5]), this.lo + 2, this.top(I) - 3);
+    this.pitchLine(ev, I, { shape: M.shape, start });
+    this.dress(ev, I, { fallOK: I > 0.5 });
+    M.start = start;
+    if (++this.motifN >= 3) this.motif = null;
+    return ev;
+  }
+  // 리프: 같은 리듬 동기를 한 마디마다 세 번 → 세 번째에 드러머가 같이 침 → 이어서 대답
+  riff(B0, I) {
+    const cell = pick(this.straight ? RIFF_ST : RIFF_SW);
+    let S0 = this.ctx.barStart(B0 - 0.01); if (S0 - B0 > 2.5) S0 -= 4; if (S0 < B0 - 1e-6) S0 += 4;
+    const top = this.top(I), useBlues = this.blues && Math.random() < 0.65;
+    const shapeB = pick([[10, 12, 10, 7], [7, 10, 12, 10], [3, 4, 7, 10], [12, 10, 7, 7], [7, 7, 10, 12]]);
+    const steps = pick([[0, 1, 2, 1], [2, 1, 0, 0], [0, 2, 1, 0], [0, 1, 0, 2]]);
+    const baseKey = this.fit(this.keyPc + 12 * Math.round((lerp(this.center(I), top, 0.4) - this.keyPc - 7) / 12));
+    const ev = [];
+    for (let k = 0; k < 3; k++) {
+      const Sk = S0 + k * 4, ch = this.ch(Sk + cell[0][0]);
+      const ct = this.tone(ch, lerp(this.center(I), top, 0.45), this.last, {});
+      const cts = []; for (let m = ct; cts.length < 4 && m <= this.hi; m++) if (isChordTone(m, ch)) cts.push(m);
+      cell.forEach(([p, len], i) => {
+        const B = Sk + p, chB = this.ch(B), strong = this.isInt(B);
+        let m = useBlues ? baseKey + shapeB[i % shapeB.length] : (cts[steps[i % steps.length]] ?? ct);
+        if (!this.okNote(m, chB, strong)) m = nearestAllowed(m, chB, strong ? 'S' : 'W', 1);
+        ev.push({ B, len, m, strong, stmt: k });
+      });
+      const L = ev[ev.length - 1]; L.end = 'release'; L.last = true;
+    }
+    for (let k = 0; k < 3; k++) { const part = ev.filter(e => e.stmt === k); this.dress(part, I, {}); part[part.length - 1].vib = false; part[part.length - 1].end = 'release'; }
+    this.last = ev[ev.length - 1].m;
+    return ev.concat(this.line(S0 + 12, clamp(Math.round(lerp(3, 6, I)), 3, 6), I, { shape: 'desc' }));
+  }
+  bluesLick(B0, I) {
+    const L = pick(BLUES_LICKS), st = this.isInt(B0) ? B0 : B0 + 0.5;
+    const base = this.fit(this.keyPc + 12 * Math.round((this.center(I) - 5 - this.keyPc) / 12));
+    const ev = L.map(([p, len, deg, g]) => { const B = st + p, ch = this.ch(B), strong = this.isInt(B); let m = base + deg; if (!this.okNote(m, ch, strong)) m = nearestAllowed(m, ch, strong ? 'S' : 'W', 1); const e = { B, len, m, strong }; if (g && m === base + deg) e.grace = g; return e; });
+    ev[ev.length - 1].last = true;
+    this.dress(ev, I, { fallOK: true });
+    this.last = ev[ev.length - 1].m;
+    return ev;
+  }
+  // 긴 음: 못갖춘 한 음 → 박에서 스쿱으로 들어가 비브라토 (세질 땐 셰이크)
+  longTone(B0, I) {
+    const st = this.isInt(B0) ? B0 + 0.5 : B0, Bl = st + 0.5, ch = this.ch(Bl);
+    const H = this.tone(ch, lerp(this.center(I), this.top(I), 0.65), this.last, { color: Math.random() < 0.4 });
+    const len = this.slow ? pick([2, 2.5, 3]) : pick([2, 2.5, 3, 3.5]);
+    const ev = [{ B: st, len: 0.5, m: Math.random() < 0.5 ? H - 1 : stepAllowed(H, -1, this.ch(st), 'W'), strong: false }, { B: Bl, len, m: H, strong: true, last: true }];
+    this.dress(ev, I, { fallOK: true });
+    const L = ev[1]; L.scoop = I > 0.35 ? -1.5 : -0.8; L.vib = true; L.art = 'tongue';
+    if (I > 0.72 && H >= 74 && Math.random() < 0.5) L.shake = { at: 0.6, len: Math.max(0.9, len * 0.45), iv: 3 };
+    this.last = H;
+    return ev;
+  }
+  // 두 배 빠르기: 묶음마다 방향을 바꾸며(위로 분산화음, 아래로 음계) 점점 올라감 → 밴드도 더블타임
+  double(B0, I, o = {}) {
+    const step = this.bpm <= 172 ? 0.25 : 1 / 3, g = step === 0.25 ? 4 : 3;
+    const st = this.isInt(B0) ? B0 : B0 + 0.5;
+    const land = o.land ?? (st + (this.bpm <= 172 ? pick([3, 4]) : pick([3, 4, 5])));
+    const n = Math.max(g * 2, Math.round((land - st) / step));
+    const ev = [];
+    let m = clamp(Math.round(this.center(I)) - 3, this.lo + 2, this.hi - 12), dir = 1;
+    for (let k = 0; k < n; k++) {
+      const B = st + k * step, ch = this.ch(B), first = k % g === 0;
+      if (k && first) { dir = -dir; if (dir > 0) m = clamp(m + 2, this.lo, this.hi - 7); }
+      if (k && !(first && dir > 0)) m = dir > 0 ? this.nextCT(m, 1, ch) : stepAllowed(m, -1, ch, 'W');
+      m = clamp(m, this.lo, this.hi);
+      ev.push({ B, len: step, m, strong: first, straight: true });
+    }
+    const Bf = st + n * step;
+    ev.push({ B: Bf, len: o.landLen ?? pick([1.5, 2]), m: this.tone(this.ch(Bf), Math.min(this.hi - 2, m + 3), m, { change: true }), strong: true, last: true });
+    this.dress(ev, Math.max(I, 0.8), { fallOK: true });
+    ev.forEach((e, i) => { if (i < ev.length - 1) { e.art = i % g === 0 ? 'tongue' : 'slur'; e.d = clamp(0.74 + 0.2 * I + (i % g === 0 ? 0.08 : 0), 0.5, 1.05); e.ghost = false; } });
+    this.last = ev[ev.length - 1].m;
+    return ev;
+  }
+  // 절정: 낮은 음에서 립으로 꼭대기까지 → 길게 셰이크 → 폴 (게이지가 차 있으면 트럼펫 두 대)
+  climax(B0, I) {
+    const Bh = this.isInt(B0) ? B0 + 1 : B0 + 0.5, ch = this.ch(Bh);
+    const cands = []; for (let m = 79; m <= Math.min(this.hi, 86); m++) if (isChordTone(m, ch) || inSet(m, ch, 'S')) cands.push(m);
+    const H = cands.length ? (Math.random() < 0.65 ? cands[Math.min(cands.length - 1, randi(0, 2))] : pick(cands)) : 81;
+    const chL = this.ch(Bh - 0.5); let L = H - 19; for (let k = 0; k < 6 && !isChordTone(L, chL); k++) L--;
+    L = clamp(L, this.lo, H - 12);
+    const hold = this.fast ? pick([4, 5]) : this.slow ? pick([2, 2.5]) : pick([3, 3.5, 4]);
+    const ev = [
+      { B: Bh - 0.5, len: 0.5, m: L, strong: false, art: 'tongue', d: 0.82, ripTo: H },
+      { B: Bh, len: hold, m: H, strong: true, last: true, art: 'slur', d: 1.06, vib: true, vibAt: 0.3, special: true, shake: { at: Math.min(1, hold * 0.3), len: Math.max(0.9, hold * 0.45), iv: 3 }, end: Math.random() < 0.6 ? 'fall' : 'release' },
+    ];
+    this.climaxN++; this.last = H - 5;
+    return ev;
+  }
+  // 마지막 프레이즈: 가운데로 내려와 화음음에 길게 내려앉음. 손을 넘기기 1~2박 전에 끝
+  ending(B0, I) {
+    const stop = this.endB - (this.fast ? 2.5 : 1.5), len = stop - B0;
+    if (len < 2) { const ev = [{ B: B0, len: Math.max(1, len), m: this.tone(this.ch(B0), this.center(I) - 2, this.last, { last: true }), strong: this.isInt(B0), last: true }]; this.dress(ev, I, { fallOK: true }); return ev; }
+    const ev = this.rhythm(B0, len, I, { endLen: Math.min(len - 0.5, this.fast ? 2.5 : 2) });
+    this.pitchLine(ev, I, { shape: 'desc', center: this.center(I) - 2 });
+    const L = ev[ev.length - 1]; L.m = this.tone(this.ch(L.B), L.m, ev.length > 1 ? ev[ev.length - 2].m : L.m, { last: true });
+    this.dress(ev, I, { fallOK: true });
+    if (L.m >= 69 && Math.random() < 0.45) L.end = 'fall';
+    return ev;
+  }
+  // 밴드가 2마디 멈춤: 아직 안 낸 음은 버리고, 혼자 치고 나가는 빠른 줄 → 밴드가 돌아오는 첫 박에 높은 음
+  breakAt(B0) {
+    const land = Math.min(B0 + 8, this.endB - 2);
+    if (land - B0 < 3.5) return;
+    const keep = AUTO.notes.filter(n => n.B < B0 - 1e-6 || n.ctx !== this.ctx);
+    AUTO.notes.length = 0; AUTO.notes.push(...keep);
+    AUTO.notes.push({ B: B0, len: 0.5, m: this.last, rest: true, ctx: this.ctx, strong: true });
+    const ev = this.double(B0 + 0.5, Math.max(0.85, this.I(B0)), { land, landLen: Math.min(2, this.endB - 1 - land) });
+    const L = ev[ev.length - 1]; L.d = 1.05; L.vib = true; if (L.m < 76) L.m = this.tone(this.ch(land), 79, L.m, { change: true });
+    this.emit(this.fixLong(ev));
+    this.cursor = Math.max(this.cursor, land + L.len + 1.5);
+    dlog('autoPhrase', { k: 'break', B: B0 });
+  }
+  // 받아치기 한 프레이즈 (엔딩 태그·폰 녹음)
+  fillOne(maxLen = 6) {
+    const B = this.cursor, I = this.I(B);
+    let ev = this.blues && Math.random() < 0.5 ? this.bluesLick(B, I) : Math.random() < 0.5 ? this.call(B, I) : this.line(B, clamp(Math.round(rand(3, maxLen)), 3, maxLen), I);
+    const keep = []; for (const e of ev) { if (e.B >= this.endB - 0.25) break; keep.push(e); }
+    if (!keep.length) return;
+    const L = keep[keep.length - 1]; L.len = Math.min(L.len, this.endB - L.B); if (!L.end) L.end = 'release';
+    this.emit(this.fixLong(keep));
+  }
+}
+
+// ---------- 소리 내기 (예약) ----------
+function autoEv(e) { const E = AUTO.ev; let i = E.length; while (i > 0 && E[i - 1].t > e.t) i--; E.splice(i, 0, e); }
+function autoDropRelease(v, t) { const E = AUTO.ev; for (let i = E.length - 1; i >= 0; i--) if (E[i].voice === v && E[i].t >= t - 0.006 && (E[i].type === 'release' || E[i].type === 'shake')) E.splice(i, 1); }
+function autoRender(now) {
+  if (!AUTO.on || !AE.ctx) return;
+  const N = AUTO.notes; let g = 0;
+  while (N.length && g++ < 48) {
+    const n = N[0], t = n.ctx.time(n.B, n.straight);
+    if (t == null) break;
+    if (t !== -1 && t > now + AUTO_LOOK) break;
+    N.shift();
+    if (t === -1 || t < now - 0.08) continue;          // 놓친 음은 건너뜀
+    autoPlay(n, Math.max(t, now + 0.005));
+  }
+}
+function autoPlay(n, t0) {
+  const A = AUTO, ctx = n.ctx, spb = ctx.spb();
+  if (n.rest) {        // 여기서 손을 놓음 (물고 있던 음이 있으면)
+    if (A.open && A.voice && !A.voice.dead) { hornRelease(A.voice, t0, null, 0.06); if (SPX.voice2) spVoiceStop(t0, 0.06); A.open = false; A.voiceEnd = t0 + 0.02; autoEv({ t: t0, type: 'release', flick: null, voice: A.voice }); }
+    return;
+  }
+  // 사람처럼: 정박은 아주 살짝 뒤에 (레이백), 뒷박은 거의 제자리
+  const hum = n.straight ? rand(-0.002, 0.004) : n.strong ? 0.011 + rand(-0.004, 0.006) : 0.003 + rand(-0.004, 0.005);
+  const t = Math.max(t0 + hum, A.lastT + 0.022); A.lastT = t;
+  const e1 = ctx.time(n.B + n.len, n.straight);
+  const tEnd = Math.max(t + 0.06, (e1 != null && e1 !== -1 ? e1 : t + n.len * spb) + hum);
+  const m = n.m, d = n.d ?? 0.75, m0 = n.grace ? m + n.grace : m;     // m0: 꺾어 들어가는 꾸밈음부터
+  let v = A.voice, type;
+  const live = v && !v.cut && t < A.voiceEnd - 0.002;
+  if (n.art === 'slur' && live && A.open && !v.dead) {
+    // 이어 부는 음: 밸브 바꾸듯 또렷하게 (샘플에서 멀면 바꿔 끼움)
+    v.vibrato(0, t - 0.012, 0.012);
+    if (Math.abs(m0 - v.s.m) > 2.6) {
+      const s = nearestSample('T', m0);
+      if (s && s !== v.s) { const nv = tpTrack(hornVoice(m0, t, d, { offset: s.start + 0.12, fadeIn: 0.01 })); if (nv) { v.stepTo(m0, t); cutVoice(v, t + 0.002, 0.012); v = nv; } }
+    }
+    if (v === A.voice) v.stepTo(m0, t, d);
+    type = 'legato';
+    if (SPX.voice2) spVoiceMove(t, m0, 'slur');
+  } else {
+    // 혀를 침: 앞 음이 아직 울리면 아주 짧게 끊고
+    if (live) { cutVoice(v, t - 0.005, 0.01); autoDropRelease(v, t); }
+    let at = t, body = false;
+    if ((n.len * spb < 0.32 || d >= 0.92) && !n.ghost && !n.grace && hornHead(m0, t, d)) { at = t + 0.077; body = true; }
+    v = tpTrack(hornVoice(m0, at, d, { body, fadeIn: body ? 0.02 : 0.005, scoop: n.scoop || 0, scoopTime: n.scoopT || 0.07 }));
+    if (!v) return;
+    type = 'attack';
+    if (SPX.active) spVoiceStart(at, m0, dynGain(m0, d));
+  }
+  A.voice = v; A.open = true; A.voiceEnd = 1e9;
+  autoEv({ t, type, m: m0, voice: v });
+  if (n.grace) { const tg = t + Math.min(0.06, n.len * spb * 0.3); v.stepTo(m, tg, d); if (SPX.voice2) spVoiceMove(tg, m, 'slur'); autoEv({ t: tg, type: 'legato', m, voice: v }); }
+  if (n.vib) v.vibrato(n.vibDepth || (m >= 76 ? 18 : 14), t + (n.vibAt ?? 0.22), 0.28);
+  if (n.swell) v.setDyn(Math.min(1.12, d + n.swell), t + 0.06, Math.max(0.1, (tEnd - t) * 0.7));
+  if (n.shake) {
+    const s0 = t + n.shake.at * spb, s1 = Math.min(tEnd - 0.05, s0 + n.shake.len * spb);
+    if (s1 > s0 + 0.15) {
+      shakeOn(v, s0, n.shake.iv || 3); shakeOff(v, s1);
+      autoEv({ t: s0, type: 'shake', on: true, voice: v }); autoEv({ t: s1, type: 'shake', on: false, dur: s1 - s0, voice: v });
+      if (n.vib) v.vibrato(16, s1 + 0.06, 0.2);
+    }
+  }
+  if (n.ripTo) v.glideTo(n.ripTo, tEnd - 0.12, 0.1);          // 립: 다음 높은 음까지 끌어올림
+  if (n.end) {
+    const flick = n.end === 'fall' || n.end === 'doit' ? n.end : null, len = tEnd - t;
+    const tr = n.stacc ? t + len * 0.5 : flick ? tEnd - Math.min(0.14, len * 0.3) : tEnd - Math.min(0.07, len * 0.15);
+    hornRelease(v, tr, flick, n.end === 'cut' ? 0.03 : 0.07);
+    if (SPX.voice2) spVoiceStop(tr, 0.06, flick);
+    A.open = false; A.voiceEnd = tr + (flick ? 0.3 : 0.02);
+    autoEv({ t: tr, type: 'release', flick, voice: v });
+  }
+  if (n.special) autoEv({ t, type: 'special' });
+}
+// 시간을 바로 정해서 내는 음 (곡 끝 늘임표 · 버튼)
+function autoDirect(o) {
+  const A = AUTO, t = o.t, m = o.m, d = o.d ?? 1;
+  if (A.voice && !A.voice.cut && t < A.voiceEnd) { cutVoice(A.voice, t - 0.005, 0.01); autoDropRelease(A.voice, t); }
+  let at = t, body = false;
+  if (o.head && hornHead(m, t, d)) { at = t + 0.077; body = true; }
+  const v = tpTrack(hornVoice(m, at, d, { body, fadeIn: body ? 0.02 : 0.006, scoop: o.scoop || 0, scoopTime: o.scoopT || 0.07 }));
+  if (!v) return;
+  if (SPX.active) spVoiceStart(at, m, dynGain(m, d));
+  A.voice = v; A.lastT = t;
+  autoEv({ t, type: 'attack', m, voice: v });
+  if (o.vib) v.vibrato(m >= 76 ? 18 : 15, t + (o.vibAt ?? 0.3), 0.35);
+  if (o.shake) {
+    const s0 = o.shake.t, s1 = s0 + o.shake.len;
+    shakeOn(v, s0, 3); shakeOff(v, s1);
+    autoEv({ t: s0, type: 'shake', on: true, voice: v }); autoEv({ t: s1, type: 'shake', on: false, dur: s1 - s0, voice: v });
+    if (o.vib) v.vibrato(16, s1 + 0.05, 0.2);
+  }
+  if (o.swell) v.setDyn(Math.min(1.12, d + o.swell), t + 0.3, (o.end - t) * 0.7);
+  hornRelease(v, o.end, o.flick || null, o.rel ?? 0.05);
+  if (SPX.voice2) spVoiceStop(o.end, 0.05, o.flick || null);
+  A.open = false; A.voiceEnd = o.end + (o.flick ? 0.3 : 0.02);
+  autoEv({ t: o.end, type: 'release', flick: o.flick || null, voice: v });
+}
+// 음이 실제로 나는 순간: 지금 부는 음·손가락 표시·관객 반응
+function autoEvents(now) {
+  const E = AUTO.ev;
+  while (E.length && E[0].t <= now) {
+    const e = E.shift();
+    if (e.type === 'attack' || e.type === 'legato') {
+      const prev = TP.cur;
+      TP.blowing = true; TP.voice = e.voice; TP.cur = e.m; TP.curF = e.m; TP.pitchT0 = e.t; TP.lastSoundT = e.t; AUTO.sounding = true;
+      if (e.type === 'attack') { TP.noteT0 = e.t; TP.lastAttackT = e.t; }
+      recordNote(e.t, e.m, 'auto'); fingerVisual(pitchToPos(e.m));
+      dlog('note', { m: e.m, art: e.type, auto: true, ch: chordAtTime(e.t).name });
+      tpEmit(e.type, { t: e.t, m: e.m, prev, kind: 'auto' });
+      if (e.type === 'attack') musicOnMyAttack(now);
+    } else if (e.type === 'release') {
+      TP.blowing = false; TP.voice = null; TP.lastSoundT = e.t + (e.flick ? 0.3 : 0.05); TP.lastOffT = e.t; AUTO.sounding = false;
+      fingerVisual(null);
+      tpEmit('release', { t: e.t, dur: e.t - TP.noteT0, m: TP.cur, flick: e.flick });
+    } else if (e.type === 'shake') tpEmit('shake', { t: e.t, on: e.on, dur: e.dur });
+    else if (e.type === 'special') { if (SPX.g >= 0.999 && !SPX.active && !SPX.held) spPress(true); }
+  }
+}
 
 // ===== 70_director.js =====
 // ===================== 밴드 연출: 악기 잡기·연주 동작·나를 돌아보기 =====================
@@ -6124,7 +6886,7 @@ const REACT = {
   lastOff: 0, timers: [], burst: null, events: [], floor: null, phase: 'title', meSolo: false, soloTime: 0, lastHeatNote: -99, lastLegatoEvent: -99,
   reset() {
     Object.assign(this, { heat: 0, peak: 0, songPeak: 0, soloPeak: 0, frenzy: 0, frenzyT: 0, awes: 0, lastAwe: -99, aweIdx: 0, lastAweWho: null, kinds: [], hist: [], lastG: {}, breakUsed: false, inBreak: false,
-      onsets: [], phrase: null, prevPhrase: null, riffN: 0, highFlag: false, pedalFlag: false, lastOff: 0, timers: [], burst: null, events: [], floor: null, phase: 'head', meSolo: false, soloTime: 0, lastHeatNote: -99, lastLegatoEvent: -99 });
+      onsets: [], phrase: null, prevPhrase: null, riffN: 0, highFlag: false, pedalFlag: false, lastOff: 0, lastNote: 0, timers: [], burst: null, events: [], floor: null, phase: 'head', meSolo: false, soloTime: 0, lastHeatNote: -99, lastLegatoEvent: -99 });
   },
   later(sec, fn) { this.timers.push({ t: NOW.t + sec, fn }); },
 };
@@ -6144,10 +6906,12 @@ TP.listeners.push((type, d) => {
     R.onsets.push(now); while (R.onsets.length && R.onsets[0] < now - 1.7) R.onsets.shift();
     R.highFlag = false; R.pedalFlag = false;
     if (type === 'attack') {
-      const p = beatPosAt(now), off = Math.abs(p - Math.round(p));
-      if (R.meSolo && now - R.lastOff > curSpb() * 3.6 && R.lastOff > 0 && off < 0.18 && Math.round(p) % 4 === 0) gesture('space');
-      if (!R.phrase || now - R.lastOff > 0.32) { closePhrase(); R.phrase = { t0: now, notes: [] }; }
+      // 앞 음을 떼고 쉬었다가 새로 시작했을 때만 새 프레이즈 (손을 안 떼고 혀만 친 음·다른 손가락으로 뛴 음은 이어지는 프레이즈)
+      const p = beatPosAt(now), off = Math.abs(p - Math.round(p)), rested = R.lastOff >= (R.lastNote || 0);
+      if (R.meSolo && rested && now - R.lastOff > curSpb() * 3.6 && R.lastOff > 0 && off < 0.18 && Math.round(p) % 4 === 0) gesture('space');
+      if (!R.phrase || (rested && now - R.lastOff > 0.32)) { closePhrase(); R.phrase = { t0: now, notes: [] }; }
     }
+    R.lastNote = now;
     if (R.phrase && R.phrase.notes.length < 64) R.phrase.notes.push({ t: now - R.phrase.t0, m: d.m });
     if (R.onsets.length >= 7 && now - (R.lastG.run || -9) > 4) gesture('run');
     if (R.meSolo && now - R.lastHeatNote >= 0.15) { R.lastHeatNote = now; addHeat(0.28); }
@@ -6769,7 +7533,7 @@ function spInitAudio() {
 }
 // 두 번째 트럼펫 음: 보정 모드는 지금 화음에 맞는 3도(없으면 6도) 아래, 자유 모드는 4도 아래 평행
 function harmFor(m, t) {
-  if (TP.mode === 'free') return m - 5;
+  if (TP.mode === 'free' && !AUTO.on) return m - 5;
   const ch = chordAtTime(t + 0.01), r = Math.round(m);
   for (const d of [3, 4]) if (isChordTone(r - d, ch)) return r - d;
   for (const d of [3, 4]) if (inSet(r - d, ch, 'S')) return r - d;
@@ -6798,7 +7562,8 @@ function spVoiceMove(t, m, kind) {
     if (nv.src.detune) nv.src.detune.value = 8;
     v.glideTo(hm, t, 0.02); v.release(t, 0.03); SPX.voice2 = nv;
     SPX.lastRevoiceT = t; SPX.revoiceDue = false;
-  } else v.glideTo(hm, t, kind === 'chord' ? 0.06 : 0.03);
+  } else if (kind === 'gliss' || kind === 'magnet' || kind === 'slide') v.glideTo(hm, t, 0.03);
+  else v.stepTo(hm, t);
 }
 function spVoiceStop(t, rel = 0.06, flick = null) {
   const v = SPX.voice2; SPX.voice2 = null; SPX.revoiceDue = false;
@@ -7547,25 +8312,41 @@ function flushFingerVisual() {
   UI.fingerDirty = false;
 }
 function ribbonPos(clientY) { const r = UI.inputRect || measureRibbon(); return clamp((r.bottom - clientY) / r.height, 0, 1); }
+// 띠: 손가락 여러 개. 소리는 마지막에 짚은 손가락 자리 (새로 짚으면 혀를 쳐서 뛰고, 떼면 남은 손가락 자리로 슬러)
 function bindInput() {
-  const st = UI.el.stem; let pid = null;
+  const st = UI.el.stem, F = [];
+  const find = id => F.findIndex(f => f.id === id);
   st.addEventListener('pointerdown', e => {
-    e.preventDefault(); if (!UI.playing || pid != null) return;
-    measureRibbon(); pid = e.pointerId; try { st.setPointerCapture(e.pointerId); } catch (x) { }
-    const p = ribbonPos(e.clientY); fingerVisual(p); ribbonDown(p);
+    e.preventDefault(); if (!UI.playing || find(e.pointerId) >= 0) return;
+    if (!F.length) measureRibbon();
+    try { st.setPointerCapture(e.pointerId); } catch (x) { }
+    const p = ribbonPos(e.clientY);
+    F.push({ id: e.pointerId, pos: p }); fingerVisual(p);
+    if (F.length === 1) ribbonDown(p); else ribbonJump(p);
   });
-  st.addEventListener('pointermove', e => { if (!UI.playing || e.pointerId !== pid) return; const p = ribbonPos(e.clientY); fingerVisual(p); ribbonMove(p); });
-  const end = e => { if (e.pointerId !== pid) return; pid = null; fingerVisual(null); if (e.type === 'pointerup') ribbonUp(); else releaseAllInput(); };
+  st.addEventListener('pointermove', e => {
+    if (!UI.playing) return; const i = find(e.pointerId); if (i < 0) return;
+    const p = ribbonPos(e.clientY); F[i].pos = p;
+    if (i === F.length - 1) { fingerVisual(p); ribbonMove(p); }
+  });
+  const end = e => {
+    const i = find(e.pointerId); if (i < 0) return;
+    const top = i === F.length - 1; F.splice(i, 1);
+    if (!top) return;
+    if (F.length) { const f = F[F.length - 1]; fingerVisual(f.pos); ribbonBack(f.pos); return; }
+    fingerVisual(null);
+    if (e.type === 'pointerup') ribbonUp(); else releaseAllInput();
+  };
   st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end); st.addEventListener('lostpointercapture', end);
   // 키보드
   let space = false;
-  UI.cancelInput = () => { pid = null; space = false; };
+  UI.cancelInput = () => { F.length = 0; space = false; };
   const stepKey = d => {
     let p = UI.kbPos != null ? UI.kbPos : TP.pos;
     if (TP.mode === 'free') p = pitchToPos(Math.round(posToPitch(p)) + d);
     else { const ch = chordAtTime((AE.ctx ? AE.ctx.currentTime : 0) + 0.02); const m = stepAllowed(Math.round(posToPitch(p)), d, ch, 'W'); p = pitchToPos(m); }
     UI.kbPos = clamp(p, 0, 1);
-    if (TP.blowing || PRE.buzz) { ribbonMove(UI.kbPos); fingerVisual(UI.kbPos); } else TP.pos = UI.kbPos;
+    if (TP.blowing || PRE.buzz) { ribbonMove(UI.kbPos, { discrete: true }); fingerVisual(UI.kbPos); } else TP.pos = UI.kbPos;
   };
   window.addEventListener('keydown', e => {
     if (!UI.playing) { if ((e.code === 'Space' || e.code === 'Enter') && !UI.el.title.classList.contains('hide') && !(document.activeElement && document.activeElement.id === 'arcade')) { e.preventDefault(); titleTap(); } return; }
@@ -7631,7 +8412,7 @@ function uiTick() {
   if (!UI.playing && UI.marksKey) return;
   const now = AE.ctx ? AE.ctx.currentTime : 0;
   let key;
-  if (TP.mode === 'snap') { const ch = chordAtTime(now + 0.03); key = 's' + ch.root + ch.q; }
+  if (TP.mode === 'snap') { const ch = chordAtTime(now + 0.03); key = 's' + ch.root + ch.q + (MUS.song && MUS.song.tune.blues ? 'b' + MUS.song.keyPc : ''); }
   else key = 'f';
   if (key === UI.marksKey) return;
   UI.marksKey = key;
@@ -7639,7 +8420,7 @@ function uiTick() {
   const add = (m, cls) => { const i = document.createElement('i'); i.className = cls; i.style.top = ((1 - pitchToPos(m)) * 100) + '%'; box.appendChild(i); };
   if (TP.mode === 'snap') {
     const ch = chordAtTime(now + 0.03);
-    for (let m = TP.lo; m <= TP.hi; m++) { if (isChordTone(m, ch)) add(m, 'ct'); else if (inSet(m, ch, 'W')) add(m, 'st'); }
+    for (let m = TP.lo; m <= TP.hi; m++) { if (isChordTone(m, ch)) add(m, 'ct'); else if (inSet(m, ch, 'W')) add(m, 'st'); else if (bluesOk(m, ch, false)) add(m, 'bl'); }
   } else for (let m = TP.lo; m <= TP.hi; m++) add(m, mod12(m) === 0 ? 'tk c' : 'tk');
 }
 
@@ -9421,7 +10202,7 @@ function loop() { requestAnimationFrame(loop); tick(true); }
 // 시험용: 원하는 시간만큼 진행한 장면을 그림
 window.__step = (sec = 1, fps = 30) => { for (let i = 0; i < sec * fps; i++) { NOW.t += 1 / fps; frame(1 / fps); } render(); window.__ready = true; return 'ok'; };
 window.__G = { SC, BAND, CROWD, ME, MUS, TP, AE, NOW, GAME, REACT, DIR, VQ, LAYOUT, UI, startGame, pauseGame, resumeGame, ribbonDown, ribbonMove, ribbonUp, setMode, render, stare, bandAwe, aimCamera };
-window.__G2 = { updateMe, placeMe, doublePose, bartenderDrop, SPX, PRE, ITL, AFTER, ENDL, MISS, RULE, WINP, BACKP, FXP, spPress, spToggle, specialSetPiece, forceScene, itlStart, itlEnd, afterShow, afterEnd, endSong, nextSong, crowdJerk, gesture, reactEvent, addWindowFaces, addBackCrowd, HYPE, TOSS, crowdShock, throwGifts, poppers, scoreCards, toastWave, bartenderBell, tbWorship, bandFlourish, startChant, fxConfettiDrop, startCrowdScene, finishCrowdScene, myApplause, ovation, FIN, FIN_SLOTS, finRequest, finBegin, finEncore, finSigned, finLayout, finEnd, PERF, PEOPLE, Person, randomLook, makeCrowdProp, THREE, BASS_POSE, BASS_GUARD, DRPHONE, WARM, WINP, BACKP, PROP_TPL, crowdPropTemplate, tossWarm, CROWD_RATE, VJOB, SYNTH_STEPS, synthBegin, PACK, RBOX, perfTick, perfRestore };
+window.__G2 = { AUTO, DEBUG, updateMe, placeMe, doublePose, bartenderDrop, SPX, PRE, ITL, AFTER, ENDL, MISS, RULE, WINP, BACKP, FXP, spPress, spToggle, specialSetPiece, forceScene, itlStart, itlEnd, afterShow, afterEnd, endSong, nextSong, crowdJerk, gesture, reactEvent, addWindowFaces, addBackCrowd, HYPE, TOSS, crowdShock, throwGifts, poppers, scoreCards, toastWave, bartenderBell, tbWorship, bandFlourish, startChant, fxConfettiDrop, startCrowdScene, finishCrowdScene, myApplause, ovation, FIN, FIN_SLOTS, finRequest, finBegin, finEncore, finSigned, finLayout, finEnd, PERF, PEOPLE, Person, randomLook, makeCrowdProp, THREE, BASS_POSE, BASS_GUARD, DRPHONE, WARM, WINP, BACKP, PROP_TPL, crowdPropTemplate, tossWarm, CROWD_RATE, VJOB, SYNTH_STEPS, synthBegin, PACK, RBOX, perfTick, perfRestore };
 // 무대 만들기(본 화면이 1초~몇 초 멈춤)에 들어가기 전에 소리 쪽 일을 먼저 출발시킴.
 // 워커는 본 화면이 쉬어야 뜨므로, 워커가 떴다는 신호를 받고 나서(안 오면 0.4초 뒤) 무대를 만듦.
 function bootSoon() {
