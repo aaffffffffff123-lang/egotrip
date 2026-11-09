@@ -75,15 +75,12 @@ button{font-family:inherit;color:inherit}
 #endShow i{display:block;width:11px;height:11px;border-radius:2.5px;background:var(--vermilion)}
 #finBar{position:fixed;left:calc(70px + var(--sal));top:calc(10px + var(--sat));z-index:6;display:none;gap:12px}
 
-/* 혐규오락실: 위쪽 가운데의 얼굴 버튼. 첫 화면에서는 이름을 같이 보여 주고, 공연 중에는 얼굴만 (그 줄의 다른 버튼과 겹치면 가장 가까운 빈자리 — 자리는 스크립트가 잡음) */
+/* 혐규오락실: 위쪽 가운데의 얼굴 버튼. 첫 화면과 공연 중 모두 얼굴만 (그 줄의 다른 버튼과 겹치면 가장 가까운 빈자리 — 자리는 스크립트가 잡음) */
 #arcade{position:fixed;left:50%;top:calc(9px + var(--sat));z-index:6;display:flex;align-items:center;gap:7px;height:48px;padding:2px 4px;transform:translateX(-50%);
   text-decoration:none;color:var(--ink);touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-drag:none}
 #arcade svg{display:block;width:44px;height:44px;flex:none;overflow:visible;filter:drop-shadow(0 3.5px 0 rgba(34,26,43,.3))}
 #arcade:active svg{transform:translateY(2px);filter:drop-shadow(0 1.5px 0 rgba(34,26,43,.3))}
-#arcade .aw{display:none;align-items:center;gap:3px;font:700 20px/1 var(--ft);letter-spacing:-.03em;white-space:nowrap;text-shadow:0 0 4px var(--paper),0 0 4px var(--paper),0 0 8px var(--paper)}
-#arcade .aw b{display:flex;flex-direction:column;align-items:center;gap:1px;font:700 10.5px/1 var(--ft);color:#e0301e;text-shadow:none}
 #arcade.title{z-index:12}
-#arcade.title .aw{display:flex}
 #arcade.over{z-index:12}
 #arcade.placed{transform:none;transition:left .2s ease,top .2s ease}
 #arcade.off{display:none}
@@ -194,7 +191,7 @@ button{font-family:inherit;color:inherit}
   <g transform="translate(60 60) scale(-1 1) rotate(-38) translate(-58 -24)"><use href="#tpt"/></g>
 </svg><i class="spark s1"></i><i class="spark s2"></i><i class="spark s3"></i></button>
 <div id="hudMode" class="mode"><button data-m="snap">보정</button><button data-m="free">자유</button></div>
-<a id="arcade" class="title" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#fffaf0" stroke="#221a2b" stroke-width="2.7" stroke-linejoin="round"/><g stroke="#221a2b" stroke-width="2.3" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#221a2b"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#221a2b" stroke-width="2.3" stroke-linecap="round"/></svg><span class="aw"><b><span>혐</span><span>규</span></b>오락실</span></a>
+<a id="arcade" class="title" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#fffaf0" stroke="#221a2b" stroke-width="2.7" stroke-linejoin="round"/><g stroke="#221a2b" stroke-width="2.3" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#221a2b"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#221a2b" stroke-width="2.3" stroke-linecap="round"/></svg></a>
 
 <div id="title" class="screen">
   <svg class="logo" viewBox="0 0 640 380" role="img" aria-label="인정욕구 채우기">
