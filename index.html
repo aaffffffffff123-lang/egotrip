@@ -61,6 +61,13 @@ button{font-family:inherit;color:inherit}
 .mode button{border:none;border-radius:999px;background:transparent;font:700 14px var(--ft);padding:7px 13px;cursor:pointer;white-space:nowrap}
 .mode button.on{background:var(--ink);color:var(--paper)}
 #hudMode{position:fixed;right:calc(10px + var(--sar));top:calc(12px + var(--sat));z-index:6;display:none}
+/* 공연 끝내기 · 끝난 뒤 버튼 */
+.pill{height:46px;padding:0 14px;border:0;border-radius:999px;background:var(--paper);box-shadow:0 0 0 3px var(--ink),0 4px 0 3px rgba(34,26,43,.3);display:inline-flex;align-items:center;gap:7px;font:700 14px var(--ft);cursor:pointer;white-space:nowrap}
+.pill:active{transform:translateY(2px)}
+.pill.go{background:var(--vermilion);color:var(--paper)}
+#endShow{position:fixed;left:calc(10px + var(--sal));top:calc(66px + var(--sat));z-index:6;display:none}
+#endShow i{display:block;width:11px;height:11px;border-radius:2.5px;background:var(--vermilion)}
+#finBar{position:fixed;left:calc(70px + var(--sal));top:calc(10px + var(--sat));z-index:6;display:none;gap:12px}
 
 /* ---------- 덮개 화면 ---------- */
 .screen{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:calc(14px + var(--sat)) 14px calc(14px + var(--sab));background:rgba(255,244,222,.28)}
@@ -129,6 +136,7 @@ button{font-family:inherit;color:inherit}
   #stem{top:calc(14px + var(--sat));bottom:calc(58px + var(--sab));width:84px}
   #hudMode{right:auto;left:calc(68px + var(--sal))}
   #nextSong{left:calc(208px + var(--sal))}
+  #endShow{left:calc(314px + var(--sal));top:calc(10px + var(--sat))}
 }
 </style>
 </head>
@@ -139,6 +147,8 @@ button{font-family:inherit;color:inherit}
 </div>
 <button id="pause" aria-label="멈춤"><i></i><i></i></button>
 <button id="nextSong" aria-label="다음 곡으로 넘기기">다음 곡<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2v12l9-6zM12 2h2v12h-2z"/></svg></button>
+<button id="endShow" class="pill" aria-label="공연 끝내기"><i></i>공연 끝내기</button>
+<div id="finBar"><button id="encore" class="pill go">한 곡 더</button><button id="finHome" class="pill">처음으로</button></div>
 <button id="special" aria-label="트럼펫 두 대"><span class="fill"></span><svg viewBox="9 9 102 102" aria-hidden="true">
   <defs>
     <linearGradient id="brA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4c0"/><stop offset=".35" stop-color="#ffd35c"/><stop offset=".72" stop-color="#e6a12a"/><stop offset="1" stop-color="#a8641a"/></linearGradient>
@@ -1697,7 +1707,7 @@ function _buildLights(VENUE, scene, root) {
   // 분위기: 관객 열기(0..1)에 따라 무대 조명 세기·흔들림
   VENUE.setMood = (heat01, t = 0) => {
     const h = clamp(heat01, 0, 1);
-    L.key.intensity = 48 + 34 * h;
+    L.key.intensity = (48 + 34 * h) * (VENUE.keyK == null ? 1 : VENUE.keyK);
     L.pink.intensity = 34 + 50 * h; L.blue.intensity = 34 + 50 * h;
     L.pink.target.position.set(L.pink.userData.aim.x + Math.sin(t * 1.7) * 0.7 * h, L.pink.userData.aim.y, L.pink.userData.aim.z + Math.cos(t * 1.3) * 0.5 * h);
     L.blue.target.position.set(L.blue.userData.aim.x + Math.sin(t * 1.4 + 1) * 0.7 * h, L.blue.userData.aim.y, L.blue.userData.aim.z + Math.cos(t * 1.9) * 0.5 * h);
@@ -2709,6 +2719,8 @@ class Person {
         const c = capBetween(elT, rEnd, foreR + 0.013, seg); rig.add(c.g, sleeve, iff, c.m);
       }
       if (sleeveKind === 'long') rig.add(G.tor(1, 0.3, seg, 6).rotateX(Math.PI / 2), L.cuff || shadeHex(sleeve, 0.85), iff, M4([wr.x, wr.y + 0.02 * h, wr.z], 0, [foreR + 0.004, foreR + 0.004, 0.03]));
+      { const covered = sleeveKind === 'long' || sleeveKind === 'rolled', er = (covered ? armR + 0.003 : (armR + foreR) / 2) * 0.97;
+        rig.add(G.sph(seg, 8), covered ? sleeve : skin, iff, M4([el.x, el.y - 0.004 * h, el.z], 0, [er, er, er])); }
       // 손: 손바닥 + 손가락 덩어리 + 검지 + 엄지 (손바닥은 몸 쪽(-sx·x)을 봄, 엄지는 앞(+z))
       const hy = wr.y;
       rig.add(G.sph(seg, 10), skin, ih, M4([wr.x, hy - 0.04 * h, wr.z + 0.004], 0, [0.027 * w, 0.048 * h, 0.046 * h]));
@@ -2773,7 +2785,17 @@ class Person {
     if (L.mustache) for (const sx of [1, -1]) rig.add(bendZ(G.sph(10, 6), 0.4), L.beardColor || hair, hb, M4([hc.x + sx * R * 0.15, hc.y - R * 0.3, hc.z + R * 0.985], [0.15, sx * 0.25, sx * -0.28], [R * 0.17, R * 0.06, R * 0.06]));
     if (L.beard) {
       // 턱 아래 (입은 가리지 않음)
-      const bg = new THREE.SphereGeometry(1, sseg, 10, 0, Math.PI * 2, Math.PI * 0.52, Math.PI * 0.48);
+      const ph0 = -Math.PI * 0.13, phL = Math.PI * 1.26;
+      const bg = new THREE.SphereGeometry(1, sseg, 10, ph0, phL, Math.PI * 0.52, Math.PI * 0.48);
+      { const bp = bg.attributes.position;
+        for (let i = 0; i < bp.count; i++) {
+          const x = bp.getX(i), y = bp.getY(i), z = bp.getZ(i), rr = Math.hypot(x, z);
+          if (rr < 1e-4) continue;
+          let a = Math.atan2(z, -x); if (a < ph0 - 0.01) a += Math.PI * 2;
+          const k = lerp(0.8, 1, smoothstep(0, 0.42, Math.min(a - ph0, ph0 + phL - a)));
+          bp.setXYZ(i, x * k, y, z * k);
+        }
+        bg.computeVertexNormals(); }
       rig.add(bg, L.beardColor || hair, p => [[Bn.jaw, 0.9], [hb, 0.1]], M4([hc.x, hc.y - R * 0.34, hc.z + R * 0.13], [-0.32, 0, 0], [R * 0.93, R * 0.78, R * 0.93]));
     }
     if (L.goatee) rig.add(G.sph(12, 8), L.beardColor || hair, Bn.jaw, M4([hc.x, hc.y - R * 0.82, hc.z + R * 0.66], 0, [R * 0.17, R * 0.2, R * 0.14]));
@@ -4322,7 +4344,7 @@ function myActivity(win) {
 function genFinal(S, b) {
   const t = b.t0, ch = S.final, e = S.tune.ending;
   const root = nearestPC(ch.root, 34, 28, 40);
-  if (e === 'button' || e === 'cold') {
+  if ((e === 'button' || e === 'cold') && !S.showEnd) {
     drum('crash', t, e === 'cold' ? 0.6 : 1.0, 'R'); drum('kick', t, 0.9, 'RF'); drum('snare', t, 0.7, 'L');
     bassNote(t, root, 0.3, 1.0);
     PNO.voicing = voicingFor(ch, PNO.voicing, 55, 79); pianoNotes(t, [root + 12, ...PNO.voicing], 0.35, 0.75, 'L', 0.004);
@@ -4374,7 +4396,7 @@ function advanceSetPosition() {
   if (MUS.setPos >= MUS.setOrder.length) { MUS.setOrder = buildSetOrder(false); MUS.setPos = 0; MUS.round++; }
 }
 function nextSong() {
-  if (!UI.playing || !MUS.running || !AE.ctx || (!MUS.song && !MUS.gap)) return;
+  if (!UI.playing || !MUS.running || !AE.ctx || (!MUS.song && !MUS.gap) || FIN.req || FIN.on) return;
   const now = AE.ctx.currentTime;
   if (now < (MUS.skipUntil || 0)) return;
   MUS.skipUntil = now + 0.6;
@@ -4414,7 +4436,8 @@ function endSong(now) {
   MUS.beatBase = MUS.beatCount; MUS.beatT = now;
   vq(now, 'song', 'gap', { next: nextTune.id });
   dlog('gap', { next: nextTune.id });
-  itlOnGap(); afterSave();
+  if (FIN.req || FIN.on) MUS.gap.hold = true; else itlOnGap();      // 공연을 끝내는 중이면 다음 곡으로 넘어가지 않음
+  afterSave();
 }
 function gapTick(now) {
   const G = MUS.gap;
@@ -4606,7 +4629,7 @@ function endShake(t) {
 }
 // ---------- 입력 (0~1 위치) ----------
 function ribbonDown(pos) {
-  if (!AE.ctx) return;
+  if (!AE.ctx || GAME.phase === 'finale') return;
   if (GAME.phase === 'pre') { preBuzzDown(pos); return; }
   if (!UI.touched) { UI.touched = true; UI.el.stem.classList.remove('hint'); }
   TP.air = [{ t: performance.now(), pos }]; TP.pendingMove = false; TP.lastPitchUpdate = -99; TP.lastPos = pos; TP.lastAirT = performance.now();
@@ -4615,6 +4638,7 @@ function ribbonDown(pos) {
   noteOn('touch');
 }
 function ribbonMove(pos) {
+  if (GAME.phase === 'finale') return;
   if (GAME.phase === 'pre') { preBuzzMove(pos); return; }
   const tn = performance.now();
   // Keep a time window for gestures; raw device polling rate must not grow the work.
@@ -4640,6 +4664,7 @@ function flushRibbonMove(force = false) {
   if (out !== TP.cur) moveTo(out, 'slur', t);
 }
 function ribbonUp() {
+  if (GAME.phase === 'finale' && !TP.blowing) return;
   if (GAME.phase === 'pre') { preBuzzUp(); return; }
   flushRibbonMove(true);
   const sp = ribbonSpeed(110);
@@ -4925,6 +4950,8 @@ function updateTrombone(dt, t) {
     tb.reach('L', wpos(gl, _d1), tb.local(0.6, 1.0, -0.4), null, 'grip');
     if (DIR.tbPlay > 0.3 || !(tb.presenting && t < tb.presenting) && !(tb.headTap && t < tb.headTap)) tb.reach('R', wpos(gr, _d2), tb.local(-0.7, 0.9, -0.3), null, 'grip');
   }
+  if (tbWorshipPose(tb, dt, t)) return;
+  if (finBandPose('tb', tb, t)) return;
   if (ITL.cur && ITL.cur.kind === 'intro') itlTrombone(tb, dt, t);
   else if (tb.slapUntil && t < tb.slapUntil && DIR.tbPlay < 0.3) tb.reach('R', facePoint(tb, -tb.R * 0.3, tb.R * 0.62, tb.R * 0.72), null, null, 'flat');
   else if (DIR.tbPlay < 0.3) {
@@ -4960,6 +4987,9 @@ function updateBassist(dt, t) {
   // 연주자 앞 왼쪽에 세우고 몸 쪽으로 기울임
   b.position.copy(bs.local(0.16, 0, 0.3));
   b.quaternion.copy(bs.root.getWorldQuaternion(_dq)).multiply(_dq2.setFromEuler(new THREE.Euler(-0.22, 0.42, 0.1, 'YXZ')));
+  // 박수 받을 때 베이스를 한 바퀴 휙
+  let spinning = false;
+  if (DIR.bassSpin) { const k = (NOW.t - DIR.bassSpin.t0) / DIR.bassSpin.dur; if (k >= 1) DIR.bassSpin = null; else if (k > 0) { spinning = true; b.quaternion.multiply(_dq2.setFromAxisAngle(UPY, smooth01(k) * Math.PI * 2)); } }
   b.updateMatrixWorld(true);
   DIR.pluck = Math.max(0, DIR.pluck - dt * 9);
   const top = findA(b, 'neckTop'), low = findA(b, 'neckLow'), pl = findA(b, 'pluck');
@@ -4970,13 +5000,16 @@ function updateBassist(dt, t) {
     bs.reach('L', lh.add(towardMe), bs.local(0.9, 1.1, -0.2), null, 'grip');
     const rp = wpos(pl, _d3).clone().add(bs.local(0, 0, 0).sub(bs.local(1, 0, 0)).multiplyScalar(-0.06 + DIR.pluck * 0.07)).add(V3(0, DIR.pluck * 0.02, 0));
     bs.reach('R', rp, bs.local(-0.9, 0.7, -0.4), null, DIR.pluck > 0.3 ? 'point' : 'relax');
+    if (spinning) bs.reach('R', bs.local(-0.34, 1.78, 0.2), null, null, 'spread');
   }
+  finBandPose('bs', bs, t);
   if (b.userData.strings) for (const s of b.userData.strings) s.scale.x = 1 + DIR.pluck * 0.6 * Math.sin(t * 90);
 }
 // ---------- 피아노 ----------
 function updatePianist(dt, t) {
   const pn = BAND.pn, P = BAND.piano, kx = P.userData.keyX, ky = P.userData.keyTopY || 0.72;
   pn.c.stand = pn.standUntil && t < pn.standUntil ? 1 : 0;
+  if (finBandPose('pn', pn, t)) return;
   if (pn.standUntil && t < pn.standUntil) { const a = pn.standUntil - t; if (a > 4.5) cheekHands(pn); else headHands(pn); if (!pn.exUntil) pn.express(a > 4.5 ? 'jawdrop' : 'stunlaugh', 1); pn.c.disbelief = a < 4.5 && a > 2 ? 1 : 0; return; }
   if (pn.handsOffUntil && t < pn.handsOffUntil) { pn.reach('L', pn.local(0.12, pn.seatY + 0.2, 0.3), null, null, 'relax'); pn.reach('R', pn.local(-0.12, pn.seatY + 0.2, 0.3), null, null, 'relax'); return; }
   const kf = findA(P, 'keysFront');
@@ -4994,6 +5027,7 @@ function updatePianist(dt, t) {
 // ---------- 드럼 ----------
 function updateDrummer(dt, now) {
   const dr = BAND.dr, kit = BAND.kit, P = kit.userData.pieces || {};
+  finBandPose('dr', dr, NOW.t);
   for (const s of ['L', 'R']) {
     const Hh = DIR.hits[s];
     while (Hh.length > 1 && Hh[1].t <= now) Hh.shift();
@@ -5010,9 +5044,11 @@ function updateDrummer(dt, now) {
     const back = dr.local(0, tgt.y - dr.root.position.y, 0).sub(tgt).setY(0).normalize();
     const hand = tgt.clone().addScaledVector(back, 0.3).add(V3(0, 0.1 + lift, 0));
     if (DIR.countOff > 0) hand.copy(dr.local(s === 'L' ? 0.1 : -0.1, 1.45 + (Math.sin(now * 22) > 0 ? 0.03 : 0), 0.4));
+    if (s === 'R' && DIR.stickToss) hand.copy(dr.local(-0.26, 1.42, 0.36));      // 던진 스틱 받으려고 손을 들고 있음
+    if (FIN.band) hand.copy(dr.local(s === 'L' ? 0.24 : -0.24, 1.6 + Math.sin(NOW.t * 13 + (s === 'L' ? 0 : 1.6)) * 0.07, 0.32));      // 공연 끝: 스틱을 머리 위로 흔듦
     if (!DIR['dh' + s]) DIR['dh' + s] = hand.clone();
     DIR['dh' + s].lerp(hand, 1 - Math.exp(-dt * 20));
-    DIR['dt' + s] = tgt;
+    DIR['dt' + s] = FIN.band ? DIR['dh' + s].clone().add(dr.local(s === 'L' ? -0.12 : 0.12, 0.5, 0.05).sub(dr.local(0, 0, 0))) : tgt;
     dr.reach(s, DIR['dh' + s], dr.local(s === 'L' ? 0.9 : -0.9, 0.7, -0.5), null, 'fist');
   }
   // 필살기: 왼손으로 폰 꺼내 나를 찍음 (오른손은 라이드 계속)
@@ -5045,6 +5081,12 @@ function placeSticksAfter() {
     const tgt = DIR['dt' + s] || dr.local(0, 1.0, 0.6);
     const dir = tgt.clone().sub(hp).normalize();
     for (const k of [s, 'b' + s]) { const st = dr.sticks[k]; st.position.copy(hp).addScaledVector(dir, -0.05); st.quaternion.setFromUnitVectors(UPY, dir); }
+    // 스틱 던져 받기: 빙글빙글 돌며 올라갔다 손으로 떨어짐
+    if (s === 'R' && DIR.stickToss) {
+      const k = (NOW.t - DIR.stickToss.t0) / DIR.stickToss.dur;
+      if (k >= 1) DIR.stickToss = null;
+      else if (k > 0) { const st = dr.sticks.R; st.position.copy(hp).add(_d1.set(0, 4 * k * (1 - k) * 1.05, 0)); st.quaternion.setFromAxisAngle(_d2.set(1, 0, 0), k * Math.PI * 6); }
+    }
   }
 }
 
@@ -5075,6 +5117,11 @@ function setupCrowd(scene) {
     scene.add(p.root);
     const r = seeded(seed * 31);
     const m = { p, kind: sp.kind, spot: sp, watch: r(), wild: r(), act: null, nextAct: rand(0, 2), friend: null, far, standWish: 0, phase0: r() * 2 };
+    { // 일어섰을 때 설 자리 (자리 기준 이동량, 월드)
+      const f = V3(Math.sin(sp.yaw), 0, Math.cos(sp.yaw)), left = V3(f.z, 0, -f.x);
+      if (sp.table) { const side = sp.table.clone().sub(sp.pos).setY(0).dot(left) > 0 ? -1 : 1; m.standOff = f.clone().multiplyScalar(0.2).addScaledVector(left, 0.26 * side); }
+      else m.standOff = f.clone().multiplyScalar(sp.kind === 'bar' ? 0.3 : 0.34);
+    }
     p.c.phase = m.phase0; p.c.groove = 0.035; p.c.nod = 0.04; p.c.sway = 0.025;
     const roles = ['mouthFreeze', 'phone', 'stankSlap', 'laughFold', 'filmPro', 'mouthFreeze', 'phone', 'riseStun'];
     m.signature = sp.kind === 'front' ? roles[CROWD.list.length % roles.length] : ['drinkFreeze', 'friendTap', 'convert', 'friendLean'][CROWD.list.length % 4];
@@ -5169,6 +5216,8 @@ function runCrowdAct(m, t, beat) {
     }
     case 'headHands': headHands(p); break;
     case 'cheeks': cheekHands(p); break;
+    case 'throw': actThrow(m, p, a, F, t); break;
+    case 'popper': actPopper(m, p, a, F, t); break;
     case 'whistle': p.reach('R', at(F, 0.2, 0.03, 0.3), null, null, 'pinch'); p.rest('L'); break;
     case 'snap': {
       const ph = ((beat + 1) % 2 + 2) % 2, hit = Math.exp(-Math.pow((ph - 1) / 0.14, 2));
@@ -5195,6 +5244,7 @@ function sceneFor(m, f) {
   if (f < 0.55) return /^(phone|filmPro)$/.test(m.signature) ? 'phone' : null;
   if (f < 0.72 && /^(convert|riseStun|friendLean|filmPro)$/.test(m.signature)) return 'stankSlap';
   if (m.reserved && !m.converted && f > 0.5) return 'convert';
+  if (f > 0.72 && Math.random() < 0.45) { const h = hypeScene(m, f); if (h) return h; }
   if (m.sceneCount % 3 !== 2) return m.signature;
   return pick(m.kind === 'seat' ? ['mouthFreeze', 'drinkFreeze', 'riseStun', 'laughFold'] : ['mouthFreeze', 'stankSlap', 'laughFold', 'phone']);
 }
@@ -5210,6 +5260,7 @@ function queueCrowdScene(m, k, delay = 0, extra = {}) {
     if (!friend || friend.p.root.position.distanceTo(m.p.root.position) > 0.98 || friend.pending || (friend.act && friend.act.story)) k = 'mouthFreeze';
     else extra.friend = friend;
   }
+  if (k === 'hugJump') extra.friend = m.friend;
   m.pending = { k, at: t + delay, dur: CROWD_SCENES[k] || 6, extra };
   return true;
 }
@@ -5222,7 +5273,7 @@ function startCrowdScene(m, k, dur = CROWD_SCENES[k], extra = {}) {
   m.sceneCount++; m.nextScene = t + dur + rand(7, 15);
   if (extra.friend) {
     const f = extra.friend;
-    f.act = { k: k === 'shakeFriend' ? 'shaken' : 'buddy', t0: t, until: t + dur, story: true, friend: m, source: k, seat: f.p.s.stand > 0.7 ? 1 : 0 };
+    f.act = { k: k === 'shakeFriend' ? 'shaken' : k === 'hugJump' ? 'hugged' : 'buddy', t0: t, until: t + dur, story: true, friend: m, source: k, seat: f.p.s.stand > 0.7 ? 1 : 0 };
     f.nextScene = t + dur + rand(6, 12);
   }
   if (k === 'faint') startFaint(m);
@@ -5307,7 +5358,7 @@ function makeCrowdProp(m, kind) {
       add(new THREE.CylinderGeometry(0.004, 0.004, p.R * 0.9, 5), col, [sx * p.R * 0.82, 0, -p.R * 0.4]).rotation.x = Math.PI / 2;
     }
     add(new THREE.CylinderGeometry(0.004, 0.004, E.x, 5), col).rotation.z = Math.PI / 2;
-  }
+  } else { const ud = hypeProp(kind, add, m); if (ud) Object.assign(g.userData, ud); }
   // Keep each small prop cheap on mobile, including the existing outline pass.
   const solids = g.children.filter(o => o.isMesh && !o.material.isMeshBasicMaterial);
   if (solids.length > 1) {
@@ -5459,11 +5510,22 @@ function updateCrowdProps(m, t) {
       }
       props.phone.visible = true; props.phone.position.copy(D.pos); props.phone.quaternion.copy(D.q);
     } else {
-      props.phone.visible = !!(a && (a.k === 'phone' || a.k === 'filmPro' || a.k === 'phoneDrop') && a.phoneQ && a.phoneVisible);
+      props.phone.visible = !!(a && a.phoneQ && a.phoneVisible);
       if (props.phone.visible) { props.phone.position.copy(hand('R')).add(a.phoneOffset); props.phone.quaternion.copy(a.phoneQ); }
     }
   }
   if (props.cup && props.cup.visible) { props.cup.position.copy(hand('R')).add(V3(0, 0.025, 0)); props.cup.rotation.set(0, p.root.rotation.y, 0); }
+  // 그 밖의 소품: 장면이 a.hold = { 종류: { pos | side, off, q, s } } 로 알려 주면 그 자리에
+  for (const k in props) {
+    if (k === 'phone' || k === 'cup' || k === 'glasses' || k === 'cloth') continue;
+    const pr = props[k], h = a && a.hold && a.hold[k];
+    if (!h) { pr.visible = false; continue; }
+    pr.visible = true;
+    if (h.pos) pr.position.copy(h.pos); else if (h.side === 'both') pr.position.copy(hand('L')).add(hand('R')).multiplyScalar(0.5); else pr.position.copy(hand(h.side || 'R'));
+    if (h.off) pr.position.add(h.off);
+    if (h.q) pr.quaternion.copy(h.q);
+    pr.scale.setScalar(h.s == null ? 1 : h.s);
+  }
   if (props.glasses) {
     const hb = p.bones[BONE.head]; hb.updateWorldMatrix(true, false);
     const home = V3(0, p.eyeP.y - p.eyeP.r * 0.05, p.eyeP.z + p.eyeP.r * 0.62).applyMatrix4(hb.matrixWorld);
@@ -5477,8 +5539,10 @@ function updateBartender(dt, t, beat, f, burst) {
   const m = CROWD.bartender, p = m.p;
   if (m.dropAt && t >= m.dropAt) { m.dropAt = 0; m.pending = null; m.cupFree = null; m.act = { k: 'glassDrop', t0: t, until: t + 6, story: true }; m.nextScene = t + 14; }
   if (m.pending && t >= m.pending.at) { m.pending = null; m.act = { k: 'barFreeze', t0: t, until: t + 8, story: true }; m.nextScene = t + rand(20, 32); }
+  if (m.bellAt && t >= m.bellAt) { m.bellAt = 0; if (!(m.act && m.act.k === 'glassDrop') && !AFTER.on) { m.pending = null; m.act = { k: 'bell', t0: t, until: t + 3.0, story: true }; m.nextScene = t + 12; } }
   if (m.act && t >= m.act.until) { finishCrowdScene(m, t); m.cupFree = null; }
   if (m.act && m.act.k === 'glassDrop') { runBartenderDrop(m, t, dt, beat); return; }
+  if (m.act && m.act.k === 'bell') { runBartenderBell(m, t, dt, beat); return; }
   if (AFTER.on) { // 공연 끝난 뒤 (첫 화면): 혼자 잔 닦기
     p.c.look.copy(p.local(0, 1.2, 1)); crowdStill(p, 0.05); m.props.cup.visible = true; m.props.cloth.visible = true;
     p.reach('R', p.local(-0.11, 1.25, 0.3), null, null, 'grip'); p.reach('L', p.local(0.03, 1.27 + Math.sin(t * 3) * 0.03, 0.31), null, null, 'flat'); p.setBase('calm');
@@ -5538,7 +5602,7 @@ function crowdUpdate(dt, t, beat) {
     const actorDt = Math.min(m.animElapsed, 0.1); m.animElapsed = 0; m.animDt %= interval;
     const p = m.p;
     if (!p.root.visible) continue;
-    p.c.headTilt = 0; p.c.headShake = 0; p.c.side = 0; p.c.twist = 0; p.c.step = 0; p.c.disbelief = 0;
+    p.c.headTilt = 0; p.c.headShake = 0; p.c.side = 0; p.c.twist = 0; p.c.step = 0; p.c.disbelief = 0; p.c.hipSway = 0;
     // 따로 움직이는 사람 (무대에 올라온 팬, 첫 화면에 남은 사람)
     if (m.override) { m.override(m, t, actorDt, beat); p.update(actorDt, t, beat); updateCrowdProps(m, t); continue; }
     if (m.act && t >= m.act.until) finishCrowdScene(m, t);
@@ -5565,8 +5629,11 @@ function crowdUpdate(dt, t, beat) {
       if (!m.act?.story || f < 0.38) m.rush = damp(m.rush || 0, rush, f < 0.38 ? 6 : 1.2, actorDt);
       const sp = m.spot.pos, dz = -2.6 - sp.z, dx = -sp.x * 0.25, dl = Math.hypot(dx, dz) || 1;
       p.root.position.set(sp.x + dx / dl * m.rush, sp.y, Math.min(sp.z + dz / dl * m.rush, Math.max(sp.z, LAYOUT.stage.zFront - 0.38)));
-      if (m.walkOff) p.root.position.add(m.walkOff);
-    }
+    } else if (m.spot) p.root.position.copy(m.spot.pos);
+    // 일어서면 의자 앞으로 한 발 (의자 위에 올라설 때는 제자리)
+    if (m.standOff) { const k = smooth01(p.s.stand) * (m.offK == null ? 1 : clamp(m.offK, 0, 1)); if (k > 0.001) { p.root.position.x += m.standOff.x * k; p.root.position.z = Math.min(p.root.position.z + m.standOff.z * k, Math.max(m.spot.pos.z, LAYOUT.stage.zFront - 0.36)); } }
+    if (m.walkOff) p.root.position.add(m.walkOff);
+    if (m.liftY) p.root.position.y += m.liftY;
     p.c.headBang = f > 0.85 && m.wild > 0.75 ? 0.6 : 0;
     p.c.lean = watching ? 0.03 + f * 0.17 : 0;
     // 시선
@@ -5588,6 +5655,7 @@ function crowdUpdate(dt, t, beat) {
     if (!m.act && !m.pending && t > m.nextAct) chooseAct(m, f, burst, watching, t);
     if (m.act) runCrowdAct(m, t, beat); else { p.rest('L'); p.rest('R'); }
     if (holdStanding) p.c.stand = 1;
+    applyShock(m, t);
     p.update(actorDt, t, beat);
     updateCrowdProps(m, t);
   }
@@ -5596,6 +5664,7 @@ function crowdUpdate(dt, t, beat) {
     if (b.animDt >= 1 / 20) { const step = Math.min(b.animElapsed, 0.1); b.animElapsed = 0; b.animDt %= 1 / 20; updateBartender(step, t, beat, f, burst); }
   }
   crowdSound(dt, t, f, burst);
+  hypeBeat(t, f);
 }
 function chooseAct(m, f, burst, watching, t) {
   const p = m.p, standing = p.s.stand > 0.7;
@@ -5663,6 +5732,7 @@ function chooseAct(m, f, burst, watching, t) {
   }
 }
 function crowdOnEvent(ev) {
+  hypeOnEvent(ev);
   if (bigOnEvent(ev)) return;
   const W = CROWD.list.filter(m => m.watch < 0.25 + REACT.frenzy && !m.override && m.p.root.visible);
   const some = n => shuffle(W.slice()).slice(0, n);
@@ -5719,14 +5789,14 @@ function crowdSound(dt, t, f, burst) {
   // 박수 바탕
   let clap = 0, big = 0;
   if (burst) { const age = t - burst.t, left = burst.until - t; const env = clamp(age / 0.4, 0, 1) * smoothstep(0, burst.fade || 1.2, left); if (burst.kind === 'polite') clap = 0.18 * env; else if (burst.kind === 'ovation') { big = 0.75 * burst.k * env; clap = 0.3 * env; } else { clap = 0.32 * burst.k * env; big = burst.k > 0.85 ? 0.35 * env : 0; } }
-  const hush = (SPX.hush && t < SPX.hush.until) || ENDL.stage === 2;
-  if (hush) { clap = 0; big = 0; }
+  const hush = (SPX.hush && t < SPX.hush.until) || ENDL.stage === 2 || (FIN.on && FIN.hushK > 0.5);
+  if (hush) { clap = 0; big = 0; } else if (FIN.on) { clap = 0.3 * FIN.loud; big = 0.8 * FIN.loud; }
   CROWD.clapBed = damp(CROWD.clapBed, clap, hush ? 14 : 6, dt); CROWD.bigBed = damp(CROWD.bigBed || 0, big, hush ? 14 : 6, dt);
   BED.applause.g.gain.setTargetAtTime(CROWD.clapBed, AE.ctx.currentTime, 0.08);
   BED.applauseBig.g.gain.setTargetAtTime(CROWD.bigBed, AE.ctx.currentTime, 0.08);
   // 함성 바탕: 광기가 높을 때만 (음악을 덮지 않게)
   const roar = hush ? 0 : (REACT.meSolo ? smoothstep(0.62, 1, f) * 0.22 : 0) + (burst && burst.k > 0.8 ? 0.28 * smoothstep(0, burst.fade || 1, burst.until - t) : 0);
-  CROWD.roar = damp(CROWD.roar, roar, hush ? 12 : 3, dt);
+  CROWD.roar = damp(CROWD.roar, FIN.on && !hush ? 0.3 * FIN.loud : roar, hush ? 12 : 3, dt);
   BED.roar.g.gain.setTargetAtTime(CROWD.roar, AE.ctx.currentTime, 0.1);
   // 광기 중 간간이 "우—!"
   if (!hush && REACT.meSolo && f > 0.55 && t - CROWD.lastWhoop > lerp(2.5, 0.35, smoothstep(0.55, 1, f))) { CROWD.lastWhoop = t + rand(0, 0.4); whoop(AE.ctx.currentTime + 0.02, { vol: rand(0.1, 0.2) }); }
@@ -5866,7 +5936,7 @@ function reactOnSong(e) {
     R.inBreak = e.on; reactEvent(e.on ? 'breakOn' : 'breakOff', {});
   } else if (e.type === 'cue') reactEvent('cue', { kind: e.kind, player: e.player });
   else if (e.type === 'fermata') reactEvent('fermata', {});
-  else if (e.type === 'cut') { R.meSolo = false; ovation(); }
+  else if (e.type === 'cut') { R.meSolo = false; if (FIN.req && !FIN.on) finBegin(); else if (!FIN.on) ovation(); }
   else if (e.type === 'gap') reactEvent('gap', {});
 }
 function playerApplauseActive() {
@@ -5936,10 +6006,11 @@ const BIG_SCENES = { freeze: 3, slapHead: 5.6, handsTop: 5.4, mindBlown: 5.2, sp
 Object.assign(CROWD_SCENES, BIG_SCENES);
 
 // ---------- 물방울·유리 조각 (점 입자) ----------
-const FXP = { pts: null, n: 260, pos: null, vel: [], life: [], max: [], size: null, alpha: null, col: null, cur: 0, mat: null };
+const FXP = { pts: null, n: 560, pos: null, vel: [], life: [], max: [], size: null, alpha: null, col: null, cur: 0, mat: null, grav: null, drag: null };
 function fxInit(scene) {
   const n = FXP.n, g = new THREE.BufferGeometry();
   FXP.pos = new Float32Array(n * 3); FXP.size = new Float32Array(n); FXP.alpha = new Float32Array(n); FXP.col = new Float32Array(n * 3);
+  FXP.grav = new Float32Array(n).fill(7.5); FXP.drag = new Float32Array(n).fill(1.2);
   for (let i = 0; i < n; i++) { FXP.pos[i * 3 + 1] = -50; FXP.vel.push(new THREE.Vector3()); FXP.life.push(0); FXP.max.push(1); }
   g.setAttribute('position', new THREE.BufferAttribute(FXP.pos, 3)); g.setAttribute('size', new THREE.BufferAttribute(FXP.size, 1));
   g.setAttribute('alpha', new THREE.BufferAttribute(FXP.alpha, 1)); g.setAttribute('color', new THREE.BufferAttribute(FXP.col, 3));
@@ -5955,11 +6026,13 @@ function fxInit(scene) {
   });
   FXP.pts = new THREE.Points(g, FXP.mat); FXP.pts.frustumCulled = false; FXP.pts.renderOrder = 8; scene.add(FXP.pts);
 }
-function fxEmit(p, v, size, life, color) {
+const _fxc = new THREE.Color();
+function fxEmit(p, v, size, life, color, grav = 7.5, drag = 1.2) {
   const i = FXP.cur; FXP.cur = (FXP.cur + 1) % FXP.n;
+  FXP.grav[i] = grav; FXP.drag[i] = drag;
   FXP.pos[i * 3] = p.x; FXP.pos[i * 3 + 1] = p.y; FXP.pos[i * 3 + 2] = p.z; FXP.vel[i].copy(v);
   FXP.size[i] = size; FXP.life[i] = life; FXP.max[i] = life; FXP.alpha[i] = 1;
-  const c = new THREE.Color(color); FXP.col[i * 3] = c.r; FXP.col[i * 3 + 1] = c.g; FXP.col[i * 3 + 2] = c.b;
+  const c = _fxc.set(color); FXP.col[i * 3] = c.r; FXP.col[i * 3 + 1] = c.g; FXP.col[i * 3 + 2] = c.b;
 }
 // 입에서 뿜는 술: 물방울 + 안개
 function fxSpray(o, dir, n = 44, color = '#ffe08a') {
@@ -5976,14 +6049,16 @@ function fxShards(o, n = 26) { for (let i = 0; i < n; i++) fxEmit(o, _bv.set(ran
 function fxPop(o) { for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; fxEmit(o, _bv.set(Math.cos(a) * 1.6, 1.2 + Math.sin(a) * 1.2, rand(-0.5, 0.5)).clone(), rand(0.12, 0.2), 0.45, i % 2 ? '#ffe36b' : '#ffffff'); } }
 function fxUpdate(dt) {
   if (!FXP.pts) return;
-  const P = FXP.pos;
+  const P = FXP.pos, ST = LAYOUT.stage;
   for (let i = 0; i < FXP.n; i++) {
     if (FXP.life[i] <= 0) continue;
     FXP.life[i] -= dt;
     const v = FXP.vel[i];
-    v.y -= 7.5 * dt; v.multiplyScalar(1 - 1.2 * dt);
+    v.y -= FXP.grav[i] * dt; v.multiplyScalar(Math.max(0, 1 - FXP.drag[i] * dt));
+    if (FXP.drag[i] > 2) P[i * 3] += Math.sin(FXP.life[i] * 7 + i) * 0.35 * dt;      // 색종이: 팔랑팔랑
     P[i * 3] += v.x * dt; P[i * 3 + 1] += v.y * dt; P[i * 3 + 2] += v.z * dt;
-    if (P[i * 3 + 1] < 0.02) { P[i * 3 + 1] = 0.02; v.y *= -0.2; v.x *= 0.5; v.z *= 0.5; }
+    const fy = P[i * 3 + 2] > ST.zFront && P[i * 3 + 2] < ST.zBack && P[i * 3] > ST.x0 && P[i * 3] < ST.x1 ? LAYOUT.stageY + 0.02 : 0.02;
+    if (P[i * 3 + 1] < fy) { P[i * 3 + 1] = fy; v.y *= -0.2; v.x *= 0.5; v.z *= 0.5; }
     FXP.alpha[i] = clamp(FXP.life[i] / FXP.max[i] * 1.6, 0, 1);
     if (FXP.life[i] <= 0) { P[i * 3 + 1] = -50; FXP.alpha[i] = 0; }
   }
@@ -6088,6 +6163,7 @@ function runBigScene(m, t, a, age, F) {
         if (k > 0.05) { p.reach('L', F.c.clone().addScaledVector(sideW(F, 1), 0.36).addScaledVector(UPY, -0.62).addScaledVector(F.f, -0.05), null, null, 'relax'); p.reach('R', F.c.clone().addScaledVector(sideW(F, -1), 0.36).addScaledVector(UPY, -0.62).addScaledVector(F.f, -0.05), null, null, 'relax'); }
         sceneFace(p, age < 0.35 ? 'jawdrop' : (age < 4.6 ? 'out' : 'disbelief'));
       }
+      if (a.soul) soulPose(m, a, age);
       break;
     }
     case 'catch': {
@@ -6188,13 +6264,22 @@ function runBigScene(m, t, a, age, F) {
       faceTint(p, ENDL.level);
       break;
     }
+    case 'soulGrab': {
+      // 친구 혼이 빠져나가는 걸 붙잡으려 허우적
+      const s = a.soul; crowdStill(p); p.c.lean = 0.1;
+      if (s) { p.c.look.copy(s); const g = Math.sin(age * 11) > 0; p.reach('R', s.clone().add(_bv.set(0, -0.12 + Math.sin(age * 9) * 0.05, 0)), null, null, g ? 'grip' : 'spread'); p.reach('L', s.clone().add(_bv.set(0, -0.2 - Math.sin(age * 9) * 0.05, 0)), null, null, g ? 'spread' : 'grip'); sceneFace(p, 'gasp'); }
+      else { p.c.look.copy(a.friend ? a.friend.p.headWorld(_bv3) : CROWD.me); sceneFace(p, age < 1 ? 'gasp' : 'stunlaugh'); }
+      break;
+    }
+    default: runHypeScene(m, t, a, age, F);
   }
 }
 // 장면 끝: 자세 원래대로
 function resetBigPose(m) {
   const p = m.p;
-  p.root.rotation.x = 0; p.c.kneel = 0; p.c.slump = 0; p.c.puff = 0; p.c.lookW = 1; p.c.step = 0;
+  p.root.rotation.x = 0; p.c.kneel = 0; p.c.slump = 0; p.c.puff = 0; p.c.lookW = 1; p.c.step = 0; p.c.hipSway = 0;
   if (m.walkOff) m.walkOff.set(0, 0, 0);
+  m.liftY = 0; m.offK = 1;
   if (m.spot) p.root.rotation.y = m.spot.yaw;
   if (m.drop) { m.drop = null; }
   faceTint(p, 0);
@@ -6233,6 +6318,8 @@ function forceScene(m, k, delay = 0, extra = {}) {
   if ((k === 'shakeFriend') && (!m.friend || m.friend.override || m.friend.p.root.position.distanceTo(m.p.root.position) > 1.15)) k = 'handsTop';
   if (k === 'spitTake' && m.kind === 'front') k = 'slapHead';
   if ((k === 'slideOff') && m.kind === 'front') k = 'kneel';
+  if (k === 'soulFaint') { k = 'faint'; extra = { ...extra, soul: true }; }
+  if (k === 'chairDance' && m.kind !== 'seat') k = 'towelSpin';
   if (k === 'walkAway' && m.kind !== 'front') k = 'mindBlown';
   if (k === 'kneel' && m.kind === 'bar') k = 'slideOff';
   m.pending = { k, at: t + delay, dur: CROWD_SCENES[k] || 5, extra: { ...extra, force: true } };
@@ -6243,6 +6330,8 @@ function startFaint(m) {
   if (a.standing && m.friend && !m.friend.override && m.friend.p.s.stand > 0.6 && m.friend.p.root.position.distanceTo(m.p.root.position) < 1.25 && !(m.friend.act && m.friend.act.story && m.friend.act.k !== 'freeze') && Math.random() < 0.6) {
     a.caught = true; m.friend.pending = null;
     m.friend.act = { k: 'catch', t0: NOW.t, until: NOW.t + a.until - NOW.t, story: true, friend: m, seat: 1 };
+  } else if (a.soul && m.friend && !m.friend.override && !m.friend.pending && !(m.friend.act && m.friend.act.story && m.friend.act.k !== 'freeze') && m.friend.p.root.position.distanceTo(m.p.root.position) < 1.3) {
+    m.friend.act = { k: 'soulGrab', t0: NOW.t, until: a.until - 0.6, story: true, friend: m, seat: m.friend.p.s.stand > 0.7 ? 1 : 0 };
   }
 }
 
@@ -6338,8 +6427,8 @@ function addBackCrowd(n) {
 
 // ===== 77_special.js =====
 // ===================== 더블 트럼펫 필살기 =====================
-// 게이지: 내 솔로로 차오름 (첫 번째는 빨리). 버튼(또는 Shift)을 누르고 있는 동안 왼손이 두 번째 트럼펫을 듦.
-// 들고 부는 동안 두 번째 트럼펫이 화음을 냄. 가득 찬 게이지로 처음 불 때 큰 장면.
+// 게이지: 내 솔로로 차오름 (첫 번째는 빨리). 버튼(또는 Shift)을 한 번 누르면 왼손이 두 번째 트럼펫을 들고, 다시 누르면 내림.
+// 들고 부는 동안 두 번째 트럼펫이 화음을 냄 (게이지는 소리를 내는 동안만 닳고, 다 닳으면 저절로 내림). 가득 찬 게이지로 처음 불 때 큰 장면.
 const SPX = { g: 0, held: false, active: false, k: 0, firstCharge: true, voice2: null, pan: null, harm: null, pieceDue: false, pieces: 0, raisedEvt: false, hush: null, boomAt: 0, boomDone: true, uiG: -1 };
 function spInitAudio() {
   const ctx = AE.ctx;
@@ -6385,10 +6474,11 @@ function spVoiceStop(t, rel = 0.06, flick = null) {
   else v.release(t, rel);
 }
 function spPress(on) {
-  if (on && !SPX.held && SPX.g < 0.02 && UI.el.special) { UI.el.special.classList.remove('nope'); void UI.el.special.offsetWidth; UI.el.special.classList.add('nope'); }
-  SPX.held = on;
-  if (!on) SPX.needRelease = false;
+  if (on && !SPX.held && SPX.g < 0.02) { const el = UI.el.special; if (el) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); } return; }
+  SPX.held = !!on;
 }
+// 한 번 누르면 켜고, 다시 누르면 끔
+function spToggle() { spPress(!SPX.held); }
 function spUpdate(dt) {
   const now = AE.ctx ? AE.ctx.currentTime : 0, R = REACT;
   const playing = GAME.phase === 'play' && UI.playing && MUS.running;
@@ -6399,18 +6489,20 @@ function spUpdate(dt) {
     if (SPX.g >= 1) SPX.pieceDue = true;
   }
   // 발동 · 끝
-  if (SPX.held && !SPX.needRelease && playing && SPX.g > 0.02 && !SPX.active) {
+  if (GAME.state === 'paused') { spUI(); return; }   // 멈춘 동안은 켠 상태 그대로
+  if (SPX.held && playing && SPX.g > 0.02 && !SPX.active) {
     SPX.active = true; SPX.raisedEvt = false;
     if (TP.blowing && TP.voice) spVoiceStart(now + 0.01, TP.cur, levelFor(TP.cur));
   }
   if (SPX.active) {
-    SPX.g -= dt / (8 * 4 * curSpb());
+    if (meActive(now)) SPX.g -= dt / (8 * 4 * curSpb());
     if (SPX.g <= 0 || !SPX.held || !playing) {
-      SPX.active = false;
-      if (SPX.g <= 0.02) { SPX.g = 0; SPX.firstCharge = false; SPX.pieceDue = false; SPX.needRelease = SPX.held; }
+      SPX.active = false; SPX.held = false;
+      if (SPX.g <= 0.02) { SPX.g = 0; SPX.firstCharge = false; SPX.pieceDue = false; }
       if (AE.ctx) spVoiceStop(now + 0.005, 0.08);
     }
   }
+  if (SPX.held && !SPX.active) SPX.held = false;
   SPX.k = damp(SPX.k, SPX.active ? 1 : 0, SPX.active ? 7 : 5, dt);
   // 들어 올린 순간: 앞줄이 먼저 알아챔
   if (SPX.active && SPX.k > 0.85 && !SPX.raisedEvt) { SPX.raisedEvt = true; reactEvent('specialRaise', {}); }
@@ -6427,6 +6519,7 @@ function spUI() {
   if (Math.abs(SPX.uiG - g) > 0.004) { el.style.setProperty('--g', (g * 100).toFixed(1) + '%'); SPX.uiG = g; }
   el.classList.toggle('ready', g >= 0.999 && !SPX.active);
   el.classList.toggle('on', SPX.active);
+  if (SPX.uiOn !== SPX.active) { SPX.uiOn = SPX.active; el.setAttribute('aria-pressed', SPX.active ? 'true' : 'false'); }
 }
 // 큰 장면: 밴드가 끊기고 객석이 "헉" → 정적 → 앞줄부터 뒤로 기절초풍 → 밴드가 돌아오며 폭발
 function specialSetPiece() {
@@ -6444,11 +6537,11 @@ function specialSetPiece() {
   const sorted = list.slice().sort((a, b) => b.p.root.position.z - a.p.root.position.z);
   const pools = {
     front: ['slapHead', 'handsTop', 'kneel', 'faint', 'mindBlown', 'walkAway', 'shakeFriend', 'phoneDrop', 'slapHead', 'handsTop'],
-    seat: ['spitTake', 'slideOff', 'faint', 'slapHead', 'mindBlown', 'shakeFriend', 'handsTop', 'spitTake', 'slideOff'],
+    seat: ['spitTake', 'slideOff', 'soulFaint', 'slapHead', 'mindBlown', 'shakeFriend', 'handsTop', 'spitTake', 'slideOff', 'faint'],
     bar: ['slideOff', 'spitTake', 'handsTop'], back: ['slapHead', 'handsTop', 'mindBlown'],
   };
-  const cap = { faint: n === 1 ? 3 : 2, kneel: 3, walkAway: 2, spitTake: 3, slideOff: 3, phoneDrop: 2, shakeFriend: 3 };
-  const used = {}, idx = { front: randi(0, 9) + n * 3, seat: randi(0, 8) + n * 2, bar: n, back: n };
+  const cap = { faint: n === 1 ? 3 : 2, soulFaint: 2, kneel: 3, walkAway: 2, spitTake: 3, slideOff: 3, phoneDrop: 2, shakeFriend: 3 };
+  const used = {}, idx = { front: randi(0, 9) + n * 3, seat: randi(0, 9) + n * 2, bar: n, back: n };
   const taken = new Set(), N = sorted.length, gap = n === 1 ? 0.9 : 0.5, span = n === 1 ? 2.5 : 1.9;
   sorted.forEach((m, i) => {
     if (taken.has(m)) return;
@@ -6487,6 +6580,9 @@ function specialBoom() {
   crowdWhoops(12); crowdWhistles(5);
   for (let i = 0; i < 3; i++) laugh(now + rand(0.6, 2.2), { vol: 0.12 });
   if (playVoiceClip(now + 0.1, { pan: rand(-0.6, 0.6), vol: 0.55 })) playVoiceClip(now + rand(0.8, 1.4), { pan: rand(-0.6, 0.6), vol: 0.5 });
+  // 충격파 · 폭죽 · 꽃 세례 · 구호. 두 번째부터는 바텐더가 종을 치고 리더가 절함
+  crowdShock(1.2); poppers(3, 1.6); throwGifts(8, 3); REACT.later(1.2, () => startChant(2));
+  if (SPX.pieces >= 2) { bartenderBell(1.4); REACT.later(2.2, () => tbWorship(5)); }
 }
 
 // ===== 78_rules.js =====
@@ -6626,7 +6722,7 @@ function preStart() {
   GAME.phase = 'pre'; CROWD.pre = true; CROWD.preHeard = false; ME.introK = 0;
   setBed('babble', 0.13, 1.0);
   for (const m of CROWD.list) { m.lookFriend = 0; m.nextAct = NOW.t + rand(0, 1.2); }
-  UI.el.nextSong.style.display = 'none'; UI.el.hudMode.style.display = 'none'; UI.el.special.style.display = 'none';
+  UI.el.nextSong.style.display = 'none'; UI.el.hudMode.style.display = 'none'; UI.el.special.style.display = 'none'; UI.el.endShow.style.display = 'none';
 }
 function preBuzzDown(pos) {
   if (!AE.ctx || PRE.buzz || PRE.assembleT) return;
@@ -6667,7 +6763,7 @@ function preApplause() {
 }
 function preFinish() {
   PRE.done = true; PRE.on = false; CROWD.pre = false; GAME.phase = 'play';
-  UI.el.nextSong.style.display = 'inline-flex'; UI.el.hudMode.style.display = 'inline-flex'; UI.el.special.style.display = 'block';
+  UI.el.nextSong.style.display = 'inline-flex'; UI.el.hudMode.style.display = 'inline-flex'; UI.el.special.style.display = 'block'; UI.el.endShow.style.display = 'inline-flex';
   startSet({ count: true });
 }
 
@@ -6899,7 +6995,7 @@ function itlTrombone(tb, dt, t) {
 const AFTER = { on: false, fan: null, flowers: null, data: null };
 function afterLoad() { try { return JSON.parse(localStorage.getItem('egotrip.after') || 'null'); } catch (e) { return null; } }
 function afterSave() {
-  if (GAME.phase !== 'play' && GAME.phase !== 'pre') return;
+  if (GAME.phase !== 'play' && GAME.phase !== 'pre' && GAME.phase !== 'finale') return;
   try { localStorage.setItem('egotrip.after', JSON.stringify({ peak: Math.round(REACT.peak || 0), specials: SPX.pieces, songs: MUS.songsPlayed, at: Date.now() })); } catch (e) { }
 }
 function afterShow() {
@@ -6946,7 +7042,7 @@ function buildFlowers(d) {
 }
 // 시작할 때 한 번: 입자·창문 자리·사람별 설정
 function bigInit() {
-  fxInit(SC.scene); initWindowSlots();
+  fxInit(SC.scene); initWindowSlots(); buildBell();
   for (const m of CROWD.list) {
     m.p.root.rotation.order = 'YXZ'; m.followK = rand(0.7, 1.25);
     m.idleLook = pick([V3(rand(-5, 5), 1.3, rand(-13, -7)), V3(rand(-6, 6), 1.5, -14.6), V3(rand(-7, 7), 1.6, rand(-12, -5))]);
@@ -7021,9 +7117,10 @@ function bigOnEvent(ev) {
 const UI = { el: {}, playing: false, marksKey: '', kbPos: null, inputRect: null, fingerPos: null, fingerDirty: false, cancelInput: null };
 function initUI() {
   const $ = id => document.getElementById(id);
-  Object.assign(UI.el, { stem: $('stem'), ribbon: $('ribbon'), marks: $('marks'), finger: $('finger'), controls: $('controls'), title: $('title'), start: $('start'), fill: document.querySelector('#start .fill'), startLabel: document.querySelector('#start b'), paused: $('paused'), pause: $('pause'), hudMode: $('hudMode'), nextSong: $('nextSong'), special: $('special') });
+  Object.assign(UI.el, { stem: $('stem'), ribbon: $('ribbon'), marks: $('marks'), finger: $('finger'), controls: $('controls'), title: $('title'), start: $('start'), fill: document.querySelector('#start .fill'), startLabel: document.querySelector('#start b'), paused: $('paused'), pause: $('pause'), hudMode: $('hudMode'), nextSong: $('nextSong'), special: $('special'), endShow: $('endShow'), finBar: $('finBar'), encore: $('encore'), finHome: $('finHome') });
   bindInput();
   bindSpecial();
+  finBind();
   document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); setMode(b.dataset.m); syncMode(); }));
   syncMode();
   $('resume').onclick = () => resumeGame();
@@ -7035,7 +7132,7 @@ function initUI() {
   // 앱이 뒤로 가면 소리까지 멈춤
   document.addEventListener('visibilitychange', () => { if (document.hidden) { afterSave(); if (UI.playing) pauseGame(); else if (AE.ctx && AE.ctx.state === 'running') AE.ctx.suspend(); } });
   window.addEventListener('pagehide', () => { afterSave(); if (UI.playing) pauseGame(); });
-  window.addEventListener('blur', () => { releaseAllInput(); fingerVisual(null); spPress(false); });
+  window.addEventListener('blur', () => { releaseAllInput(); fingerVisual(null); });
   const tryDecode = async () => {
     if (!window.JAZZ_AUDIO) return;
     try {
@@ -7069,7 +7166,7 @@ async function startGame() {
   releaseAllInput(); TP.notes.length = 0; TP.lastSoundT = -9; TP.cur = null;
   REACT.reset();
   afterEnd();
-  resetCrowdScenes();
+  resetCrowdScenes(); tossClear();
   setBed('room', 0.05); setBed('applause', 0);
   preStart();
   UI.inputRect = null;
@@ -7077,7 +7174,7 @@ async function startGame() {
 }
 function pauseGame() {
   if (!UI.playing) return;
-  releaseAllInput(); fingerVisual(null); spPress(false);
+  releaseAllInput(); fingerVisual(null);
   if (AE.ctx) AE.ctx.suspend();
   UI.playing = false; GAME.state = 'paused';
   UI.el.paused.classList.remove('hide');
@@ -7123,7 +7220,7 @@ function bindInput() {
     if (TP.mode === 'free') p = pitchToPos(Math.round(posToPitch(p)) + d);
     else { const ch = chordAtTime((AE.ctx ? AE.ctx.currentTime : 0) + 0.02); const m = stepAllowed(Math.round(posToPitch(p)), d, ch, 'S'); p = pitchToPos(m); }
     UI.kbPos = clamp(p, 0, 1);
-    if (TP.blowing) { ribbonMove(UI.kbPos); fingerVisual(UI.kbPos); } else TP.pos = UI.kbPos;
+    if (TP.blowing || PRE.buzz) { ribbonMove(UI.kbPos); fingerVisual(UI.kbPos); } else TP.pos = UI.kbPos;
   };
   window.addEventListener('keydown', e => {
     if (!UI.playing) { if ((e.code === 'Space' || e.code === 'Enter') && !UI.el.title.classList.contains('hide')) { e.preventDefault(); titleTap(); } return; }
@@ -7133,20 +7230,15 @@ function bindInput() {
     else if (e.code === 'Tab') { e.preventDefault(); setMode(TP.mode === 'snap' ? 'free' : 'snap'); syncMode(); }
     else if (e.code === 'Escape' || e.code === 'KeyP') pauseGame();
   });
-  window.addEventListener('keyup', e => { if (e.code === 'Space' && space) { space = false; if (TP.blowing) ribbonUp(); fingerVisual(null); } });
+  window.addEventListener('keyup', e => { if (e.code === 'Space' && space) { space = false; if (TP.blowing || PRE.buzz) ribbonUp(); fingerVisual(null); } });
   document.addEventListener('contextmenu', e => e.preventDefault());
 }
-// 필살기 버튼: 누르고 있는 동안 (PC는 Shift)
+// 필살기 버튼: 한 번 누르면 시작, 다시 누르면 끝 (PC는 Shift)
 function bindSpecial() {
   const b = UI.el.special; if (!b) return;
-  let pid = null;
-  b.addEventListener('pointerdown', e => { e.preventDefault(); if (!UI.playing || GAME.phase !== 'play' || pid != null) return; pid = e.pointerId; try { b.setPointerCapture(pid); } catch (x) { } spPress(true); });
-  const up = e => { if (e.pointerId !== pid) return; pid = null; spPress(false); };
-  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
+  b.addEventListener('pointerdown', e => { e.preventDefault(); if (!UI.playing || GAME.phase !== 'play') return; spToggle(); });
   b.addEventListener('animationend', e => { if (e.animationName === 'spNope') b.classList.remove('nope'); });
-  window.addEventListener('keydown', e => { if (e.key === 'Shift' && !e.repeat && UI.playing && GAME.phase === 'play') spPress(true); });
-  window.addEventListener('keyup', e => { if (e.key === 'Shift') spPress(false); });
-  window.addEventListener('blur', () => { if (pid == null) spPress(false); });
+  window.addEventListener('keydown', e => { if (e.key === 'Shift' && !e.repeat && UI.playing && GAME.phase === 'play') spToggle(); });
 }
 // 줄기 표시: 보정 모드는 지금 화음의 음 자리, 자유 모드는 반음 눈금
 function uiTick() {
@@ -7165,6 +7257,1267 @@ function uiTick() {
     const ch = chordAtTime(now + 0.03);
     for (let m = TP.lo; m <= TP.hi; m++) { if (isChordTone(m, ch)) add(m, 'ct'); else if (inSet(m, ch, 'S')) add(m, 'st'); }
   } else for (let m = TP.lo; m <= TP.hi; m++) add(m, mod12(m) === 0 ? 'tk c' : 'tk');
+}
+
+// ===== 81_hype.js =====
+// ===================== 뽕 차는 반응: 충격파 · 무대로 날아드는 꽃과 모자 · 폭죽 색종이 · 박자 박수와 구호 · 소품 장면 · 밴드 묘기 =====================
+const HYPE = { chantUntil: 0, lastBeatK: -1, last: {}, bell: null, beat: 0 };
+const _hq = new THREE.Quaternion(), _hm = new THREE.Matrix4(), _hv = new THREE.Vector3(), _hv2 = new THREE.Vector3(), _he = new THREE.Euler();
+// 같은 일이 너무 자주 겹치지 않게: gap초 안에 또 부르면 false
+const hypeOk = (k, gap) => { const t = NOW.t; if (t - (HYPE.last[k] == null ? -999 : HYPE.last[k]) < gap) return false; HYPE.last[k] = t; return true; };
+// 물체의 +z가 target을 향하게 하는 회전
+function faceQ(pos, target, out = new THREE.Quaternion()) { return out.setFromRotationMatrix(_hm.lookAt(target, pos, UPY)); }
+const lerpYaw = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return a + d * k; };
+const freeFans = () => CROWD.list.filter(m => !m.override && m.p.root.visible && !(m.act && m.act.story) && !m.pending);
+const panOf = p => clamp(p.root.position.x / 6, -0.9, 0.9);
+
+// ---------- 충격파: 무대에서 객석 뒤로 번지는 물결 (닿는 순간 몸이 뒤로 휙 젖혀짐) + 화면이 살짝 당겨짐 ----------
+function crowdShock(amp = 1, speed = 10) {
+  CROWD.shockId = (CROWD.shockId || 0) + 1;
+  CROWD.shock = { t0: NOW.t, amp, speed, id: CROWD.shockId };
+  SC.punch = Math.max(SC.punch || 0, Math.min(1.2, amp));
+}
+function applyShock(m, t) {
+  const S = CROWD.shock; if (!S || m.shockId === S.id) return;
+  const p = m.p, at0 = S.t0 + Math.hypot(p.root.position.x, p.root.position.z + 2.4) / S.speed;
+  if (t < at0) return;
+  m.shockId = S.id;
+  if (t > at0 + 0.35) return;
+  p.s.lean -= 0.5 * S.amp; p.s.jumpY += 0.05 * S.amp;
+  if (!(m.act && m.act.story)) p.express(pick(['gasp', 'wow', 'jawdrop']), 0.8);
+}
+// 큰 순간에 화면을 아주 살짝 당겼다 놓음 (무대 쪽만. 내 트럼펫은 그대로)
+function camFx(dt) {
+  const p = SC.punch || 0;
+  if (p < 0.002) { if (SC.punched) { SC.punched = false; SC.punch = 0; SC.camera.fov = SC.baseFov; SC.camera.updateProjectionMatrix(); } return; }
+  SC.punch = damp(p, 0, 6.5, dt); SC.punched = true;
+  SC.camera.fov = SC.baseFov * (1 - 0.03 * SC.punch); SC.camera.updateProjectionMatrix();
+}
+
+// ---------- 소리 ----------
+// 폭죽 "팡"
+function popSound(when, pan = 0, vol = 0.5) {
+  const ctx = AE.ctx; if (!ctx || !AE.noise) return;
+  const out = ctx.createGain(); out.gain.value = vol;
+  const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  if (pn) { pn.pan.value = clamp(pan, -1, 1); out.connect(pn); pn.connect(AE.buses.crowd); } else out.connect(AE.buses.crowd);
+  const ns = ctx.createBufferSource(); ns.buffer = AE.noise;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(2600, when); bp.frequency.exponentialRampToValueAtTime(900, when + 0.12); bp.Q.value = 0.8;
+  const ng = ctx.createGain(); ng.gain.setValueAtTime(0, when); ng.gain.linearRampToValueAtTime(1, when + 0.002); ng.gain.exponentialRampToValueAtTime(0.001, when + 0.16);
+  ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(when, rand(0, 1)); ns.stop(when + 0.2);
+  const o = ctx.createOscillator(); o.frequency.setValueAtTime(260, when); o.frequency.exponentialRampToValueAtTime(70, when + 0.09);
+  const og = ctx.createGain(); og.gain.setValueAtTime(0.9, when); og.gain.exponentialRampToValueAtTime(0.001, when + 0.12);
+  o.connect(og); og.connect(out); o.start(when); o.stop(when + 0.14);
+}
+// 바 종 "땡"
+function bellDing(when, vol = 0.2, pan = 0.4) {
+  const ctx = AE.ctx; if (!ctx) return;
+  const out = ctx.createGain(); out.gain.value = vol;
+  const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  if (pn) { pn.pan.value = pan; out.connect(pn); pn.connect(AE.buses.crowd); } else out.connect(AE.buses.crowd);
+  const f = 1180, ratios = [0.56, 0.92, 1.19, 1.71, 2.0, 2.74, 3.76], amps = [0.5, 0.6, 1, 0.5, 0.75, 0.4, 0.25], decs = [1.6, 1.3, 1.0, 0.8, 0.9, 0.5, 0.35];
+  ratios.forEach((r, i) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * r * rand(0.998, 1.002);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(amps[i] * 0.3, when + 0.003); g.gain.exponentialRampToValueAtTime(0.0006, when + decs[i]);
+    o.connect(g); g.connect(out); o.start(when); o.stop(when + decs[i] + 0.05);
+  });
+}
+// 뽀뽀 "쪽"
+function smooch(when, pan = 0, vol = 0.22) { breathBlip(when, { dur: 0.075, f0: 1100, f1: 4200, q: 7, vol, pan, att: 0.004 }); breathBlip(when + 0.07, { dur: 0.03, f0: 2400, f1: 900, q: 3, vol: vol * 0.5, pan, att: 0.002 }); }
+// 다 같이 박에 맞춰 "헤이!"
+function heyShout(when, lvl = 1) {
+  for (let i = 0; i < 6; i++) {
+    const fem = i % 2 === 0;
+    voiceBlip(when + rand(-0.008, 0.026), { dur: rand(0.17, 0.23), f0: fem ? rand(300, 390) : rand(160, 215), fem, v0: VOWEL.e, v1: [330, 2050, 2800], vol: rand(0.05, 0.085) * lvl, att: 0.012, hold: 0.45, curve: [[0, 1.12], [1, 0.86]], vib: 0, breath: 0.7, q: [4, 6, 8] });
+  }
+}
+function startChant(bars = 2) {
+  HYPE.chantUntil = NOW.t + bars * 4 * curSpb() + 0.2;
+  for (const m of shuffle(freeFans()).slice(0, 18)) crowdAct(m, 'pump', bars * 4 * curSpb(), { side: pick(['L', 'R']), both: Math.random() < 0.5 });
+}
+// 박 맞춰 내는 객석 소리: 2·4박 박수 / 구호 / 내가 오래 쉬면 "쿵쿵짝"
+function hypeBeat(t, f) {
+  if (!AE.decoded || !MUS.running || !UI.playing || GAME.phase !== 'play') return;
+  const now = AE.ctx.currentTime, tb = now + 0.09, b = barAtTime(tb), S = MUS.song;
+  if (!b || !S || tb > b.t0 + 4 * b.spb + 0.02) { HYPE.lastBeatK = -1; return; }
+  const n = Math.floor((tb - b.t0) / b.spb + 1e-4), k = b.beat0 + n;
+  if (k === HYPE.lastBeatK) return;
+  HYPE.lastBeatK = k;
+  const tk = b.t0 + n * b.spb, R = REACT;
+  if (tk < now || n > 3 || (SPX.hush && t < SPX.hush.until) || ENDL.stage === 2 || R.inBreak || MUS.fermata || b.phase === 'count' || b.phase === 'final') return;
+  const claps = (cnt, v) => { for (let i = 0; i < cnt; i++) playBuf(pick(AE.syn.claps), tk + rand(-0.012, 0.022), rand(0.08, 0.15) * v, AE.buses.crowd, { pan: rand(-0.85, 0.85), rate: rand(0.9, 1.15) }); };
+  if (t < HYPE.chantUntil) { heyShout(tk, 1); claps(5, 0.9); return; }
+  if (R.meSolo && b.feel !== 'ballad' && f > 0.45 && !(R.burst && t < R.burst.until)) { if (n === 1 || n === 3) claps(Math.round(4 + f * 5), smoothstep(0.45, 0.8, f)); return; }
+  // 한번 달아올랐던 객석은 내가 오래 쉬면 발 구르고 손뼉 치며 재촉함
+  if (MISS.k > 0.45 && R.peak > 45 && !R.meSolo) {
+    const v = smoothstep(0.45, 0.7, MISS.k);
+    if (n === 0 || n === 1) for (let i = 0; i < 4; i++) playBuf(AE.syn.stomp, tk + rand(-0.01, 0.025), rand(0.08, 0.13) * v, AE.buses.crowd, { pan: rand(-0.8, 0.8), rate: rand(0.85, 1.05) });
+    else if (n === 2) claps(7, 0.9 * v);
+  }
+}
+
+// ---------- 색종이 (폭죽·천장에서 쏟아짐) ----------
+const CONFETTI = ['#ee4a2c', '#ffbf2e', '#2f5bd8', '#13a08a', '#ff7aa8', '#fffaf0', '#7b3fb0', '#ffe36b'];
+function fxConfetti(o, dir, n = 44, spread = 1.5) {
+  const d = dir.clone().normalize();
+  for (let i = 0; i < n; i++) fxEmit(o, d.clone().multiplyScalar(rand(3.4, 6.6)).add(_hv.set(rand(-spread, spread), rand(-0.4, spread), rand(-spread, spread))), rand(0.05, 0.085), rand(1.7, 2.9), pick(CONFETTI), 2.6, 2.8);
+}
+function fxConfettiDrop(n = 150, sec = 1.6) {
+  const one = () => fxEmit(_hv.set(rand(-4.6, 4.6), rand(4.2, 4.65), rand(-7.2, -1.2)).clone(), _hv2.set(rand(-0.5, 0.5), rand(-0.9, 0), rand(-0.5, 0.5)).clone(), rand(0.055, 0.09), rand(3.2, 5.2), pick(CONFETTI), 1.6, 2.2);
+  for (let i = 0; i < n; i++) REACT.later(rand(0, sec), one);
+}
+function poppers(n = 2, win = 1.5) {
+  const W = freeFans().filter(m => m.kind !== 'bar' && !m.far);
+  shuffle(W).slice(0, n).forEach(m => REACT.later(rand(0, win), () => { if (m.override || (m.act && m.act.story)) return; m.pending = null; m.act = { k: 'popper', t0: NOW.t, until: NOW.t + 1.5 }; }));
+}
+function actPopper(m, p, a, F, t) {
+  const age = t - a.t0, c = at(F, 0.3, 0, 0.18);
+  const dir = _hv2.copy(F.f).multiplyScalar(0.5).add(UPY).normalize().clone();
+  p.reach('L', c.clone().add(_hv.set(0, -0.06, 0)), null, null, 'grip'); p.reach('R', c.clone().add(_hv.set(0, -0.15, 0)).addScaledVector(F.r, 0.03), null, null, 'pinch');
+  makeCrowdProp(m, 'popper');
+  a.hold = { popper: { pos: c, q: new THREE.Quaternion().setFromUnitVectors(UPY, dir) } };
+  if (!a.done && age > 0.5) {
+    a.done = true; fxConfetti(c.clone().addScaledVector(dir, 0.12), dir, 46);
+    if (AE.decoded) popSound(AE.ctx.currentTime + 0.01, panOf(p), m.far ? 0.3 : 0.5);
+    p.express('scream', 1.2);
+  }
+}
+
+// ---------- 무대로 날아드는 꽃다발·장미·모자 ----------
+const TOSS = { fly: [], pool: [], landed: [], geos: null, mat: null, baked: null, dirty: 0, max: 56 };
+function tossGeos() {
+  if (TOSS.geos) return TOSS.geos;
+  const G2 = {};
+  const bouquet = (wrap, bl) => {
+    const parts = [[new THREE.ConeGeometry(0.078, 0.27, 10).rotateX(Math.PI), wrap], [new THREE.CylinderGeometry(0.013, 0.013, 0.08, 6).translate(0, -0.17, 0), '#3aa860'], [new THREE.SphereGeometry(0.042, 8, 6).translate(0, 0.185, 0), bl[0]]];
+    for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; parts.push([new THREE.SphereGeometry(0.04, 8, 6).translate(Math.cos(a) * 0.042, 0.16, Math.sin(a) * 0.042), bl[k % bl.length]]); }
+    for (const [x, z] of [[-0.05, 0.03], [0.05, 0.02], [0, -0.055]]) parts.push([new THREE.SphereGeometry(0.03, 6, 4).scale(0.5, 1.4, 0.3).translate(x, 0.11, z), '#3aa860']);
+    return _vm(parts).scale(1.2, 1.2, 1.2);
+  };
+  G2.bouquet = [bouquet('#fff4de', ['#ee4a2c', '#ff7aa8', '#ffd84a']), bouquet('#f7c6d6', ['#fffaf0', '#b07ad8', '#ff8a5c']), bouquet('#cfe8ff', ['#ffd84a', '#ee4a2c', '#fffaf0'])];
+  const rose = col => _vm([[new THREE.CylinderGeometry(0.007, 0.007, 0.36, 6), '#2f8a4e'], [new THREE.SphereGeometry(0.04, 10, 8).scale(1, 1.15, 1).translate(0, 0.2, 0), col], [new THREE.SphereGeometry(0.024, 6, 4).scale(1.6, 0.35, 0.8).translate(0.034, 0.04, 0), '#3aa860']]);
+  G2.rose = [rose('#e0283a'), rose('#ff7aa8'), rose('#fffaf0')];
+  const hat = (col, band) => _vm([[new THREE.CylinderGeometry(0.085, 0.1, 0.1, 16).translate(0, 0.05, 0), col], [new THREE.CylinderGeometry(0.17, 0.17, 0.012, 20), col], [new THREE.CylinderGeometry(0.102, 0.102, 0.026, 16).translate(0, 0.02, 0), band]]);
+  G2.hat = [hat('#22244a', '#ee4a2c'), hat('#6b3a1e', '#ffbf2e'), hat('#2f5a42', '#fff4de')];
+  TOSS.geos = G2; TOSS.mat = toonVC({ outline: 0.003 });
+  return G2;
+}
+// 떨어질 자리: 무대 앞 가장자리와 내 앞 가운데 길
+function tossTarget() {
+  const r = Math.random(), Y = LAYOUT.stageY;
+  if (r < 0.5) return V3(rand(-3.7, 3.7), Y, rand(-3.78, -3.15));
+  if (r < 0.9) return V3(rand(-0.8, 1.35), Y, rand(-2.75, -0.7));
+  return V3(rand(-3.4, 3.4), Y, rand(-3.1, -2.5));
+}
+function tossSpawn(from, kind = null, to = null) {
+  const G2 = tossGeos();
+  kind = kind || pick(['bouquet', 'bouquet', 'rose', 'rose', 'hat']);
+  to = to || tossTarget();
+  let it = TOSS.pool.pop();
+  if (!it) { it = { mesh: new THREE.Mesh(G2.rose[0], TOSS.mat) }; it.mesh.castShadow = false; SC.scene.add(it.mesh); }
+  it.geo = pick(G2[kind]); it.mesh.geometry = it.geo; it.mesh.visible = true; it.kind = kind;
+  const T = clamp(from.distanceTo(to) / 5.5, 0.7, 1.5);
+  it.pos = from.clone(); it.vel = to.clone().sub(from).multiplyScalar(1 / T); it.vel.y += 4.9 * T; it.t = 0;
+  it.restY = to.y + (kind === 'bouquet' ? 0.1 : kind === 'rose' ? 0.045 : 0.008);
+  it.axis = kind === 'hat' ? V3(rand(-0.15, 0.15), 1, rand(-0.15, 0.15)).normalize() : V3(rand(-1, 1), rand(-0.3, 0.3), rand(-1, 1)).normalize();
+  it.spin = kind === 'hat' ? rand(9, 14) : rand(4, 9);
+  it.q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rand(-1, 1), rand(0, 6), rand(-1, 1)));
+  it.rest = new THREE.Quaternion().setFromEuler(kind === 'hat' ? new THREE.Euler(rand(-0.06, 0.06), rand(0, 6.28), rand(-0.06, 0.06), 'YXZ') : new THREE.Euler(0, rand(0, 6.28), rand(1.3, 1.5), 'YXZ'));
+  it.down = 0;
+  TOSS.fly.push(it);
+  return it;
+}
+function tossUpdate(dt) {
+  for (let i = TOSS.fly.length - 1; i >= 0; i--) {
+    const it = TOSS.fly[i];
+    if (!it.down) {
+      it.vel.y -= 9.8 * dt; it.pos.addScaledVector(it.vel, dt);
+      it.q.premultiply(_hq.setFromAxisAngle(it.axis, it.spin * dt));
+      if (it.pos.y <= it.restY && it.vel.y < 0) { it.pos.y = it.restY; it.down = 1e-4; it.vel.y = 0; it.vel.multiplyScalar(0.28); }
+    } else {
+      // 바닥에 닿아 살짝 미끄러지다 멈춤
+      it.down += dt; it.pos.addScaledVector(it.vel, dt); it.vel.multiplyScalar(Math.max(0, 1 - 7 * dt)); it.q.slerp(it.rest, 1 - Math.exp(-14 * dt));
+      if (it.down > 0.4) {
+        it.mesh.visible = false; TOSS.fly.splice(i, 1); TOSS.pool.push(it);
+        TOSS.landed.push({ geo: it.geo, m: new THREE.Matrix4().compose(it.pos, it.rest, V3(1, 1, 1)) });
+        while (TOSS.landed.length > TOSS.max) TOSS.landed.shift();
+        TOSS.dirty = NOW.t + 0.25;
+        continue;
+      }
+    }
+    it.mesh.position.copy(it.pos); it.mesh.quaternion.copy(it.q);
+  }
+  // 내려앉은 것들은 한 덩어리로 합쳐 그림
+  if (TOSS.dirty && NOW.t >= TOSS.dirty && !TOSS.fly.some(it => it.down)) {
+    TOSS.dirty = 0;
+    const geo = TOSS.landed.length ? mergeGeometries(TOSS.landed.map(o => o.geo.clone().applyMatrix4(o.m)), false) : null;
+    if (TOSS.baked) { TOSS.baked.geometry.dispose(); if (geo) TOSS.baked.geometry = geo; TOSS.baked.visible = !!geo; }
+    else if (geo) { TOSS.baked = new THREE.Mesh(geo, TOSS.mat); TOSS.baked.name = 'gifts'; TOSS.baked.frustumCulled = false; SC.scene.add(TOSS.baked); }
+  }
+}
+function tossClear() {
+  for (const it of TOSS.fly) { it.mesh.visible = false; TOSS.pool.push(it); }
+  TOSS.fly.length = 0; TOSS.landed.length = 0; TOSS.dirty = 0;
+  if (TOSS.baked) TOSS.baked.visible = false;
+}
+// 객석 여기저기서 n개가 날아옴
+function throwGifts(n, win = 2.5, kinds = null) {
+  const W = freeFans().filter(m => m.kind !== 'bar');
+  const pool = W.map(m => ({ m, s: m.p.root.position.z + rand(-3, 3) })).sort((a, b) => b.s - a.s).slice(0, n);
+  for (const { m } of pool) REACT.later(rand(0, win), () => { if (m.override || (m.act && m.act.story)) return; m.pending = null; m.act = { k: 'throw', t0: NOW.t, until: NOW.t + 0.95, kind: kinds ? pick(kinds) : null }; });
+}
+function actThrow(m, p, a, F, t) {
+  const age = t - a.t0, f = smoothstep(0.24, 0.38, age);
+  p.reach('R', at(F, -0.16, 0.22, 0.38).lerp(at(F, 0.5, 0.1, 0.68), f), null, null, f > 0.6 ? 'spread' : 'grip'); p.rest('L');
+  p.c.lean = lerp(-0.12, 0.2, f);
+  if (!a.done && age > 0.34) { a.done = true; tossSpawn(at(F, 0.45, 0.1, 0.66), a.kind); }
+}
+
+// ---------- 소품 장면 ----------
+const HYPE_SCENES = { scoreCard: 5.2, chairDance: 7.6, towelSpin: 6.2, sob: 6.6, callFriend: 5.4, toast: 4.8, hugJump: 5.0, hugged: 5.0, surf: 5.4 };
+Object.assign(CROWD_SCENES, HYPE_SCENES);
+// 엉엉: 눈 꼭 감고 입은 크게, 눈썹은 팔자
+FACES.bawl = Object.assign({}, FACE_DEF, { brow: 1.0, browIn: 1.0, lid: 0.86, open: 1.25, smile: -0.55, width: 0.12 });
+const _cardTex = {};
+function cardTex(text) {
+  if (_cardTex[text]) return _cardTex[text];
+  return _cardTex[text] = canvasTex(128, 172, (g, w, h) => {
+    g.fillStyle = '#fffaf0'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#221a2b'; g.lineWidth = 5; g.strokeRect(6, 6, w - 12, h - 12);
+    g.fillStyle = '#221a2b'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `900 ${text.length > 2 ? 62 : 88}px "Hahmlet", "Noto Serif KR", Georgia, serif`;
+    g.fillText(text, w / 2, h / 2 - 4);
+    g.fillStyle = '#ee4a2c'; g.fillRect(w * 0.26, h * 0.8, w * 0.48, 7);
+  });
+}
+function setCardText(pr, text) { pr.userData.text = text; const f = pr.userData.face; f.material.map = cardTex(text); f.material.needsUpdate = true; }
+// 새 소품 모양 (makeCrowdProp이 부름)
+function hypeProp(kind, add, m) {
+  if (kind === 'card') {
+    add(rbox(0.25, 0.33, 0.012, 0.02, 2), '#fffaf0');
+    const f = add(new THREE.PlaneGeometry(0.228, 0.306), '#ffffff', [0, 0, 0.0075], true);
+    f.material.map = cardTex('10'); return { face: f, text: '10' };
+  }
+  if (kind === 'towel') {
+    const col = (m.p.look && m.p.look.top) || '#fff4de';
+    add(rbox(0.15, 0.62, 0.016, 0.02, 2).translate(0, -0.31, 0), '#fffaf0');
+    for (const y of [-0.1, -0.52]) add(rbox(0.153, 0.045, 0.018, 0.005, 1).translate(0, y, 0), col);
+    return null;
+  }
+  if (kind === 'popper') {
+    add(new THREE.ConeGeometry(0.046, 0.17, 12).rotateX(Math.PI), '#ffbf2e');
+    add(new THREE.CylinderGeometry(0.048, 0.048, 0.02, 12), '#ee4a2c', [0, 0.085, 0]);
+    add(new THREE.CylinderGeometry(0.026, 0.02, 0.02, 10), '#2f5bd8', [0, -0.02, 0]);
+    return null;
+  }
+  if (kind === 'soul') {
+    // 입에서 빠져나가는 혼: 흰 덩어리 + 꼬리 + 멍한 눈
+    add(new THREE.SphereGeometry(0.09, 16, 12).scale(1, 1.12, 0.92), '#ffffff', [0, 0.1, 0]);
+    add(latheY([[0.001, -0.2], [0.012, -0.17], [0.03, -0.1], [0.06, -0.02], [0.078, 0.06], [0.001, 0.07]], 12), '#ffffff');
+    for (const sx of [1, -1]) add(new THREE.SphereGeometry(0.013, 8, 6).scale(1, 1.5, 0.6), '#221a2b', [sx * 0.032, 0.12, 0.079]);
+    add(new THREE.SphereGeometry(0.016, 8, 6).scale(1, 1.3, 0.6), '#221a2b', [0, 0.066, 0.083]);
+    return null;
+  }
+  if (kind === 'pad') {
+    add(rbox(0.13, 0.17, 0.014, 0.012, 2), '#fffaf0');
+    add(rbox(0.13, 0.022, 0.016, 0.005, 1).translate(0, 0.074, 0), '#ee4a2c');
+    return null;
+  }
+  if (kind === 'bouquet') { add(tossGeos().bouquet[(m.p.look.seed || 0) % 3].clone(), '#ffffff').material = TOSS.mat; return null; }
+  return null;
+}
+// 점수판: 가까이 앉은 서너 명이 심사위원처럼 차례로 "10"을 듦
+function scoreCards() {
+  if (!hypeOk('cards', 22)) return;
+  const W = freeFans().filter(m => m.kind === 'seat' || m.kind === 'front');
+  if (!W.length) return;
+  const c = pick(W), grp = W.filter(o => Math.abs(o.p.root.position.z - c.p.root.position.z) < 1.0 && Math.abs(o.p.root.position.x - c.p.root.position.x) < 2.9).sort((a, b) => a.p.root.position.x - b.p.root.position.x).slice(0, 4);
+  if (grp.length < 2) return;
+  const odd = Math.random() < 0.6 ? grp.length - 1 : -1;
+  grp.forEach((m, i) => forceScene(m, 'scoreCard', 0, { lag: i * 0.2, text: i === odd ? pick(['11', '11', '100']) : '10' }));
+}
+function toastWave() {
+  if (!hypeOk('toast', 14)) return;
+  for (const m of freeFans()) if (m.kind === 'seat' || m.kind === 'bar') forceScene(m, 'toast', clamp((-4 - m.p.root.position.z) * 0.09, 0, 1.2) + rand(0, 0.25));
+}
+function newcomer() { if (BACKP.n < BACKP.spots.length) addBackCrowd(1); else addWindowFaces(1); }
+// 달아오른 뒤 가끔 섞이는 장면 고르기 (종류마다 동시에 몇 명까지만)
+function hypeScene(m, f) {
+  const cnt = k => CROWD.list.reduce((n, o) => n + (((o.act && o.act.k === k) || (o.pending && o.pending.k === k)) ? 1 : 0), 0);
+  const c = [], st = m.p.s.stand > 0.7, fr = m.friend;
+  if (m.kind === 'seat' && cnt('chairDance') < 3) c.push('chairDance', 'chairDance');
+  if (st && m.kind !== 'bar' && cnt('towelSpin') < 2) c.push('towelSpin', 'towelSpin');
+  if (cnt('sob') < 2) c.push('sob');
+  if (cnt('callFriend') < 1 && NOW.t - (HYPE.last.call || -99) > 18) c.push('callFriend');
+  if (st && fr && !fr.override && !fr.pending && !(fr.act && fr.act.story) && fr.p.s.stand > 0.7 && fr.kind !== 'bar' && m.kind !== 'bar' && fr.p.root.position.distanceTo(m.p.root.position) < 1.5 && cnt('hugJump') < 2) c.push('hugJump', 'hugJump');
+  if (f > 0.85 && m.kind === 'front' && (m.rush || 0) > 0.15 && cnt('surf') < 1 && NOW.t - (HYPE.last.surf || -99) > 22) c.push('surf', 'surf');
+  return c.length ? pick(c) : null;
+}
+function runHypeScene(m, t, a, age, F) {
+  const p = m.p, R = p.R;
+  switch (a.k) {
+    case 'scoreCard': {
+      crowdStill(p, 0.08);
+      const lag = a.lag || 0, up = smoothstep(0.2 + lag, 0.62 + lag, age) * (1 - smoothstep(4.3, 4.9, age));
+      const pr = makeCrowdProp(m, 'card'); if (pr.userData.text !== (a.text || '10')) setCardText(pr, a.text || '10');
+      const c = at(F, 0.3, 0, -0.3).lerp(at(F, 0.22, 0, 0.66 + Math.sin(age * 7 + lag * 9) * 0.015), up);
+      const q = faceQ(c, CROWD.me), rt = _hv.set(1, 0, 0).applyQuaternion(q).clone();
+      p.reach('L', c.clone().addScaledVector(rt, 0.11).add(_hv2.set(0, -0.13, 0)), null, null, 'grip');
+      p.reach('R', c.clone().addScaledVector(rt, -0.11).add(_hv2.set(0, -0.13, 0)), null, null, 'grip');
+      a.hold = up > 0.03 ? { card: { pos: c, q } } : null;
+      sceneFace(p, age < 0.7 + lag ? 'focus' : (age < 3.2 ? 'grin' : 'stunlaugh')); p.c.nod = age > 1 ? 0.8 : 0; p.c.groove = age > 1 ? 0.5 : 0;
+      break;
+    }
+    case 'chairDance': {
+      // 자기 의자 위로 올라가 춤
+      const D = a.until - a.t0, upk = smoothstep(0.5, 0.9, age) * (1 - smoothstep(D - 0.8, D - 0.45, age));
+      p.c.stand = 1; m.offK = 1 - smoothstep(0.15, 0.5, age) + smoothstep(D - 0.45, D - 0.1, age);
+      m.liftY = (m.spot.seatY || 0.47) * upk + (age > 0.5 && age < 0.95 ? Math.sin((age - 0.5) / 0.45 * Math.PI) * 0.1 : 0);
+      if (upk > 0.9) {
+        p.c.groove = 1; p.c.bounce = 1; p.c.jump = 0.45; p.c.sway = 0.9; p.c.hipSway = 1;
+        const w = Math.sin(age * 5.2 + m.phase0 * 3) * 0.14, bp = ((HYPE.beat % 2) + 2) % 2;
+        if (m.wild > 0.5) { p.reach('L', at(F, 0.1, -0.3 - w, 0.66), null, null, 'spread'); p.reach('R', at(F, 0.1, 0.3 - w, 0.66), null, null, 'spread'); }
+        else { p.reach('L', at(F, 0.22, -0.2, bp < 1 ? 0.62 : 0.2), null, null, 'fist'); p.reach('R', at(F, 0.22, 0.2, bp < 1 ? 0.2 : 0.62), null, null, 'fist'); }
+        sceneFace(p, Math.sin(age * 1.1 + m.phase0) > 0 ? 'scream' : 'ecstasy');
+      } else sceneFace(p, 'grin');
+      break;
+    }
+    case 'towelSpin': {
+      // 수건을 머리 위로 빙빙
+      p.c.stand = 1; p.c.jump = 0.55; p.c.groove = 0.8; p.c.bounce = 0.8;
+      const k = smoothstep(0.15, 0.6, age) * (1 - smoothstep(5.4, 6.0, age)), w = age * 15;
+      const hand = at(F, 0.06, 0.3, 0.66).add(_hv2.set(Math.cos(w) * 0.07, 0, Math.sin(w) * 0.07));      // 팔이 짧아 머리 옆 위가 가장 높은 자리
+      p.reach('R', at(F, 0.15, 0.2, -0.2).lerp(hand, k), null, null, 'fist');
+      const bp = ((HYPE.beat % 1) + 1) % 1;
+      p.reach('L', at(F, 0.2, -0.24, 0.3 + Math.max(0, Math.cos(bp * Math.PI * 2)) * 0.2), null, null, 'fist');
+      makeCrowdProp(m, 'towel');
+      a.hold = k > 0.2 ? { towel: { side: 'R', q: new THREE.Quaternion().setFromEuler(_he.set(0, -w, 1.86, 'YXZ')) } } : null;
+      sceneFace(p, Math.sin(age * 1.4) > 0 ? 'scream' : 'ecstasy');
+      break;
+    }
+    case 'sob': {
+      // 감격해서 엉엉: 눈물이 분수처럼
+      crowdStill(p);
+      if (age < 4.4) {
+        sceneFace(p, 'bawl'); p.c.side = Math.sin(age * 17) * 0.05; p.c.lean = 0.1 + Math.sin(age * 8.5) * 0.04; p.c.headTilt = Math.sin(age * 1.7) * 0.12;
+        if (age > 0.4) for (const sx of [1, -1]) if (Math.random() < 0.8) {
+          const e = facePoint(p, sx * p.eyeP.x * 1.3, p.eyeP.y - p.headC.y - p.eyeP.r * 0.3, p.eyeP.z - p.headC.z + 0.03);
+          fxEmit(e, sideW(F, sx).multiplyScalar(rand(0.7, 1.3)).add(_hv.set(0, rand(1.3, 2.0), 0)).addScaledVector(F.f, rand(0.1, 0.5)), rand(0.048, 0.07), rand(0.45, 0.65), Math.random() < 0.7 ? '#8fd6ff' : '#e6f7ff');
+        }
+        if (age > 1.6 && age < 3.0) { const w = Math.sin((age - 1.6) * 6) * 0.5 + 0.5; p.reach('R', facePoint(p, lerp(-R * 0.7, R * 0.5, w), R * 0.05, R * 1.05), null, null, 'fist'); p.reach('L', at(F, 0.16, -0.14, 0.02), null, null, 'fist'); }
+        else { p.reach('L', at(F, 0.2, -0.1, 0.12), null, null, 'fist'); p.reach('R', at(F, 0.2, 0.1, 0.12), null, null, 'fist'); }
+      } else { sceneFace(p, age < 5.4 ? 'teary' : 'stunlaugh'); p.c.nod = 1.2; p.c.groove = 0.6; sceneClap(p, F, t, age > 5.4); }
+      break;
+    }
+    case 'callFriend': {
+      // "야 지금 당장 와!" → 조금 뒤 한 명이 더 들어옴
+      crowdStill(p); p.c.lean = 0.08;
+      const k = smoothstep(0, 0.55, age) * (1 - smoothstep(4.6, 5.2, age));
+      const ear = facePoint(p, -R * 1.02, -R * 0.1, R * 0.12).addScaledVector(F.r, 0.05);
+      p.reach('R', at(F, 0.2, 0.2, -0.3).lerp(ear, k), null, null, 'grip');
+      makeCrowdProp(m, 'phone');
+      a.phoneQ = new THREE.Quaternion().setFromEuler(_he.set(0, p.root.rotation.y + p.s.twist + p.s.yaw + Math.PI / 2, 0.25, 'YXZ'));
+      a.phoneOffset = (a.phoneOffset || new THREE.Vector3()).set(0, 0.03, 0); a.phoneVisible = k > 0.15;
+      if (age > 0.8 && age < 4.5) {
+        const jab = Math.max(0, Math.sin(age * 9)), dir = CROWD.me.clone().sub(F.c).normalize();
+        p.reach('L', F.c.clone().addScaledVector(dir, 0.42 + jab * 0.16).addScaledVector(UPY, 0.14).addScaledVector(F.r, -0.14), null, null, 'point');
+        sceneFace(p, Math.sin(age * 5) > 0 ? 'shout' : 'jawdrop');
+      } else sceneFace(p, age <= 0.8 ? 'gasp' : 'grin');
+      if (!a.called && age > 4.6) { a.called = true; HYPE.last.call = NOW.t; REACT.later(rand(1.5, 3.5), newcomer); }
+      break;
+    }
+    case 'toast': {
+      // 잔을 높이 들었다가 원샷 → 탁 내려놓고 "캬"
+      crowdStill(p, 0.1);
+      makeCrowdProp(m, 'cup').visible = age < 4.3;
+      const low = at(F, 0.26, 0.16, -0.27), high = at(F, 0.3, 0.2, 0.7), lip = facePoint(p, -R * 0.2, -R * 1.45, R * 1.05);
+      let tg;
+      if (age < 1.7) { const k = smoothstep(0, 0.45, age); tg = low.lerp(high, k); if (k > 0.9) tg.y += Math.sin(age * 16) * 0.012; sceneFace(p, 'scream'); }
+      else if (age < 3.0) { const k = smoothstep(1.7, 2.05, age); tg = high.lerp(lip, k); p.c.look.copy(CROWD.me).add(_hv.set(0, 4 * k, 0)); p.c.lean = -0.16 * k; sceneFace(p, 'focus'); }
+      else {
+        const k = smoothstep(3.0, 3.25, age); tg = lip.lerp(low, k);
+        if (!a.slam && age > 3.22) { a.slam = true; if (AE.decoded) { const now = AE.ctx.currentTime; if (m.spot.table) playBuf(AE.syn.slap, now + 0.01, m.far ? 0.08 : 0.14, AE.buses.crowd, { pan: panOf(p) }); if (Math.random() < 0.3) breathBlip(now + 0.12, { dur: 0.5, f0: 1500, f1: 500, q: 1.5, vol: 0.07, pan: panOf(p) }); } }
+        sceneFace(p, age < 4.0 ? 'bliss' : 'grin');
+        if (age > 3.5) p.reach('L', facePoint(p, lerp(R * 0.5, -R * 0.4, Math.sin((age - 3.5) * 5) * 0.5 + 0.5), -R * 0.8, R * 1.12), null, null, 'fist');
+      }
+      p.reach('R', tg, null, palmQ(p, 'R'), 'grip');
+      break;
+    }
+    case 'hugJump': case 'hugged': {
+      // 옆 사람과 얼싸안고 방방
+      const f = a.friend; if (!f) { sceneFace(p, 'scream'); break; }
+      p.c.stand = 1;
+      const hm = p.root.position.clone(); if (m.walkOff) hm.sub(m.walkOff);
+      const hf = f.p.root.position.clone(); if (f.walkOff) hf.sub(f.walkOff);
+      const to = hf.sub(hm).setY(0), dist = to.length() || 1;
+      const k = smoothstep(0.25, 0.7, age) * (1 - smoothstep(3.7, 4.2, age));
+      p.root.rotation.y = lerpYaw(m.spot.yaw, Math.atan2(to.x, to.z), k);
+      m.walkOff = (m.walkOff || new THREE.Vector3()).copy(to).multiplyScalar(Math.max(0, dist - 0.46) * 0.5 / dist * k);
+      if (k > 0.55) {
+        const fc = f.p.chestWorld(_hv).clone();
+        p.reach('L', fc.clone().add(_hv2.set(0, 0.16, 0)).addScaledVector(F.r, -0.12), null, null, 'flat'); p.reach('R', fc.clone().add(_hv2.set(0, 0.02, 0)).addScaledVector(F.r, 0.12), null, null, 'flat');
+        p.c.jump = 0.9; p.c.bounce = 1; p.c.groove = 1; p.c.lean = 0.14; p.c.look.copy(f.p.headWorld(_hv2)); sceneFace(p, a.k === 'hugJump' ? 'scream' : 'ecstasy');
+      } else if (age < 0.7) { sceneFace(p, 'gasp'); p.c.look.copy(f.p.headWorld(_hv2)); }
+      else { sceneFace(p, 'stunlaugh'); pointAtMe(p, F, a.k === 'hugJump' ? 'R' : 'L'); }
+      break;
+    }
+    case 'surf': {
+      // 사람들 손 위로 실려 다님
+      p.c.stand = 1; p.c.lookW = 0.3;
+      const D = a.until - a.t0, up = smoothstep(0.25, 0.95, age) * (1 - smoothstep(D - 0.9, D - 0.2, age));
+      if (!a.dir) {
+        a.dir = p.root.position.x > 0 ? -1 : 1; HYPE.last.surf = NOW.t;
+        for (const o of CROWD.list) if (o !== m && o.kind === 'front' && !o.override && !(o.act && o.act.story) && Math.abs(o.p.root.position.x - p.root.position.x - a.dir * 1.2) < 2.6) crowdAct(o, 'armsUp', D - 0.6);
+        crowdWhoops(4);
+      }
+      const go = Math.sin(clamp((age - 0.95) / (D - 2.0), 0, 1) * Math.PI);
+      m.liftY = (1.78 + Math.sin(age * 8.5) * 0.05) * up;
+      p.root.rotation.x = -1.47 * up;
+      m.walkOff = (m.walkOff || new THREE.Vector3()).set(a.dir * 2.3 * go, 0, 0.75 * up);
+      p.reach('L', at(F, 0.1, -0.5, 0.35), null, null, 'spread'); p.reach('R', at(F, 0.1, 0.5, 0.35), null, null, 'spread');
+      sceneFace(p, Math.sin(age * 2.3) > 0 ? 'ecstasy' : 'scream');
+      break;
+    }
+  }
+}
+// 기절한 사람 입에서 혼이 빠져나갔다가 돌아옴
+function soulPose(m, a, age) {
+  const p = m.p, D = a.until - a.t0;
+  if (age < 0.9 || age > D - 1.3) { if (a.hold) a.hold = null; return; }
+  makeCrowdProp(m, 'soul');
+  const rise = smoothstep(0.9, 2.3, age), back = smoothstep(D - 1.75, D - 1.35, age);
+  const base = mouthWorld(p), pos = base.clone().add(_hv.set(Math.sin(age * 2.1) * 0.08 * rise, 0.12 + 0.42 * rise + Math.sin(age * 3.3) * 0.03, 0)).lerp(base, back);
+  a.hold = { soul: { pos, q: faceQ(pos, CROWD.me), s: (0.25 + 0.9 * rise) * (1 - back * 0.75) } };
+  // 옆 친구가 붙잡으려 손을 뻗음
+  const f = m.friend;
+  if (f && !f.override && f.act && f.act.k === 'soulGrab') f.act.soul = pos;
+}
+
+// ---------- 바텐더 종 ----------
+function buildBell() {
+  if (HYPE.bell || !CROWD.bartender) return;
+  const bp = CROWD.bartender.p.root.position, top = 2.42, H = LAYOUT.room.h, g = new THREE.Group();
+  g.position.set(bp.x - 0.3, top, bp.z + 0.24);
+  const brass = metalMat(STYLE.pal.brass, 0.25, { outline: 0.003 }), swing = new THREE.Group(); g.add(swing);
+  swing.add(new THREE.Mesh(latheY([[0.012, 0], [0.032, -0.012], [0.052, -0.05], [0.064, -0.12], [0.088, -0.19], [0.118, -0.235], [0.12, -0.246], [0.102, -0.24], [0.072, -0.19], [0.05, -0.12], [0.036, -0.05], [0.01, -0.022]], 22), brass));
+  swing.add(new THREE.Mesh(_vm([[new THREE.SphereGeometry(0.024, 10, 8).translate(0, -0.225, 0), '#3a2a1e'], [new THREE.CylinderGeometry(0.006, 0.006, 0.4, 6).translate(0, -0.44, 0), '#fff4de'], [new THREE.SphereGeometry(0.022, 8, 6).translate(0, -0.65, 0), '#ee4a2c']]), toonVC({ outline: 0.002 })));
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, H - top, 6).translate(0, (H - top) / 2, 0), toonMat('#2a2630', { outline: 0.002 })));
+  SC.scene.add(g);
+  HYPE.bell = { g, swing, v: 0, a: 0, cord: V3(g.position.x, top - 0.65, g.position.z) };
+}
+function bartenderBell(delay = 0) {
+  const b = CROWD.bartender; if (!b || !HYPE.bell || !hypeOk('bell', 20)) return;
+  if (b.act && b.act.k === 'glassDrop') return;
+  b.pending = null; b.bellAt = NOW.t + delay;
+}
+function runBartenderBell(m, t, dt, beat) {
+  const p = m.p, age = t - m.act.t0, B = HYPE.bell;
+  p.c.look.copy(CROWD.me); crowdStill(p, 0.3); m.props.cup.visible = false; m.props.cloth.visible = false;
+  const x = (age - 0.35) / 0.4, n = Math.floor(x), pull = x > 0 && n < 5 ? Math.sin(Math.min(1, (x - n) * 2.2) * Math.PI) : 0;
+  p.reach('R', B.cord.clone().add(_hv.set(0.02, -0.02 - pull * 0.16, 0)), null, null, 'grip');
+  p.reach('L', p.local(0.3, 1.75 + Math.sin(age * 12) * 0.05, 0.25), null, null, 'fist');
+  sceneFace(p, age < 0.3 ? 'gasp' : 'scream'); p.c.jump = 0.4;
+  if (x > 0 && n < 5 && n !== m.act.n) { m.act.n = n; B.v += 5.5; if (AE.decoded) bellDing(AE.ctx.currentTime + 0.05, 0.2, 0.5); if (n === 2) toastWave(); }
+  p.update(dt, t, beat);
+}
+
+// ---------- 밴드 묘기 ----------
+// 트롬본 리더가 무릎 꿇고 절함
+function tbWorship(dur = 5) { const tb = BAND.tb; if (!tb || (tb.worship && NOW.t < tb.worship.until)) return; tb.worship = { t0: NOW.t, until: NOW.t + dur }; stare(tb, dur, 'ecstasy', 1); }
+function tbWorshipPose(tb, dt, t) {
+  const w = tb.worship && t < tb.worship.until ? tb.worship : null;
+  if (!(ITL.cur && ITL.cur.kind === 'intro')) tb.floorK = damp(tb.floorK || 0, w || FIN.band ? 1 : 0, 5, dt);
+  tb.c.kneel = w && t - w.t0 > 0.35 && t < w.until - 0.7 ? 1 : 0;
+  if (!w) return false;
+  const a = t - w.t0, F = frameOf(tb), D = w.until - w.t0;
+  if (a < 1.5 || a > D - 1.2) {
+    const wv = Math.sin(a * 5) * 0.05;
+    for (const [sd, s] of [['L', 1], ['R', -1]]) tb.reach(sd, F.c.clone().addScaledVector(sideW(F, s), 0.3 + wv).addScaledVector(UPY, 0.7).addScaledVector(F.f, 0.14), null, null, 'spread');
+    tb.c.lean = 0; if (!tb.exUntil) tb.express('ecstasy', 0.6);
+  } else {
+    const bow = Math.max(0, Math.sin((a - 1.5) / (D - 2.7) * Math.PI * 4 - Math.PI / 2) * 0.5 + 0.5);
+    tb.c.lean = 0.95 * bow; if (!tb.exUntil) tb.express('bliss', 0.6);
+    for (const [sd, s] of [['L', 1], ['R', -1]]) tb.reach(sd, F.c.clone().addScaledVector(F.f, 0.5).addScaledVector(sideW(F, s), 0.18).addScaledVector(UPY, -0.5 * bow + 0.25 * (1 - bow)), null, null, 'flat');
+  }
+  return true;
+}
+// 박수 받을 때: 베이스 한 바퀴 돌리기 / 드럼 스틱 던져 받기
+function bandFlourish() {
+  if (!hypeOk('flourish', 9)) return;
+  const r = Math.random();
+  if (r < 0.6) later(rand(0.2, 0.7), () => { DIR.bassSpin = { t0: NOW.t, dur: 0.8 }; BAND.bs.express('grin', 2); });
+  if (r > 0.35 && !DIR.brushes && !(DIR.drPhone && NOW.t < DIR.drPhone.until)) later(rand(0.3, 1.0), () => { DIR.stickToss = { t0: NOW.t, dur: 1.0 }; BAND.dr.express('grin', 2); });
+}
+
+// ---------- 매 프레임 ----------
+function hypeUpdate(dt, t, beat) {
+  HYPE.beat = beat;
+  tossUpdate(dt);
+  const B = HYPE.bell;
+  if (B && (Math.abs(B.v) > 0.001 || Math.abs(B.a) > 0.001)) { B.v += (-B.a * 70 - B.v * 2.4) * dt; B.a += B.v * dt; B.swing.rotation.z = B.a * 0.22; }
+  camFx(dt);
+}
+// ---------- 새 반응 규칙: 무슨 일이 일어났을 때 무엇을 얹을지 ----------
+function hypeOnEvent(ev) {
+  const R = REACT;
+  switch (ev.kind) {
+    case 'gesture':
+      if (ev.g === 'high' && R.heat >= 50) crowdShock(0.55 + R.heat / 220);
+      else if (ev.g === 'blazeLong') { startChant(2); for (const m of shuffle(freeFans().filter(o => o.p.s.stand > 0.7 && o.kind !== 'bar')).slice(0, 2)) forceScene(m, 'towelSpin', rand(0, 0.5)); }
+      break;
+    case 'awe':
+      crowdShock(0.7);
+      if (ev.n === 1) REACT.later(1.3, scoreCards); else if (ev.n === 2) bartenderBell(1.0); else tbWorship(5.2);
+      if (R.heat > 80 && ev.n >= 2) startChant(2);
+      break;
+    case 'breakOff': crowdShock(1.0); startChant(2); throwGifts(5, 2); break;
+    case 'myApplause': {
+      const k = ev.k;
+      if (k > 0.5) throwGifts(Math.round(k * 6), 3);
+      if (k > 0.72) { REACT.later(0.7, scoreCards); bandFlourish(); }
+      if (k > 0.92) poppers(2, 2);
+      break;
+    }
+    case 'ovation': throwGifts(7, 3.5); REACT.later(0.9, toastWave); poppers(2, 2); bandFlourish(); break;
+    case 'endless': crowdShock(0.8); REACT.later(0.7, toastWave); throwGifts(4, 2); break;
+  }
+}
+
+// ===== 82_finale.js =====
+// ===================== 공연 끝내기: 마지막 화음 → 기립 박수 → 팬들이 무대로 올라와 둘러쌈 → 내민 물건에 손가락으로 사인 → 한 곡 더 / 처음으로 =====================
+const FIN = {
+  req: false, reqT: 0, on: false, stage: 'off', t0: 0, stageT: 0, camK: 0, camT: 0, away: 0, band: false, loud: 1, bump: 0,
+  fans: [], slots: [], cur: null, pool: [], signed: 0, reacts: [], cheerUntil: 0, kindN: 0, lpN: 0, faint: null,
+  items: [], pen: null, penK: 0, penAt: new THREE.Vector3(), draw: null, ink: 0, inkT: -9, hushK: 0, sqT: 0,
+  lay: null, ray: new THREE.Raycaster(), plane: new THREE.Plane(), nextFlash: 0, nextYell: 0, built: false,
+};
+// 팬들이 설 자리 (무대 바닥 [x, z]). 0번이 사인받는 자리, 번호가 작을수록 나와 가까움. 왼쪽 드럼(x<-0.65, z<-1.4)과 오른쪽 피아노(x>1.05)는 피함
+const FIN_SLOTS = [[0, -0.34], [-0.56, -0.24], [0.56, -0.24], [-0.3, -0.9], [0.3, -0.9], [-0.9, -0.72], [0.8, -0.94], [-0.64, -1.36], [0.62, -1.42], [-1.04, 0], [-1.3, -0.52], [-0.32, -1.98], [0.4, -2.0]];
+// 사인받을 물건: 사인하는 면의 크기(m), 면이 몸통 앞으로 나온 정도, 사인할 수 있는 범위(면 안의 비율)
+const FIN_KINDS = {
+  lp: { w: 0.31, h: 0.31, z: 0.0042 }, poster: { w: 0.28, h: 0.37, z: 0.0026 },
+  tee: { w: 0.4, h: 0.34, z: 0.0036, rect: [0.15, 0.03, 0.85, 0.8] }, book: { w: 0.34, h: 0.25, z: 0.0094 },
+};
+const FIN_ORDER = ['lp', 'tee', 'poster', 'book'];
+const FIN_STYLES = ['grab', 'film', 'scream', 'grab', 'cry', 'wave', 'point', 'scream', 'film', 'grab', 'cry', 'wave', 'grab'];      // 자리마다 하는 짓 (사인받는 사람 바로 옆은 물건을 가리지 않는 동작)
+const _fv = new THREE.Vector3(), _fv2 = new THREE.Vector3(), _fv3 = new THREE.Vector3(), _fq = new THREE.Quaternion();
+// 펜 방향 (물건 면 기준): 끝에서 손 쪽으로 오른쪽 아래·내 쪽
+const FIN_PENQ = (() => {
+  const d = V3(0.5, -0.5, 0.72).normalize(), a = V3(0, 1, 0).addScaledVector(d, -d.y).normalize(), x = new THREE.Vector3().crossVectors(a, d);
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, a, d));
+})();
+
+// ---------- 끝내기 버튼 ----------
+function finRequest() {
+  if (FIN.req || FIN.on || GAME.phase !== 'play' || !UI.playing || !AE.ctx || !MUS.running) return;
+  FIN.req = true; FIN.reqT = NOW.t;
+  finUI();
+  if (ITL.cur) itlEnd();
+  const now = AE.ctx.currentTime, S = MUS.song;
+  const cutDue = VQ.some(e => e.who === 'song' && e.type === 'cut');
+  if (S && !S.ended && S.phase !== 'final' && S.phase !== 'done') {
+    // 연주 중: 지금 마디를 끊고 곧바로 끝 화음으로 (늘임표라, 마지막 음을 물고 있으면 밴드가 같이 끌어 줌)
+    stopBandVoices(now);
+    for (let i = VQ.length - 1; i >= 0; i--) if (VQ[i].t > now) VQ.splice(i, 1);
+    while (MUS.bars.length && MUS.bars[MUS.bars.length - 1].t0 > now) { MUS.bars.pop(); MUS.beatCount -= 4; }
+    MUS.soloH.length = 0; MUS.soloWho = null; S.brk = null; REACT.inBreak = false;
+    DIR.hits.L.length = 0; DIR.hits.R.length = 0;
+    MUS.nextT = now + 0.14; S.showEnd = true;
+    enterFinal(S); schedTick();
+  } else if (S && !S.ended && (S.phase === 'final' || (MUS.fermata && !MUS.fermata.cut) || cutDue)) S.showEnd = true;   // 이미 끝나 가는 중: 끊기는 순간 시작
+  else { if (!S) finStab(now); finBegin(); }
+}
+// 곡 사이에 눌렀을 때: 밴드가 한 방 찍어 줌
+function finStab(now) {
+  const ch = MUS.gapChord; if (!ch) return;
+  const t = now + 0.06, root = nearestPC(ch.root, 34, 28, 40);
+  drum('crash', t, 1.0, 'R'); drum('kick', t, 1.0, 'RF'); drum('snare', t, 0.8, 'L');
+  bassNote(t, root, 0.5, 1.0);
+  pianoNotes(t, [root + 12, ...voicingFor(ch, null, 55, 80)], 0.7, 0.75, 'L', 0.004);
+  tbnNote(t, nearestPC(ch.root + QUAL[ch.q].tones[1], 60, 55, 67), 0.5, 1.0, { scoop: 0 });
+}
+function finUI() {
+  const E = UI.el, play = GAME.phase === 'play', fin = FIN.on;
+  const show = (el, on, d = 'inline-flex') => { if (el) el.style.display = on ? d : 'none'; };
+  show(E.nextSong, play && !FIN.req); show(E.endShow, play && !FIN.req); show(E.hudMode, play); show(E.special, play, 'block');
+  if (GAME.phase !== 'pre' && GAME.phase !== 'title') E.controls.classList.toggle('off', fin);
+  show(E.finBar, fin && FIN.stage === 'sign', 'flex');
+}
+
+// ---------- 자리·카메라 ----------
+// 물건을 내 눈 쪽으로 비스듬히 받쳐 들게 하고, 화면 크기에 맞춰 내 눈(카메라)을 그 앞으로 가져감
+function finLayout() {
+  const hy = Math.tan((SC.baseFov || SC.camera.fov) * Math.PI / 360), hx = hy * SC.camera.aspect;
+  const T = Object.assign(SC.portrait ? { al: 54, fw: 0.62, fh: 0.47, low: 0.84 } : { al: 42, fw: 0.62, fh: 0.54, low: 0.91 }, FIN.tune || {});
+  const al = T.al * Math.PI / 180, C = V3(0, T.cy || 1.84, T.cz || 0.04), box = 0.34;
+  const D = Math.max(box / 2 / (T.fw * hx), box / 2 / (T.fh * hy), 0.62);      // 넓은 화면(태블릿)에서는 너무 다가가지 않게
+  const n = V3(0, Math.sin(al), Math.cos(al)), up = V3(0, Math.cos(al), -Math.sin(al));
+  const eye = C.clone().addScaledVector(n, D);
+  const halfN = box / 2 / D / hy, yc = -(T.low - halfN);
+  const pitch = -al - Math.atan(yc * hy);
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, 0, 0, 'YXZ'));
+  const iq = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(V3(1, 0, 0), up, n));
+  FIN.lay = { C, D, n, up, eye, pitch, q, iq, hx, hy };
+}
+
+// ---------- 준비물: 사인받을 물건 · 펜 든 내 손 ----------
+function finBuild() {
+  if (FIN.built) return; FIN.built = true;
+  for (let i = 0; i < 6; i++) FIN.items.push(finMakeItem());
+  FIN.pen = finBuildPen(); FIN.pen.visible = false; ME.rig.add(FIN.pen);
+}
+function finMakeItem() {
+  const g = new THREE.Group(); g.name = 'sign-item'; g.visible = false;
+  const body = parts => new THREE.Mesh(_vm(parts), toonVC({ outline: 0.003 }));
+  const kinds = {};
+  // 음반: 종이 재킷 + 오른쪽으로 삐져나온 판
+  kinds.lp = body([[rbox(0.31, 0.31, 0.007, 0.003, 1), '#fffaf0'],
+    [new THREE.CylinderGeometry(0.146, 0.146, 0.003, 30).rotateX(Math.PI / 2).translate(0.085, 0, -0.0075), '#1b1828']]);      // 판은 재킷 뒤에 (겹치면 외곽선이 재킷 앞으로 비쳐 나옴)
+  // 포스터
+  kinds.poster = body([[rbox(0.28, 0.37, 0.004, 0.002, 1), '#fffaf0']]);
+  // 흰 티셔츠 (어깨를 잡고 펼쳐 듦)
+  {
+    const s = new THREE.Shape();
+    s.moveTo(-0.15, -0.17); s.lineTo(0.15, -0.17); s.lineTo(0.15, 0.05); s.lineTo(0.185, 0.03); s.lineTo(0.2, 0.095); s.lineTo(0.105, 0.17); s.lineTo(0.05, 0.17);
+    s.quadraticCurveTo(0, 0.12, -0.05, 0.17); s.lineTo(-0.105, 0.17); s.lineTo(-0.2, 0.095); s.lineTo(-0.185, 0.03); s.lineTo(-0.15, 0.05); s.lineTo(-0.15, -0.17);
+    const sg = new THREE.ExtrudeGeometry(s, { depth: 0.006, bevelEnabled: false, curveSegments: 8 }).translate(0, 0, -0.003);
+    const nk = new THREE.TorusGeometry(0.052, 0.0045, 6, 14, Math.PI).rotateZ(Math.PI).translate(0, 0.172, 0.003).scale(1, 0.9, 1);
+    kinds.tee = body([[sg, '#fffdf6'], [nk, '#e6dcc8']]);
+  }
+  // 스케치북: 파란 표지 + 종이 + 위쪽 스프링
+  {
+    const parts = [[rbox(0.36, 0.27, 0.012, 0.004, 1), '#2f5bd8'], [rbox(0.342, 0.252, 0.005, 0.002, 1).translate(0, 0, 0.0065), '#fffaf0']];
+    for (let i = 0; i < 9; i++) parts.push([new THREE.TorusGeometry(0.011, 0.0022, 5, 12).rotateY(Math.PI / 2).translate(-0.14 + i * 0.035, 0.134, 0.004), '#8d93a8']);
+    kinds.book = body(parts);
+  }
+  for (const k in kinds) { kinds[k].visible = false; g.add(kinds[k]); }
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 384;
+  const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), basicMat('#ffffff', { map: tex, transparent: true, depthWrite: false }));
+  face.renderOrder = 2; g.add(face);
+  // 사인할 자리 표시: 처음 긋기 전까지 노랗게 숨 쉬는 테두리 (글 설명 대신)
+  const hs = new THREE.Shape(); hs.moveTo(-0.5, -0.5); hs.lineTo(0.5, -0.5); hs.lineTo(0.5, 0.5); hs.lineTo(-0.5, 0.5); hs.lineTo(-0.5, -0.5);
+  const hh = new THREE.Path(); hh.moveTo(-0.44, -0.44); hh.lineTo(-0.44, 0.44); hh.lineTo(0.44, 0.44); hh.lineTo(0.44, -0.44); hh.lineTo(-0.44, -0.44); hs.holes.push(hh);
+  const hint = new THREE.Mesh(new THREE.ShapeGeometry(hs), basicMat('#ffbf2e', { transparent: true, opacity: 0.8, depthWrite: false }));
+  hint.renderOrder = 3; g.add(hint);
+  SC.scene.add(g);
+  return { g, kinds, canvas, ctx: canvas.getContext('2d'), tex, face, hint, kind: 'lp', w: 0.31, h: 0.31, rect: [0, 0, 1, 1], inkCol: '#1b1828', owner: null, t0: -99 };
+}
+// 물건 겉그림 (사인 전). 좌표는 m, 왼쪽 아래가 원점
+function finPaint(it, kind, seed) {
+  const K = FIN_KINDS[kind], g = it.ctx, CW = it.canvas.width, CH = it.canvas.height, w = K.w, h = K.h;
+  it.kind = kind; it.w = w; it.h = h; it.rect = K.rect || [0.03, 0.03, 0.97, 0.97];
+  for (const k in it.kinds) it.kinds[k].visible = k === kind;
+  it.face.scale.set(w, h, 1); it.face.position.set(0, 0, K.z);
+  const R = it.rect; it.hint.scale.set((R[2] - R[0]) * w, (R[3] - R[1]) * h, 1); it.hint.position.set(((R[0] + R[2]) / 2 - 0.5) * w, ((R[1] + R[3]) / 2 - 0.5) * h, K.z + 0.0012); it.hint.visible = true;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, CW, CH);
+  g.setTransform(CW / w, 0, 0, -CH / h, 0, CH);
+  const disc = (x, y, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+  const INK = '#221a2b';
+  if (kind === 'lp') {
+    const n = FIN.lpN++, bg = ['#fff4de', '#ffbf2e', '#ffc9d6', '#a8e6d6'][n % 4], cols = ['#ee4a2c', '#2f5bd8', '#13a08a', '#7b3fb0', '#ffbf2e', '#fff4de'].filter(c => c !== bg);
+    g.fillStyle = bg; g.fillRect(0, 0, w, h);
+    const v = (n + 2) % 3;
+    if (v === 0) { disc(0, 0, 0.125, cols[0]); disc(0, 0, 0.07, cols[1]); g.fillStyle = cols[2]; for (let i = 0; i < 3; i++) g.fillRect(0.205 + i * 0.03, h - 0.095, 0.016, 0.095); }
+    else if (v === 1) { g.fillStyle = cols[0]; g.fillRect(0, h - 0.052, w, 0.052); g.fillStyle = cols[1]; g.fillRect(0, h - 0.068, w, 0.01); disc(w - 0.056, 0.056, 0.04, cols[2]); disc(w - 0.056, 0.056, 0.016, bg); }
+    else { for (let i = 0; i < 4; i++) disc(0.045 + i * 0.074, 0.034, 0.05, cols[i % cols.length]); g.fillStyle = cols[4 % cols.length]; g.fillRect(0, h - 0.03, w * 0.5, 0.03); }
+    g.strokeStyle = INK; g.lineWidth = 0.005; g.strokeRect(0.0025, 0.0025, w - 0.005, h - 0.005);
+  } else if (kind === 'poster') {
+    g.fillStyle = '#fff4de'; g.fillRect(0, 0, w, h);
+    const c = ['#ee4a2c', '#2f5bd8', '#13a08a'][seed % 3];
+    // 아래에서 퍼지는 햇살 + 위쪽 띠
+    g.fillStyle = '#ffbf2e'; for (let i = 0; i < 7; i++) { const a0 = Math.PI * (0.08 + i * 0.125), a1 = a0 + Math.PI * 0.06; g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2 + Math.cos(a0) * 0.13, Math.sin(a0) * 0.13); g.lineTo(w / 2 + Math.cos(a1) * 0.13, Math.sin(a1) * 0.13); g.fill(); }
+    disc(w / 2, 0, 0.055, c);
+    g.fillStyle = c; g.fillRect(0, h - 0.04, w, 0.04); g.fillStyle = INK; g.fillRect(0, h - 0.05, w, 0.006);
+    g.strokeStyle = INK; g.lineWidth = 0.005; g.strokeRect(0.0025, 0.0025, w - 0.005, h - 0.005);
+  } else if (kind === 'book') {
+    g.fillStyle = '#fffdf5'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#e3d8c2'; g.lineWidth = 0.003; g.strokeRect(0.004, 0.004, w - 0.008, h - 0.008);
+  }
+  it.tex.needsUpdate = true;
+}
+// 펜 든 내 오른손 (1인칭). 펜 끝이 원점, 몸통은 +z, 손등은 +y 쪽, 손바닥·새끼손가락은 +x 쪽
+function finBuildPen() {
+  let g = new THREE.Group(); const mats = ME.mats, sk = mats.skin;
+  g.add(new THREE.Mesh(_vm([
+    [new THREE.ConeGeometry(0.0034, 0.011, 10).rotateX(-Math.PI / 2).translate(0, 0, 0.0055), '#1b1828'],
+    [new THREE.CylinderGeometry(0.0062, 0.0036, 0.012, 12).rotateX(Math.PI / 2).translate(0, 0, 0.017), '#e8e8f0'],
+    [new THREE.CylinderGeometry(0.0082, 0.0082, 0.121, 14).rotateX(Math.PI / 2).translate(0, 0, 0.0835), '#22244a'],
+    [new THREE.CylinderGeometry(0.0087, 0.0087, 0.012, 14).rotateX(Math.PI / 2).translate(0, 0, 0.134), '#ffbf2e'],
+    [new THREE.SphereGeometry(0.0082, 12, 8).translate(0, 0, 0.144), '#22244a'],
+  ]), toonVC({ outline: 0.003 })));
+  const pen = g; g = new THREE.Group(); g.position.z = 0.016; pen.add(g);      // 손은 촉에서 조금 떨어져 쥠
+  const P = a => V3(a[0], a[1], a[2]);
+  const chain = (pts, rs) => { for (let i = 0; i < pts.length - 1; i++) g.add(capsuleBetween(P(pts[i]), P(pts[i + 1]), rs[i], sk)); };
+  // 검지: 펜 위에 얹힘
+  const KI = [0.021, 0.0225, 0.099];
+  chain([[0.0012, 0.0102, 0.03], [0.004, 0.019, 0.05], [0.011, 0.0268, 0.074], KI], [0.0082, 0.0087, 0.0092]);
+  // 중지: 오른쪽 아래에서 받침
+  const KM = [0.0365, 0.0165, 0.099];
+  chain([[0.0086, -0.0064, 0.035], [0.0185, -0.004, 0.054], [0.031, 0.0065, 0.076], KM], [0.0084, 0.0089, 0.0094]);
+  // 약지·새끼: 손바닥 쪽으로 말아 쥠
+  const KR = [0.0495, 0.0075, 0.098], KP = [0.0595, -0.0045, 0.097];
+  chain([[0.0345, -0.0205, 0.063], [0.046, -0.0115, 0.077], KR], [0.0082, 0.0088]);
+  chain([[0.0445, -0.0285, 0.068], [0.055, -0.0215, 0.08], KP], [0.0072, 0.0078]);
+  for (const [k, r] of [[KI, 0.0108], [KM, 0.011], [KR, 0.0102], [KP, 0.0092]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), sk); s.position.copy(P(k)).add(V3(0.001, 0.001, 0.002)); g.add(s); }
+  // 엄지: 왼쪽에서 펜을 누름
+  const TT = [-0.0094, 0.0018, 0.036], TI = [-0.0138, -0.003, 0.058], TM = [-0.0055, -0.0155, 0.085], TB = [0.015, -0.0225, 0.11];
+  chain([TT, TI, TM, TB], [0.0086, 0.0098, 0.0115]);
+  const W = V3(0.047, -0.016, 0.166);
+  g.add(handBack(P(KI).add(V3(0, -0.003, 0.002)), P(KP).add(V3(0, -0.002, 0.002)), W, sk, 0.029, 0.017));
+  g.add(ellipsoid(V3(0.024, -0.022, 0.118), V3(-0.5, 0.1, -0.86), V3(1, 0, 0), [0.026, 0.017, 0.013], sk));       // 엄지 두덩
+  // 손톱 (검지·엄지)
+  g.add(ellipsoid(V3(0.0016, 0.0178, 0.0345), V3(-0.12, -0.4, -0.9), V3(1, 0, 0), [0.0062, 0.0052, 0.0022], mats.nail, 12));
+  g.add(ellipsoid(V3(-0.0172, 0.0026, 0.04), V3(0.2, 0.2, -0.95), V3(0, 1, 0), [0.0066, 0.0054, 0.0022], mats.nail, 12));
+  sleeveOn(g, W, W.clone().add(V3(-0.066, -0.066, 0.995).multiplyScalar(0.3)), mats);
+  return pen;
+}
+
+// ---------- 시작 ----------
+function finBegin() {
+  if (FIN.on) return;
+  finBuild(); finLayout();
+  const t = NOW.t, R = REACT, hot = clamp((R.peak || 0) / 100, 0, 1);
+  Object.assign(FIN, { on: true, stage: 'ovation', t0: t, stageT: t, band: true, signed: 0, kindN: 0, faint: null, cur: null, ink: 0, inkT: -9, draw: null, camT: 0, loud: 1, bump: 0, cheerUntil: t + 2.5, hushK: 0, nextYell: t + 1, nextFlash: t + 4 });
+  FIN.fans.length = 0; FIN.slots.length = 0; FIN.reacts.length = 0;
+  for (const m of CROWD.list) m.finGot = false;
+  GAME.phase = 'finale';
+  if (MUS.gap) MUS.gap.hold = true;      // 곡 사이에 끝냈으면 다음 곡으로 넘어가지 않게 붙잡아 둠
+  releaseAllInput(); fingerVisual(null);
+  R.meSolo = false; R.inBreak = false;
+  R.burst = { kind: 'ovation', owner: 'me', t, until: t + 1e6, k: 1.15 + 0.25 * hot, energy: 1, fade: 3 };
+  for (const m of CROWD.list) { m.standHoldUntil = t + 1e6; m.pending = null; }
+  finUI();
+  reactEvent('finale', {});
+  // 터지는 순간: 충격파 · 폭죽 · 색종이 · 꽃과 모자 · 종 · 건배 · 밴드
+  crowdShock(1.3); poppers(4, 2.2); fxConfettiDrop(200, 2.6); throwGifts(12, 4.5);
+  delete HYPE.last.bell; bartenderBell(0.9); R.later(2.8, toastWave);
+  tbWorship(4.4); delete HYPE.last.flourish; bandFlourish();
+  for (const m of BAND.members) m.express(pick(['stunlaugh', 'grin', 'ecstasy']), 4);
+  if (AE.decoded) { const now = AE.ctx.currentTime; crowdWhoops(12); crowdOoh(now + 0.05, 12, 0.8, 1.6); for (let i = 0; i < 3; i++) scream(now + 0.15 + i * 0.3, { vol: 0.17 }); }
+  crowdWhistles(4);
+  afterSave();
+}
+// 팬들이 무대로 뛰어 올라옴
+function finRush() {
+  FIN.stage = 'rush'; FIN.stageT = NOW.t;
+  const c = V3(0, 0, -4.4);
+  FIN.pool = CROWD.list.filter(m => m.p.root.visible && !m.override && m.kind !== 'bar' && !m.far && m.spot && !(m.reserved && !m.converted))
+    .map(m => ({ m, d: (m.kind === 'front' ? 0 : 3) + m.spot.pos.distanceTo(c) })).sort((a, b) => a.d - b.d).map(o => o.m);
+  const n = Math.min(FIN_SLOTS.length, FIN.pool.length);
+  for (let i = 0; i < n; i++) finSend(FIN.pool[i], i, i * 0.17 + rand(0, 0.12));
+  REACT.later(0.9, () => { if (FIN.on && FIN.stage !== 'out') FIN.camT = 1; });
+  if (AE.decoded) { const now = AE.ctx.currentTime; for (let i = 0; i < 3; i++) scream(now + 0.1 + i * 0.35, { vol: 0.16 }); crowdWhoops(6); for (let i = 0; i < 14; i++) playBuf(AE.syn.stomp, now + 0.25 + i * 0.11 + rand(0, 0.05), rand(0.1, 0.18), AE.buses.crowd, { pan: rand(-0.5, 0.5), rate: rand(1.1, 1.5) }); }
+}
+function finSend(m, slot, delay = 0) {
+  if (m.act) finishCrowdScene(m, NOW.t);
+  m.pending = null; m.rush = 0; m.walkOff = null; m.liftY = 0;
+  const p = m.p, s0 = p.root.position.clone(), S = FIN_SLOTS[slot], Y = LAYOUT.stageY;
+  const fan = { m, p, slot, st: 'wait', at: NOW.t + delay, t0: NOW.t, path: null, seg: 0, segT: 0, pos: s0, yaw: p.root.rotation.y, ph: rand(0, 6.28), speed: rand(2.9, 3.5),
+    kind: 'lp', item: null, react: null, carry: null, gx: clamp(s0.x * 0.45, -0.5, 0.5) + rand(-0.12, 0.12) };
+  fan.path = [s0.clone(), V3(fan.gx, 0, -4.22), V3(fan.gx, Y, -3.7), ...finVia(S), V3(S[0], Y, S[1])];
+  FIN.slots[slot] = fan; FIN.fans.push(fan);
+  m.fin = fan; m.override = finFan; p.c.stand = 1; m.standNow = 1;
+  return fan;
+}
+// 무대 앞 가운데 통로(베이스와 트롬본 사이)에서 자리까지 거쳐 갈 점
+function finVia(S) {
+  const Y = LAYOUT.stageY, out = [V3(clamp(S[0] * 0.35, -0.3, 0.45) + rand(-0.08, 0.08), Y, -2.75)];
+  if (S[1] > -1.3 && S[0] < -0.7) out.push(V3(-0.5, Y, -1.32)); else if (S[0] > 0.6) out.push(V3(0.48, Y, -1.3));
+  return out;
+}
+function finLeave(fan, carry = null, dive = false) {
+  const m = fan.m, Y = LAYOUT.stageY, S = [fan.pos.x, fan.pos.z], via = finVia(S).reverse();
+  if (FIN.slots[fan.slot] === fan) FIN.slots[fan.slot] = null;
+  fan.st = 'leave'; fan.seg = 0; fan.segT = NOW.t; fan.carry = carry; fan.dive = dive; fan.speed = fan.slow ? 1.5 : rand(3.0, 3.6);
+  fan.path = [fan.pos.clone(), ...via, V3(fan.gx, Y, dive ? -3.5 : -3.7)];
+  if (!dive) fan.path.push(V3(fan.gx, 0, -4.22), m.spot.pos.clone());
+}
+function finRelease(m) {
+  const fan = m.fin, p = m.p;
+  if (fan) { fan.st = 'gone'; if (fan.item) { fan.item.g.visible = false; fan.item.owner = null; fan.item = null; } if (FIN.slots[fan.slot] === fan) FIN.slots[fan.slot] = null; if (FIN.cur === fan) FIN.cur = null; }
+  m.fin = null; m.override = null; m.act = null;
+  p.root.rotation.x = 0; p.root.position.copy(m.spot.pos); p.root.rotation.y = m.spot.yaw; p.c.stand = 1; p.c.slump = 0; p.c.kneel = 0; m.standNow = 1; m.standWish = 1;
+  for (const k in m.props) if (k !== 'glasses') m.props[k].visible = false;
+}
+
+// ---------- 무대에 올라온 팬 (매 프레임) ----------
+function finFan(m, t, dt, beat) {
+  const fan = m.fin, p = m.p;
+  if (!fan || !FIN.on) { finRelease(m); return; }
+  crowdStill(p, 0.1); p.c.stand = 1; p.c.step = 0; p.c.lean = 0.04; p.c.kneel = 0; p.c.slump = 0; p.c.look.copy(CROWD.me); p.root.rotation.x = 0;
+  m.act = null;
+  const F = frameOf(p);
+  switch (fan.st) {
+    case 'wait': {
+      const w = Math.sin(t * 11 + fan.ph) * 0.1;
+      p.reach('L', at(F, 0.12, -0.26 - w, 0.6), null, null, 'spread'); p.reach('R', at(F, 0.12, 0.26 - w, 0.6), null, null, 'spread'); sceneFace(p, 'scream'); p.c.jump = 1;
+      if (t >= fan.at) { fan.st = 'run'; fan.seg = 0; fan.segT = t; fan.path[0].copy(fan.pos); }
+      break;
+    }
+    case 'run':
+      finRunPose(fan, t, F);
+      finMove(fan, t, dt, () => { fan.st = fan.slot === 0 ? 'present' : 'ring'; fan.t0 = t; });
+      break;
+    case 'ring': finRing(fan, t, dt, F); break;
+    case 'present': finPresent(fan, t, dt, F); break;
+    case 'react': finReact(fan, t, dt, F); break;
+    case 'leave':
+      finRunPose(fan, t, F, true);
+      finMove(fan, t, dt, () => { if (fan.dive) { fan.st = 'dive'; fan.t0 = t; fan.d0 = fan.pos.clone(); } else finRelease(m); });
+      break;
+    case 'dive': finDive(fan, t, dt, F); break;
+  }
+  if (m.fin !== fan) return;      // 방금 내려감
+  p.root.position.copy(fan.pos); p.root.rotation.y = fan.yaw;
+}
+function finMove(fan, t, dt, onDone) {
+  const a = fan.path[fan.seg], b = fan.path[fan.seg + 1], p = fan.p;
+  if (!b) { onDone(); return; }
+  const hop = Math.abs(b.y - a.y) > 0.1, len = a.distanceTo(b), dur = hop ? 0.42 : Math.max(0.05, len / fan.speed), k = clamp((t - fan.segT) / dur, 0, 1);
+  fan.pos.lerpVectors(a, b, hop ? smooth01(k) : k);
+  if (hop) fan.pos.y += Math.sin(k * Math.PI) * 0.32; else if (!fan.slow) fan.pos.y += Math.abs(Math.sin(t * 15 + fan.ph)) * 0.04;
+  if (len > 0.05) fan.yaw = dampAngle(fan.yaw, Math.atan2(b.x - a.x, b.z - a.z), 12, dt);
+  p.c.step = hop ? 0 : 1; p.c.lean = fan.slow ? 0.1 : 0.2;
+  if (k >= 1) { fan.seg++; fan.segT = t; }
+}
+function finRunPose(fan, t, F, leaving = false) {
+  const p = fan.p;
+  if (fan.item && fan.carry) { finCarry(fan, fan.carry, t, F); sceneFace(p, fan.carry === 'hug' ? (fan.slow ? 'dizzy' : 'bawl') : 'scream'); if (fan.slow) p.c.side = Math.sin(t * 5 + fan.ph) * 0.16; return; }
+  const w = Math.sin(t * 13 + fan.ph) * 0.1;
+  p.reach('L', at(F, 0.16, -0.26 - w, 0.56), null, null, 'spread'); p.reach('R', at(F, 0.16, 0.26 - w, 0.56), null, null, 'spread');
+  sceneFace(p, leaving ? 'grin' : (fan.ph > 3.1 ? 'scream' : 'ecstasy'));
+}
+// 눈물 분수
+function finTears(p, F, rate = 0.6) {
+  for (const sx of [1, -1]) if (Math.random() < rate) {
+    const e = facePoint(p, sx * p.eyeP.x * 1.3, p.eyeP.y - p.headC.y - p.eyeP.r * 0.3, p.eyeP.z - p.headC.z + 0.03);
+    fxEmit(e, sideW(F, sx).multiplyScalar(rand(0.5, 1.0)).add(_fv3.set(0, rand(1.0, 1.7), 0)).addScaledVector(F.f, rand(0.1, 0.4)), rand(0.03, 0.045), rand(0.4, 0.6), Math.random() < 0.7 ? '#8fd6ff' : '#e6f7ff');
+  }
+}
+function finToSlot(fan, t, dt, jostle = 1) {
+  const S = FIN_SLOTS[fan.slot], p = fan.p, cam = CROWD.me;
+  const jx = (Math.sin(t * 1.7 + fan.ph) * 0.035 + Math.sin(t * 3.1 + fan.ph * 2) * 0.018) * jostle, jz = Math.cos(t * 1.3 + fan.ph * 1.7) * 0.04 * jostle;
+  _fv.set(S[0] + jx, LAYOUT.stageY, S[1] + jz);
+  const d = _fv.distanceTo(fan.pos);
+  if (d > 0.14) { fan.pos.addScaledVector(_fv2.copy(_fv).sub(fan.pos).normalize(), Math.min(d, 1.9 * dt)); p.c.step = 1; }
+  else fan.pos.lerp(_fv, 1 - Math.exp(-7 * dt));
+  fan.yaw = dampAngle(fan.yaw, Math.atan2(cam.x - fan.pos.x, cam.z - fan.pos.z), 8, dt);
+  return d;
+}
+// 둘러싼 팬: 저마다 다른 짓 (손 뻗기 · 찍기 · 비명 · 엉엉 · 꽃 흔들기 · 가리키며 웃기)
+function finRing(fan, t, dt, F) {
+  finRingPose(fan, t, dt, F);
+  for (const sd of ['L', 'R']) { const A = fan.p.arms[sd]; if (A.mode === 'ik' && A.target.z > -0.66 && Math.abs(A.target.x) < 0.36) A.target.x = (fan.pos.x < 0 ? -1 : 1) * 0.36; }
+}
+function finRingPose(fan, t, dt, F) {
+  const p = fan.p, m = fan.m, cam = CROWD.me, L = FIN.lay;
+  finToSlot(fan, t, dt);
+  const toCam = _fv3.copy(cam).sub(F.c).normalize().clone(), R = p.R;
+  // 방금 사인이 끝났으면 다 같이 폭발
+  if (t < FIN.cheerUntil && !FIN.faint) {
+    const w = Math.sin(t * 12 + fan.ph) * 0.1;
+    p.reach('L', at(F, 0.14, -0.27 - w, 0.6), null, null, 'spread'); p.reach('R', at(F, 0.14, 0.27 - w, 0.6), null, null, 'spread');
+    sceneFace(p, fan.ph > 3.1 ? 'scream' : 'ecstasy'); p.c.jump = 1.3; return;
+  }
+  // 누가 주저앉으면: 다 같이 헉 하고 내려다봄
+  const fz = FIN.faint;
+  if (fz && fz !== fan) {
+    p.c.look.copy(fz.p.headWorld(_fv2)); sceneFace(p, fan.ph > 3.1 ? 'gasp' : 'jawdrop'); p.c.lean = 0.2;
+    if (fan.ph > 2) cheekHands(p); else headHands(p);
+    return;
+  }
+  // 내가 쓰는 동안: 숨죽이고 펜 끝만 봄 (찍는 사람은 계속 찍음)
+  const style = FIN_STYLES[fan.slot % FIN_STYLES.length], hush = FIN.hushK > 0.5 && style !== 'film';
+  if (hush) {
+    p.c.look.copy(L.C); p.c.lean = 0.22; sceneFace(p, fan.ph > 4 ? 'jawdrop' : 'gasp');
+    if (fan.ph > 2) cheekHands(p); else { p.reach('L', at(F, 0.2, -0.07, 0.12), null, null, 'fist'); p.reach('R', at(F, 0.2, 0.07, 0.13), null, null, 'fist'); }
+    return;
+  }
+  switch (style) {
+    case 'grab': {
+      const open = Math.sin(t * 9 + fan.ph) > 0;
+      for (const [sd, s] of [['L', -1], ['R', 1]]) p.reach(sd, F.c.clone().addScaledVector(toCam, 0.44).addScaledVector(F.r, s * 0.17).addScaledVector(UPY, 0.14 + Math.sin(t * 6 + fan.ph + s) * 0.05), null, null, open ? 'spread' : 'grip');
+      sceneFace(p, fan.ph > 3.1 ? 'ecstasy' : 'scream'); p.c.jump = 0.9; p.c.lean = 0.16;
+      break;
+    }
+    case 'film': {
+      const head = p.headWorld(_fv2).clone(), ph = head.addScaledVector(toCam, 0.3).addScaledVector(F.r, 0.17).add(_fv.set(0, 0.03 + Math.sin(t * 2.3 + fan.ph) * 0.012, 0));
+      const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(ph, cam, UPY)).multiply(_fq.setFromAxisAngle(UPY, Math.PI));
+      const grip = V3(0.052, -0.015, 0).applyQuaternion(q);
+      p.reach('R', ph.clone().add(grip), null, q, 'grip');
+      makeCrowdProp(m, 'phone'); m.act = { k: 'fin', phoneQ: q, phoneOffset: grip.clone().negate(), phoneVisible: true };
+      p.reach('L', at(F, 0.18, -0.26 + Math.sin(t * 8 + fan.ph) * 0.1, 0.5), null, null, 'spread');
+      sceneFace(p, FIN.hushK > 0.5 ? 'focus' : 'grin');
+      if (t > (fan.flashAt || 0)) { fan.flashAt = t + rand(2.2, 6); finFlash(ph.clone().addScaledVector(toCam, 0.03), panOf(p)); }
+      break;
+    }
+    case 'scream': {
+      if (Math.sin(t * 0.9 + fan.ph) > 0) headHands(p); else { const w = Math.sin(t * 11 + fan.ph) * 0.1; p.reach('L', at(F, 0.14, -0.26 - w, 0.58), null, null, 'fist'); p.reach('R', at(F, 0.14, 0.26 - w, 0.58), null, null, 'fist'); }
+      sceneFace(p, 'scream'); p.c.jump = 1.1;
+      break;
+    }
+    case 'cry': {
+      cheekHands(p); sceneFace(p, 'bawl'); p.c.side = Math.sin(t * 15 + fan.ph) * 0.04; p.c.headTilt = Math.sin(t * 1.6 + fan.ph) * 0.1; finTears(p, F, 0.35);
+      break;
+    }
+    case 'wave': {
+      const w = Math.sin(t * 8 + fan.ph) * 0.16;
+      p.reach('R', at(F, 0.15, 0.25 + w, 0.6), null, null, 'flat');
+      const b = at(F, 0.3, -0.12, 0.16 + Math.sin(t * 5 + fan.ph) * 0.04);
+      p.reach('L', b, null, null, 'grip');
+      makeCrowdProp(m, 'bouquet'); m.act = { k: 'fin', hold: { bouquet: { side: 'L', off: V3(0, 0.1, 0), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.5, fan.yaw, 0, 'YXZ')) } } };
+      sceneFace(p, 'ecstasy'); p.c.jump = 0.6;
+      break;
+    }
+    default: {   // point
+      pointAtMe(p, F); headHands(p, 'L'); sceneFace(p, 'stunlaugh'); p.c.headTilt = 0.1; p.c.jump = 0.5;
+    }
+  }
+  void R;
+}
+function finFlash(pos, pan = 0) {
+  fxEmit(pos, _fv.set(0, 0, 0), 0.34, 0.09, '#ffffff', 0, 0);
+  if (AE.decoded) { const now = AE.ctx.currentTime + 0.01; breathBlip(now, { dur: 0.028, f0: 5200, f1: 2300, q: 3, vol: 0.045, pan, att: 0.002 }); breathBlip(now + 0.06, { dur: 0.03, f0: 3200, f1: 1500, q: 3, vol: 0.035, pan, att: 0.002 }); }
+}
+// 물건을 한 자리에 놓고 두 손으로 가장자리를 잡게 함
+function finPlaceItem(fan, C, q, hug = false, s = 1) {
+  const it = fan.item, p = fan.p; if (!it) return;
+  it.g.position.copy(C); it.g.quaternion.copy(q); it.g.scale.setScalar(s);
+  const X = V3(1, 0, 0).applyQuaternion(q), Y = V3(0, 1, 0).applyQuaternion(q), F = frameOf(p);
+  const sg = X.dot(F.r) >= 0 ? 1 : -1, hw = it.w / 2 + 0.012;
+  if (hug) {
+    p.reach('R', C.clone().addScaledVector(X, -sg * hw * 0.5).addScaledVector(F.f, 0.035), null, null, 'flat');
+    p.reach('L', C.clone().addScaledVector(X, sg * hw * 0.5).addScaledVector(F.f, 0.035).addScaledVector(Y, -0.05), null, null, 'flat');
+  } else {
+    p.reach('R', C.clone().addScaledVector(X, sg * hw).addScaledVector(Y, -it.h * 0.16), null, null, 'grip');
+    p.reach('L', C.clone().addScaledVector(X, -sg * hw).addScaledVector(Y, -it.h * 0.16), null, null, 'grip');
+  }
+}
+function finCarry(fan, mode, t, F) {
+  if (!fan.item) return;
+  if (mode === 'up') { const C = F.c.clone().addScaledVector(F.f, 0.04).addScaledVector(UPY, 0.66 + Math.sin(t * 9 + fan.ph) * 0.03); finPlaceItem(fan, C, faceQ(C, C.clone().addScaledVector(F.f, 1).addScaledVector(UPY, 0.1))); }
+  else { const C = F.c.clone().addScaledVector(F.f, 0.2).addScaledVector(UPY, -0.03); finPlaceItem(fan, C, faceQ(C, C.clone().addScaledVector(F.f, 1).addScaledVector(UPY, 0.55))); }      // 가슴 앞에 꼭 쥠 (사인이 나를 향함)
+}
+// 사인받는 자리: 물건을 내 눈 쪽으로 받쳐 듦
+function finPresent(fan, t, dt, F) {
+  const p = fan.p, L = FIN.lay, d = finToSlot(fan, t, dt, 0);
+  if (!fan.item) {
+    // 오는 중 / 막 도착
+    const w = Math.sin(t * 13 + fan.ph) * 0.08;
+    p.reach('L', at(F, 0.2, -0.2 - w, 0.3), null, null, 'spread'); p.reach('R', at(F, 0.2, 0.2 - w, 0.3), null, null, 'spread'); sceneFace(p, 'scream');
+    if (d < 0.14 && FIN.stage === 'sign' && !FIN.cur) finGive(fan);
+    return;
+  }
+  const it = fan.item, age = t - it.t0, pop = smooth01(age / 0.3), drawing = !!FIN.draw || (FIN.ink > 0 && t - FIN.inkT < 1.6);
+  const beg = !FIN.ink && age > 6 ? smooth01((age - 6) / 0.6) : 0;
+  const idle = drawing ? 0 : 1;
+  const C = _fv.copy(F.c).addScaledVector(F.f, 0.16).lerp(L.C, pop).clone();
+  C.addScaledVector(L.up, (Math.sin(t * 5.2 + fan.ph) * 0.003 + Math.max(0, Math.sin(t * 13)) * 0.012 * beg) * idle);
+  const q = _fq.copy(L.iq).multiply(new THREE.Quaternion().setFromAxisAngle(V3(0, 0, 1), Math.sin(t * 3.4 + fan.ph) * 0.018 * idle)).clone();
+  finPlaceItem(fan, C, q, false, lerp(0.25, 1, pop));
+  it.hint.material.opacity = 0.25 + 0.6 * (0.5 + 0.5 * Math.sin(t * 5.2));
+  if (drawing) { p.c.look.copy(FIN.draw && FIN.draw.w ? FIN.draw.w : L.C); sceneFace(p, FIN.ink < 0.25 ? 'gasp' : 'jawdrop'); crowdStill(p, 0); p.c.lean = 0.1; }
+  else { sceneFace(p, beg > 0.5 ? 'teary' : (Math.sin(t * 0.8 + fan.ph) > 0 ? 'stunlaugh' : 'scream')); p.c.jump = beg > 0.5 ? 0.7 : 0.25; }
+}
+function finGive(fan) {
+  let it = FIN.items.find(i => !i.owner);
+  if (!it) { it = FIN.items.slice().sort((a, b) => a.t0 - b.t0)[0]; if (it.owner) it.owner.item = null; }
+  it.owner = fan; fan.item = it; it.t0 = NOW.t;
+  fan.kind = FIN_ORDER[FIN.kindN++ % FIN_ORDER.length];
+  finPaint(it, fan.kind, (fan.p.look.seed || 1) + FIN.signed);
+  it.g.visible = true; FIN.cur = fan; FIN.ink = 0; FIN.inkT = -9; FIN.draw = null;
+}
+
+// ---------- 사인 ----------
+function finHit(e, clampIn) {
+  const fan = FIN.cur, it = fan && fan.item; if (!it || NOW.t - it.t0 < 0.3) return null;
+  const r = SC.renderer.domElement.getBoundingClientRect();
+  _fv2.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1, 0.5);
+  SC.camera.updateMatrixWorld(true); it.g.updateMatrixWorld(true);
+  FIN.ray.setFromCamera(_fv2, SC.camera);
+  FIN.plane.setFromNormalAndCoplanarPoint(_fv.set(0, 0, 1).transformDirection(it.g.matrixWorld), _fv3.set(0, 0, FIN_KINDS[it.kind].z).applyMatrix4(it.g.matrixWorld));
+  const hit = FIN.ray.ray.intersectPlane(FIN.plane, new THREE.Vector3()); if (!hit) return null;
+  const loc = it.g.worldToLocal(hit.clone()), u = loc.x / it.w + 0.5, v = loc.y / it.h + 0.5, R = it.rect, pad = 0.12;
+  if (!clampIn && (u < -pad || u > 1 + pad || v < -pad || v > 1 + pad)) return null;      // 물건 언저리에서 시작해도 받아 줌 (사인 칸 안으로 당겨서 그림)
+  const cu = clamp(u, R[0], R[2]), cv = clamp(v, R[1], R[3]);
+  return { u: cu, v: cv, w: it.g.localToWorld(V3((cu - 0.5) * it.w, (cv - 0.5) * it.h, FIN_KINDS[it.kind].z)) };
+}
+function finPenStyle(it) { const g = it.ctx; g.strokeStyle = g.fillStyle = it.inkCol; g.lineWidth = 0.0066; g.lineCap = 'round'; g.lineJoin = 'round'; return g; }
+function finDown(e) {
+  if (!FIN.on || FIN.stage !== 'sign' || !UI.playing || FIN.draw) return;
+  const h = finHit(e, false); if (!h) return;
+  e.preventDefault();
+  try { SC.renderer.domElement.setPointerCapture(e.pointerId); } catch (x) { }
+  const it = FIN.cur.item, g = finPenStyle(it), x = h.u * it.w, y = h.v * it.h;
+  g.beginPath(); g.arc(x, y, 0.0033, 0, Math.PI * 2); g.fill(); it.tex.needsUpdate = true;
+  FIN.draw = { id: e.pointerId, prev: h, mx: x, my: y, w: h.w };
+  FIN.ink += 0.012; FIN.inkT = NOW.t; it.hint.visible = false;
+}
+function finDrag(e) {
+  const d = FIN.draw; if (!d || e.pointerId !== d.id || !FIN.cur || !FIN.cur.item) return;
+  const h = finHit(e, true); if (!h) return;
+  const it = FIN.cur.item, a = d.prev, len = Math.hypot((h.u - a.u) * it.w, (h.v - a.v) * it.h);
+  if (len < 0.0012) return;
+  const g = finPenStyle(it), mx = (a.u + h.u) / 2 * it.w, my = (a.v + h.v) / 2 * it.h;
+  g.beginPath(); g.moveTo(d.mx, d.my); g.quadraticCurveTo(a.u * it.w, a.v * it.h, mx, my); g.stroke(); it.tex.needsUpdate = true;
+  d.mx = mx; d.my = my; d.prev = h; d.w = h.w;
+  FIN.ink += len / it.w; FIN.inkT = NOW.t;
+  // 매직 끽끽
+  if (AE.decoded && NOW.t - FIN.sqT > 0.055) { FIN.sqT = NOW.t; const f = rand(2500, 3300) + Math.min(1500, len * 60000); breathBlip(AE.ctx.currentTime + 0.004, { dur: 0.06, f0: f, f1: f * 0.74, q: 9, vol: 0.07, pan: 0.12, att: 0.008 }); }
+}
+function finUp(e) {
+  const d = FIN.draw; if (!d || e.pointerId !== d.id) return;
+  const it = FIN.cur && FIN.cur.item;
+  if (it) { const g = finPenStyle(it); g.beginPath(); g.moveTo(d.mx, d.my); g.lineTo(d.prev.u * it.w, d.prev.v * it.h); g.stroke(); it.tex.needsUpdate = true; }
+  FIN.draw = null; FIN.inkT = NOW.t;
+}
+function finBind() {
+  const cv = SC.renderer.domElement;
+  cv.addEventListener('pointerdown', finDown); cv.addEventListener('pointermove', finDrag);
+  cv.addEventListener('pointerup', finUp); cv.addEventListener('pointercancel', finUp); cv.addEventListener('lostpointercapture', finUp);
+  UI.el.endShow.onclick = () => finRequest();
+  UI.el.encore.onclick = () => finEncore();
+  UI.el.finHome.onclick = () => { afterSave(); location.reload(); };
+}
+// 사인 하나 끝: 받은 사람은 내 코앞 그 자리에서 저마다 난리를 치고, 내려가기 시작하면 다음 사람이 밀고 들어옴
+function finSigned() {
+  const fan = FIN.cur; if (!fan) return;
+  const t = NOW.t;
+  FIN.cur = null; FIN.signed++; FIN.draw = null; FIN.ink = 0; FIN.inkT = -9;
+  for (const o of FIN.fans) if (o.st === 'react') finLeave(o, 'hug');
+  fan.m.finGot = true; fan.st = 'react'; fan.t0 = t;
+  if (!FIN.reacts.length) { FIN.reacts = shuffle(['trophy', 'kiss', 'faint', 'dive', 'dance']); if (FIN.reacts[FIN.reacts.length - 1] === FIN.lastReact) FIN.reacts.reverse(); }
+  fan.react = FIN.lastReact = FIN.reacts.pop();
+  FIN.cheerUntil = t + 1.5; FIN.bump = 1;
+  if (AE.decoded) { const now = AE.ctx.currentTime; crowdWhoops(7); scream(now + 0.05, { vol: 0.2, pan: 0 }); if (Math.random() < 0.6) whistleCall(now + 0.4, { vol: 0.05 }); }
+  for (let i = 0; i < 3; i++) REACT.later(0.15 + i * 0.22, () => { const f = pick(FIN.fans.filter(o => o.st === 'ring')); if (f) finFlash(f.p.headWorld(new THREE.Vector3()).add(V3(0, 0.05, 0.25)), panOf(f.p)); });
+  for (const sx of [-1, 1]) fxConfetti(V3(sx * 0.95, 1.5, -0.7), V3(-sx * 0.25, 1, 0.1), 22, 1.3);
+}
+function finAdvance() {
+  if (!FIN.on || FIN.stage !== 'sign' || FIN.slots[0] || FIN.fans.some(f => f.st === 'react')) return;
+  const ring = FIN.fans.filter(f => f.st === 'ring' || f.st === 'run' || f.st === 'wait');
+  let next = ring.filter(f => f.st === 'ring' && !f.m.finGot).sort((a, b) => a.slot - b.slot)[0] || ring.filter(f => f.st === 'ring').sort((a, b) => a.slot - b.slot)[0] || ring.sort((a, b) => a.slot - b.slot)[0];
+  if (!next) { const m = finFromFloor(); if (m) finSend(m, 0, 0); return; }
+  const old = next.slot;
+  FIN.slots[old] = null; next.slot = 0; FIN.slots[0] = next;
+  if (next.st === 'ring') { next.st = 'present'; next.t0 = NOW.t; } else next.path[next.path.length - 1].set(FIN_SLOTS[0][0], LAYOUT.stageY, FIN_SLOTS[0][1]);
+  finFill(old, 0);
+}
+// 빈 자리는 바로 뒤 사람이 채우고, 맨 뒤 빈자리로는 객석에서 새 사람이 뛰어 올라옴
+function finFill(s, depth) {
+  if (FIN.stage !== 'sign' || depth > 8 || FIN.slots[s]) return;
+  const S = FIN_SLOTS[s];
+  let best = null, bd = 1.0;
+  for (const f of FIN.fans) { if (f.st !== 'ring' || f.slot <= s) continue; const T = FIN_SLOTS[f.slot], d = Math.hypot(T[0] - S[0], T[1] - S[1]); if (d < bd) { bd = d; best = f; } }
+  if (best) { const old = best.slot; FIN.slots[old] = null; best.slot = s; FIN.slots[s] = best; finFill(old, depth + 1); }
+  else { const m = finFromFloor(); if (m) finSend(m, s, rand(0, 0.3)); }
+}
+function finFromFloor() {
+  const free = FIN.pool.filter(m => !m.fin && !m.override && m.p.root.visible);
+  return free.find(m => !m.finGot) || free[0] || null;
+}
+// 사인받은 뒤: 내 코앞에서 사인을 들여다봄 → 저마다 다른 난리(자랑하며 한 바퀴 · 뽀뽀하고 엉엉 · 뒤로 넘어가며 혼이 빠짐 · 번쩍 들고 객석으로 몸 던짐 · 덩실덩실) → 내려감
+function finReact(fan, t, dt, F) {
+  const p = fan.p, m = fan.m, a = t - fan.t0, it = fan.item, cam = CROWD.me;
+  const go = (carry, dive = false) => { if (FIN.faint === fan) FIN.faint = null; finLeave(fan, carry, dive); REACT.later(0.15, finAdvance); };
+  if (!it) { go(null); return; }
+  const head = p.headWorld(new THREE.Vector3()), toMe = Math.atan2(cam.x - fan.pos.x, cam.z - fan.pos.z);
+  fan.yaw = dampAngle(fan.yaw, toMe, 8, dt);
+  if (a < 0.7) { const C = head.clone().addScaledVector(F.f, 0.3).add(V3(0, -0.06, 0)); finPlaceItem(fan, C, faceQ(C, head)); p.c.look.copy(C); sceneFace(p, 'gasp'); return; }
+  switch (fan.react) {
+    case 'trophy': {
+      // 번쩍 들고 제자리에서 한 바퀴 (다들 보라고)
+      if (a < 1.1) { finCarry(fan, 'hug', t, F); sceneFace(p, 'scream'); p.c.jump = 1.3; }
+      else if (a < 2.7) {
+        fan.yaw = toMe + smooth01((a - 1.1) / 1.45) * Math.PI * 2; finCarry(fan, 'up', t, F); sceneFace(p, 'scream'); p.c.jump = 1.1; p.c.look.copy(head).add(_fv.set(Math.sin(fan.yaw) * 3, 0.3, Math.cos(fan.yaw) * 3));
+        if (!fan.f1) { fan.f1 = true; crowdWhoops(6); for (const o of shuffle(CROWD.list.filter(o => !o.override && o.p.root.visible && !(o.act && o.act.story))).slice(0, 12)) crowdAct(o, pick(['armsUp', 'pump', 'point']), 2.2, { fist: true, both: true }); }
+      } else go('up');
+      break;
+    }
+    case 'kiss': {
+      // 사인에 뽀뽀 세 번 → 끌어안고 엉엉 울며 꾸벅꾸벅
+      if (a < 2.05) {
+        const k = (a - 0.7) / 0.45, n = Math.floor(k), pk = Math.max(0, Math.sin((k - n) * Math.PI));
+        const mo = mouthWorld(p), C = mo.clone().addScaledVector(F.f, 0.05 + 0.1 * (1 - pk)).add(V3(0, 0.04, 0));
+        finPlaceItem(fan, C, faceQ(C, head)); sceneFace(p, 'bliss'); p.c.look.copy(C); p.c.lean = 0.1 + pk * 0.12;
+        if (n !== fan.kn && n < 3) { fan.kn = n; if (AE.decoded) smooch(AE.ctx.currentTime + 0.1, 0, 0.2); }
+      } else if (a < 3.3) {
+        finCarry(fan, 'hug', t, F); sceneFace(p, 'bawl'); finTears(p, F, 0.8); p.c.lean = 0.15 + 0.4 * Math.max(0, Math.sin((a - 2.05) * 7.5));
+      } else go('hug');
+      break;
+    }
+    case 'dance': {
+      // 끌어안았다가 번쩍 들고 덩실덩실
+      const b = a - 0.7;
+      if (b < 0.4) { finCarry(fan, 'hug', t, F); sceneFace(p, 'scream'); p.c.jump = 1.3; }
+      else if (b < 2.0) {
+        const w = Math.sin(b * 10);
+        const C = F.c.clone().addScaledVector(F.f, 0.1).addScaledVector(F.r, w * 0.2).addScaledVector(UPY, 0.6 + Math.abs(w) * 0.05);
+        finPlaceItem(fan, C, _fq.copy(faceQ(C, C.clone().addScaledVector(F.f, 1).addScaledVector(UPY, 0.2))).multiply(new THREE.Quaternion().setFromAxisAngle(V3(0, 0, 1), -w * 0.3)).clone());
+        p.c.hipSway = 1.4; p.c.side = w * 0.2; p.c.twist = w * 0.22; p.c.jump = 1.2; sceneFace(p, 'ecstasy');
+      } else go('up');
+      break;
+    }
+    case 'dive': {
+      // 번쩍 든 채 무대 앞으로 달려가 객석으로 몸을 던짐
+      if (a < 1.2) { finCarry(fan, 'up', t, F); sceneFace(p, 'scream'); p.c.jump = 1.3; } else go('up', true);
+      break;
+    }
+    default: {   // faint: 비명 → 눈이 풀려 뒷걸음질 → 다리가 풀려 털썩 주저앉고 입에서 혼이 빠져나감 → 정신 차리고 비틀비틀
+      finCarry(fan, 'hug', t, F);
+      if (a < 1.0) { sceneFace(p, 'scream'); p.c.jump = 1.3; break; }
+      const b = a - 1.0, backZ = FIN_SLOTS[0][1] - 0.46;
+      if (fan.pos.z > backZ) { fan.pos.z = Math.max(backZ, fan.pos.z - 1.4 * dt); p.c.step = 1; }
+      const down = b > 0.3 && b < 2.2;
+      p.c.slump = down ? 1 : 0; FIN.faint = down ? fan : null;
+      sceneFace(p, b < 0.3 || b > 2.4 ? 'dizzy' : 'out'); crowdStill(p, 0); p.c.look.copy(cam); p.c.headTilt = 0.22 * Math.sin(b * 2.2);
+      if (b > 0.75 && !fan.f1) { fan.f1 = true; thud(p, 0.3); if (AE.decoded) crowdGasp(AE.ctx.currentTime + 0.02, 10, 0.7); }
+      if (b > 0.7 && b < 2.2) {
+        makeCrowdProp(m, 'soul');
+        const rise = smoothstep(0.7, 1.5, b), back = smoothstep(1.9, 2.2, b), base = mouthWorld(p);
+        const up = cam.clone().sub(base).normalize().multiplyScalar(0.5).add(V3(0, 0.22, 0));      // 내 쪽으로 떠오름
+        const pos = base.clone().addScaledVector(up, rise).add(_fv.set(Math.sin(b * 2.3) * 0.06 * rise, Math.sin(b * 3.3) * 0.03, 0)).lerp(base, back);
+        m.act = { k: 'fin', hold: { soul: { pos, q: faceQ(pos, cam), s: (0.25 + 0.85 * rise) * (1 - back * 0.75) } } };
+      }
+      if (b > 2.9) { fan.slow = true; go('hug'); }
+    }
+  }
+}
+// 등 돌리고 객석으로 몸을 던짐 → 사람들 손 위로 실려 제자리까지
+function finDive(fan, t, dt, F) {
+  const p = fan.p, m = fan.m, a = t - fan.t0, sp = m.spot.pos, Y = LAYOUT.stageY, cam = CROWD.me;
+  const edge = _fv3.set(fan.d0.x, Y, -3.88).clone();
+  const hugIt = () => { if (fan.item) { const C = F.c.clone().addScaledVector(F.f, 0.14).add(V3(0, 0.02, 0)); finPlaceItem(fan, C, faceQ(C, C.clone().addScaledVector(F.f, 1)), true); } };
+  if (a < 0.45) { fan.pos.lerpVectors(fan.d0, edge, smooth01(a / 0.45)); fan.yaw = dampAngle(fan.yaw, 0, 12, dt); p.c.step = 1; sceneFace(p, 'ecstasy'); p.c.look.copy(cam); finCarry(fan, 'up', t, F); }
+  else if (a < 1.1) {
+    const k = smooth01((a - 0.45) / 0.65);
+    fan.pos.set(edge.x, lerp(Y, 1.15, k), lerp(-3.88, -4.05, k)); p.root.rotation.x = -1.42 * Math.pow(k, 1.4); fan.yaw = dampAngle(fan.yaw, 0, 12, dt);
+    hugIt(); sceneFace(p, 'scream');
+    if (!fan.f2) { fan.f2 = true; if (AE.decoded) scream(AE.ctx.currentTime + 0.05, { vol: 0.2, pan: clamp(edge.x / 4, -0.8, 0.8) }); crowdWhoops(5); }
+  } else if (a < 3.1) {
+    const k = smooth01((a - 1.1) / 2.0);
+    fan.pos.set(lerp(edge.x, sp.x, k), 1.15 + Math.sin(a * 9) * 0.05, lerp(-4.05, sp.z - 0.2, k)); p.root.rotation.x = -1.45 + Math.sin(a * 7) * 0.05;
+    hugIt(); sceneFace(p, 'ecstasy');
+    if (!fan.f3) { fan.f3 = true; for (const o of CROWD.list) if (o !== m && !o.override && o.kind === 'front' && o.p.root.position.distanceTo(sp) < 3.2 && !(o.act && o.act.story)) crowdAct(o, 'armsUp', 2.2); }
+  } else if (a < 3.7) {
+    const k = smooth01((a - 3.1) / 0.6);
+    fan.pos.set(sp.x, lerp(1.15, 0, k), lerp(sp.z - 0.2, sp.z, k)); p.root.rotation.x = -1.45 * (1 - k); fan.yaw = dampAngle(fan.yaw, m.spot.yaw, 6, dt); hugIt(); sceneFace(p, 'grin');
+  } else finRelease(m);
+}
+
+// ---------- 한 곡 더 ----------
+function finEncore() {
+  if (!FIN.on || FIN.stage === 'out' || FIN.stage === 'ovation') return;
+  const t = NOW.t;
+  FIN.stage = 'out'; FIN.stageT = t; FIN.band = false; FIN.camT = 0; FIN.cur = null; FIN.draw = null; FIN.cheerUntil = 0; FIN.bump = 1; FIN.faint = null;
+  finUI();
+  for (const fan of FIN.fans) {
+    if (fan.st === 'gone' || fan.st === 'dive') continue;
+    if (fan.st === 'leave') { if (fan.slow) { fan.slow = false; fan.speed = 3.3; fan.path[fan.seg].copy(fan.pos); fan.segT = t; } continue; }      // 비틀비틀 내려가던 사람도 서두름
+    if (fan.st === 'wait') { finRelease(fan.m); continue; }
+    fan.slow = false; finLeave(fan, fan.item ? 'up' : null); fan.segT = t + rand(0, 0.4);
+  }
+  REACT.burst = { kind: 'solo', owner: 'me', t, until: t + 6, k: 1.0, energy: 0.7, fade: 2.5 };
+  setBed('babble', 0, 1);
+  crowdWhoops(9); crowdWhistles(2);
+  for (const m of BAND.members) { m.stare = null; m.c.jump = 0; m.express('grin', 2.5); }
+  if (BAND.tb) BAND.tb.worship = null;
+}
+function finEnd() {
+  for (const m of CROWD.list) { if (m.fin) finRelease(m); m.standHoldUntil = NOW.t + 3 + (m.standDelay || 0); m.finGot = false; }
+  for (const it of FIN.items) { it.g.visible = false; it.owner = null; }
+  FIN.fans.length = 0; FIN.slots.length = 0;
+  Object.assign(FIN, { on: false, req: false, stage: 'off', cur: null, draw: null, band: false, camT: 0, hushK: 0 });
+  GAME.phase = 'play';
+  finUI();
+  setBed('babble', 0, 0.8);
+  TP.lastSoundT = -9; UI.inputRect = null;
+  const now = AE.ctx.currentTime;
+  if (MUS.gap) { MUS.gap.hold = false; MUS.gap.minEnd = now + 0.3; MUS.gap.maxEnd = now + 8; }
+  else if (!MUS.song) { const S = compileSong(tuneById(MUS.setOrder[MUS.setPos]), MUS.setPos); BASS.last = 41; PNO.voicing = null; startSong(S, now + 0.3, false); }
+}
+
+// ---------- 매 프레임 ----------
+function finTick(dt, t) {
+  if (FIN.req && !FIN.on && t - FIN.reqT > 22) finBegin();      // 혹시 끝 화음이 안 끊겨도 시작은 함
+  // 카메라: 무대 앞으로 다가가 내려다봄 / 트럼펫은 내려 둠
+  const ck = FIN.camK, ct = FIN.on ? FIN.camT : 0;
+  if (ck !== ct) { FIN.camK = clamp(ck + Math.sign(ct - ck) * dt / 1.7, 0, 1); aimCamera(); }
+  if (VENUE) VENUE.keyK = lerp(1, 0.3, smooth01(FIN.camK));      // 무대 가운데 조명: 팬들이 바로 밑에 서면 얼굴이 하얗게 날아가서 낮춤
+  const aw = FIN.on && FIN.stage !== 'out' && t - FIN.t0 > 0.9 ? 1 : 0;
+  if (FIN.away !== aw) FIN.away = clamp(FIN.away + Math.sign(aw - FIN.away) * dt / 0.7, 0, 1);
+  finPenTick(dt, t);
+  if (!FIN.on) return;
+  const a = t - FIN.t0, R = REACT;
+  // 소리: 처음엔 터질 듯 → 웅성웅성으로 가라앉고, 사인 하나 끝날 때마다 다시 환호
+  FIN.bump = Math.max(0, FIN.bump - dt / 3.0);
+  const base = lerp(1, 0.5, smoothstep(6, 12, a));
+  FIN.loud = lerp(base, 1, smooth01(FIN.bump * 1.6));
+  if (FIN.stage !== 'out' && !(R.burst && R.burst.until > t + 1e5)) R.burst = { kind: 'ovation', owner: 'me', t, until: t + 1e6, k: 1.2, energy: 0.95, fade: 3 };      // 다른 장면이 박수를 덮어썼으면 다시 세움
+  if (FIN.stage !== 'out') {
+    const calm = a > 8 && FIN.bump <= 0;
+    R.burst.kind = calm ? 'solo' : 'ovation'; R.burst.k = calm ? 0.62 : 1.2; R.burst.energy = calm ? 0.64 : 0.95;
+  }
+  switch (FIN.stage) {
+    case 'ovation': if (a > 2.0) finRush(); break;
+    case 'rush': {
+      const f0 = FIN.slots[0];
+      if ((f0 && f0.st === 'present') || t - FIN.stageT > 9) { FIN.stage = 'sign'; FIN.stageT = t; finUI(); if (!FIN.slots[0]) finAdvance(); }
+      break;
+    }
+    case 'sign': {
+      const cur = FIN.cur;
+      if (cur && cur.item && !FIN.draw && FIN.ink >= 0.3 && t - FIN.inkT > 1.0) finSigned();      // 획 사이에 잠깐 쉬는 건 기다려 줌
+      if (!FIN.slots[0] && t - FIN.stageT > 1.5 && !FIN.fans.some(f => f.st === 'react')) finAdvance();
+      const hush = !!cur && (!!FIN.draw || (FIN.ink > 0 && t - FIN.inkT < 2.2));
+      FIN.hushK = damp(FIN.hushK, hush ? 1 : 0, 9, dt);
+      if (AE.decoded && BED.babble) BED.babble.g.gain.setTargetAtTime(0.12 * (1 - FIN.hushK), AE.ctx.currentTime, 0.1);      // 쓰는 동안은 웅성거림도 뚝
+      // 여기저기서 터지는 외침
+      if (AE.decoded && !hush && t > FIN.nextYell) { FIN.nextYell = t + rand(0.7, 2.3); const now = AE.ctx.currentTime, r = Math.random(); if (r < 0.5) whoop(now + 0.02, { vol: rand(0.08, 0.15) }); else if (r < 0.75) scream(now + 0.02, { vol: 0.1 }); else laugh(now + 0.02, { vol: 0.08 }); }
+      break;
+    }
+    case 'out':
+      FIN.hushK = 0;
+      if (FIN.fans.every(f => f.st === 'gone') || t - FIN.stageT > 5.5) finEnd();
+      break;
+  }
+}
+function finPenTick(dt, t) {
+  const pen = FIN.pen; if (!pen) return;
+  const fan = FIN.cur, it = fan && fan.item, L = FIN.lay;
+  const show = FIN.on && FIN.stage === 'sign' && it && t - it.t0 > 0.25;
+  FIN.penK = damp(FIN.penK, show ? 1 : 0, show ? 7 : 10, dt);
+  if (it && L) {
+    SC.camera.updateMatrixWorld(true);
+    if (FIN.draw && FIN.draw.w) _fv.copy(FIN.draw.w).addScaledVector(L.n, 0.002);
+    else {
+      it.g.updateMatrixWorld(true);
+      const R = it.rect, cyc = (t - it.t0 - 2.0) % 3.6, hint = !FIN.ink && t - it.t0 > 2.0 && cyc < 1.5;
+      // 아직 한 번도 안 그었으면 가끔 면 위 허공에서 휘갈기는 시늉 (손가락으로 그리면 된다는 걸 글 없이 알려 줌), 평소엔 오른쪽 아래에서 쉼
+      if (hint) { const k = cyc / 1.5; _fv.set((lerp(R[0], R[2], lerp(0.26, 0.74, k)) - 0.5) * it.w, (lerp(R[1], R[3], 0.5 + 0.13 * Math.sin(k * 10)) - 0.5) * it.h, 0.016); }
+      else _fv.set((lerp(R[0], R[2], 0.86) - 0.5) * it.w, (lerp(R[1], R[3], 0.34) - 0.5) * it.h + Math.sin(t * 2.1) * 0.004, 0.035 + Math.sin(t * 2.1 + 1) * 0.004);
+      _fv.applyMatrix4(it.g.matrixWorld);
+    }
+    _fv.applyMatrix4(SC.camera.matrixWorldInverse);
+    if (FIN.penK < 0.06) FIN.penAt.copy(_fv); else FIN.penAt.lerp(_fv, 1 - Math.exp(-(FIN.draw ? 45 : 9) * dt));
+  }
+  pen.visible = FIN.penK > 0.02 && !!L;
+  if (!pen.visible) return;
+  const k = smooth01(FIN.penK);
+  pen.position.copy(FIN.penAt).add(_fv2.set(0.1, -0.2, 0.08).multiplyScalar(1 - k));
+  pen.quaternion.copy(SC.camera.quaternion).invert().multiply(L.iq).multiply(FIN_PENQ);
+}
+// 밴드: 연주를 내려놓고 나를 보며 박수 (트롬본 리더는 절부터)
+function finBandPose(k, m, t) {
+  if (!FIN.band) return false;
+  m.stare = { until: t + 0.5, turn: 1 };
+  if (!m.exUntil) m.express(k === 'tb' ? 'ecstasy' : pick(['grin', 'stunlaugh', 'grin']), rand(1.5, 3));
+  const F = frameOf(m);
+  if (k === 'tb') { sceneClap(m, F, t, true); m.c.jump = 0.6; return true; }
+  if (k === 'pn') { m.c.stand = 1; sceneClap(m, F, t + 0.11, true); return true; }
+  if (k === 'bs') { m.reach('R', m.local(-0.34, 1.7 + Math.sin(t * 9) * 0.07, 0.2), null, null, 'spread'); return false; }
+  return false;
 }
 
 // ===== 85_me.js =====
@@ -7187,6 +8540,20 @@ function ellipsoid(center, along, across, r, mat, seg = 18) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(1, seg, Math.round(seg * 0.7)), mat);
   m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
   m.scale.set(r[1], r[0], r[2]); m.position.copy(center);
+  return m;
+}
+// 손등(손바닥 덩어리): 손가락 뿌리 줄(검지 kI → 새끼 kP)에서 손목 W까지. 손목 쪽으로 좁아지고 얇아지는 납작한 덩어리
+function handBack(kI, kP, W, mat, thick = 0.027, pad = 0.019) {
+  const kc = kI.clone().add(kP).multiplyScalar(0.5);
+  const y = kc.clone().sub(W), len = y.length(); y.normalize();                       // 손목 → 손가락 뿌리
+  const x = kI.clone().sub(kP), wid = x.length() + pad; x.addScaledVector(y, -x.dot(y)).normalize();   // 새끼 → 검지
+  const z = new THREE.Vector3().crossVectors(x, y).normalize();
+  const L = len + 0.01, g = rbox(wid, L, thick, 0.021, 4), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const t = clamp(p.getY(i) / L + 0.5, 0, 1); p.setX(i, p.getX(i) * lerp(0.74, 1, t)); p.setZ(i, p.getZ(i) * lerp(0.84, 1, t)); }
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat);
+  m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+  m.position.copy(W).addScaledVector(y, L / 2 - 0.004);
   return m;
 }
 // 밸브 단추 윗면 (트럼펫 좌표)
@@ -7239,8 +8606,7 @@ function buildRightHand(horn, mats) {
   // 손등
   const kAvg = knuckles.reduce((a, k) => a.add(k), V3(0, 0, 0)).multiplyScalar(1 / 3).add(V3(0, -0.002, -0.004));
   const W = kAvg.clone().add(V3(0.05, -0.056, 0.016));
-  const along = new THREE.Vector3().subVectors(kAvg, W);
-  g.add(ellipsoid(kAvg.clone().lerp(W, 0.47), along, V3(0, 0, 1), [0.05, 0.046, 0.019], mats.skin));
+  g.add(handBack(knuckles[0].clone().add(V3(0, -0.002, 0.004)), K3, W, mats.skin, 0.026, 0.02));
   // 엄지: 리드파이프 아래로
   const TB = W.clone().add(V3(-0.014, 0.018, -0.028)), TM = TB.clone().add(V3(-0.028, -0.004, -0.012)), TT = TM.clone().add(V3(-0.022, 0.004, -0.004));
   g.add(capsuleBetween(TB, TM, 0.0105, mats.skin), capsuleBetween(TM, TT, 0.0095, mats.skin));
@@ -7264,8 +8630,7 @@ function buildLeftHand(horn, mats) {
   }
   const kAvg = ks.reduce((a, k) => a.add(k), V3(0, 0, 0)).multiplyScalar(0.25);
   const W = V3(x0 - 0.047, yTop - 0.06, zB + 0.03);
-  const along = new THREE.Vector3().subVectors(kAvg, W);
-  g.add(ellipsoid(kAvg.clone().lerp(W, 0.45), along, V3(0, 1, 0), [0.052, 0.045, 0.019], mats.skin));
+  g.add(handBack(ks[0], ks[3], W, mats.skin, 0.026, 0.02));
   // 엄지: 위로 올라와 1번 슬라이드 쪽
   const TB = W.clone().add(V3(0.012, 0.03, -0.012)), TM = TB.clone().add(V3(0.006, 0.024, -0.016)), TT = TM.clone().add(V3(0.004, 0.012, -0.018));
   g.add(capsuleBetween(TB, TM, 0.011, mats.skin), capsuleBetween(TM, TT, 0.0098, mats.skin));
@@ -7299,30 +8664,75 @@ function setupHorn2(mats) {
   horn2.position.copy(mp).negate();
   ME.axis2 = bp.clone().sub(mp); ME.axis2.x *= -1; ME.axis2.normalize();
 }
-// 공연 전: 마우스피스를 주먹으로 감싸 쥔 오른손 (마이크 쥐듯)
+// 공연 전: 마우스피스를 쥔 오른손. 팔은 오른쪽 아래에서 들어오고 손등이 위를 봄.
+// 네 손가락이 오른쪽에서 대롱 위를 넘어 왼쪽으로 감아 내려가고, 엄지는 내 쪽(컵 바로 뒤)에서 대롱 밑으로 감음.
+// 좌표: 대롱이 z축 (컵 림이 z=0, 내 쪽 +z), +x 오른쪽, +y 위
 function setupMouthpieceRig(mats) {
   const g = new THREE.Group(); ME.rig.add(g); ME.mpRig = g; g.visible = false;
   const inner = new THREE.Group(); g.add(inner); ME.mpInner = inner;
-  inner.add(new THREE.Mesh(mouthpieceGeo(0.0135, 0.014, 0.065, 0.0062, 24).rotateX(Math.PI / 2), metalMat('#c3c8d6', 0.24, { env: 1.0 })));
+  inner.add(new THREE.Mesh(mouthpieceGeo(0.0135, 0.014, 0.088, 0.0062, 24).rotateX(Math.PI / 2), metalMat('#c3c8d6', 0.24, { env: 1.0 })));
   const sk = mats.skin;
-  // 네 손가락이 대롱을 아래에서 감쌈 (검지가 컵 쪽)
+  const zs = [-0.036, -0.0545, -0.072, -0.0875], rs = [0.0086, 0.0089, 0.0085, 0.0075], arch = [0, 0.0022, 0.0012, -0.0022], kn = [];
   for (let i = 0; i < 4; i++) {
-    const z = -0.03 - i * 0.0098, r = 0.0088 - i * 0.0006;
-    const K = V3(0.03, -0.006, z + 0.002), M2 = V3(0.012, -0.026, z), T = V3(-0.014, -0.017, z - 0.001), E = V3(-0.017, -0.002, z - 0.001);
-    inner.add(capsuleBetween(K, M2, r * 1.05, sk), capsuleBetween(M2, T, r, sk), capsuleBetween(T, E, r * 0.92, sk));
+    const z = zs[i], r = rs[i], a = arch[i], c = i === 3 ? 0.9 : 1;
+    const K = V3(0.0145, 0.0245 + a, z), P = V3(-0.0152 * c, 0.0178 + a, z - 0.001), D = V3(-0.0208 * c, -0.003, z - 0.0015), T = V3(-0.0072 * c, -0.0162, z - 0.002);
+    inner.add(capsuleBetween(K, P, r * 1.05, sk), capsuleBetween(P, D, r, sk), capsuleBetween(D, T, r * 0.93, sk));
+    const kb = new THREE.Mesh(new THREE.SphereGeometry(r * 1.22, 14, 10), sk); kb.position.copy(K).add(V3(0.0015, 0.0012, 0)); inner.add(kb);   // 손가락 뿌리 마디
+    kn.push(K);
   }
-  // 손바닥 (대롱 오른쪽)
-  inner.add(ellipsoid(V3(0.038, -0.004, -0.045), V3(0, 0, 1), V3(0, 1, 0), [0.032, 0.026, 0.017], sk));
-  // 엄지: 대롱 위를 따라
-  inner.add(capsuleBetween(V3(0.034, 0.012, -0.024), V3(0.012, 0.015, -0.036), 0.0105, sk), capsuleBetween(V3(0.012, 0.015, -0.036), V3(-0.006, 0.013, -0.045), 0.0095, sk));
-  inner.add(ellipsoid(V3(-0.006, 0.019, -0.045), V3(-0.7, 0, -0.7), V3(0, 1, 0), [0.0068, 0.0056, 0.0022], mats.nail, 12));
-  const W = V3(0.05, -0.016, -0.012);
-  sleeveOn(inner, W, W.clone().add(V3(0.11, -0.2, 0.24)), mats);
+  const W = V3(0.078, -0.012, -0.058);
+  inner.add(handBack(kn[0].clone().add(V3(0, -0.003, 0.003)), kn[3].clone().add(V3(0, -0.003, -0.001)), W, sk, 0.03, 0.017));
+  // 엄지: 손바닥 아래(내 쪽)에서 대롱 밑으로 감아 검지 끝과 만남
+  const TB = V3(0.052, -0.016, -0.03), TM = V3(0.026, -0.0245, -0.0165), TI = V3(0.002, -0.0262, -0.0165), TT = V3(-0.0175, -0.0185, -0.021);
+  inner.add(capsuleBetween(TB, TM, 0.0124, sk), capsuleBetween(TM, TI, 0.0108, sk), capsuleBetween(TI, TT, 0.0098, sk));
+  inner.add(ellipsoid(V3(0.047, -0.0125, -0.04), V3(-0.8, -0.35, 0.45), V3(0, 0, 1), [0.027, 0.019, 0.0135], sk));      // 엄지 두덩
+  const nd = new THREE.Vector3().subVectors(TT, TI).normalize();
+  inner.add(ellipsoid(TT.clone().addScaledVector(nd, 0.001).add(V3(-0.001, -0.0068, 0.0052)), nd, V3(0, -0.55, 0.83), [0.0068, 0.0056, 0.0022], mats.nail, 12));
+  sleeveOn(inner, W, W.clone().add(V3(0.135, -0.165, 0.2)), mats);
 }
 function placeMe() {
   ME.pose = SC.portrait ? { bell: V3(-0.035, -0.262, -0.42), pitch: 0.36, yaw: 0.05, scale: 0.9 }
     : { bell: V3(-0.01, -0.104, -0.42), pitch: 0.46, yaw: 0.03, scale: 0.9 };
+  ME.dbl = doublePose();
+  // 마우스피스 쥔 손: 화면 안 같은 자리에 오도록 화면 비율로 계산
+  const hy = Math.tan(SC.vmCam.fov * Math.PI / 360), hx = hy * SC.vmCam.aspect;
+  const m = Object.assign(SC.portrait ? { sx: -0.2, sy: -0.76, z: 0.29, s: 1.25 } : { sx: -0.04, sy: -0.74, z: 0.44, s: 1.08 }, ME.mpTune || {});
+  ME.mpPose = { p: V3(m.sx * hx * m.z, m.sy * hy * m.z, -m.z), s: m.s };
   updateMe(0, NOW.t);
+}
+// 두 대를 들었을 때의 자세: 벨 두 개가 화면에서 놓일 자리를 먼저 정하고(화면 폭 기준), 거기서 거꾸로 각 트럼펫의 위치·방향을 구함.
+// 좁은 화면일수록 벨을 조금 멀리 두어 작게 보이게 하고, 두 대 모두 바깥으로 기울여 V자로 벌림.
+function doublePose() {
+  const hy = Math.tan(SC.vmCam.fov * Math.PI / 360), hx = hy * SC.vmCam.aspect, L = ME.len || 0.483;
+  const T = ME.dblTune || {};
+  // 화면 좌표(-1~1)로 본 벨 중심, 화면에 보이는 기울기(도), 벨 반지름(화면 반폭 대비)
+  if (!SC.portrait && !T.force) {
+    // 가로 화면: 한 대 자세의 입 위치에서 좌우로 벌림 (가운데 객석이 벨 사이로 보이게)
+    const P = ME.pose, d0 = V3(-Math.sin(P.yaw) * Math.cos(P.pitch), Math.sin(P.pitch), -Math.cos(P.yaw) * Math.cos(P.pitch));
+    const mouth = P.bell.clone().addScaledVector(d0, -L * P.scale);
+    return { h1: { m: mouth, yaw: P.yaw - 0.25, pitch: P.pitch + 0.09, s: P.scale }, h2: { m: mouth.clone().add(V3(-0.025, 0, 0)), yaw: P.yaw + 0.33, pitch: P.pitch + 0.11, s: P.scale } };
+  }
+  // 세로(좁은) 화면: 오른쪽 줄기를 뺀 빈 폭의 가운데를 기준으로 좌우에 벨 하나씩
+  const stem = (Math.min(SC.W * 0.22, 86) + 14) / SC.W, free = 1 - 2 * stem;      // 빈 영역 오른쪽 끝 (-1~1)
+  const rad = clamp(0.27 * hx, 0.09, 0.125) / hx;                                // 벨 반지름 (화면 반폭 대비): 넓은 화면에서는 너무 커지지 않게
+  const cx = (free - 1) / 2, sep = Math.min(0.42, (free + 1) / 2 - rad - 0.02);
+  const c = { x1: cx + sep, x2: cx - sep, y: -0.54, lean: 16, rad, pitch: 0.72, scale: 0.9, minZ: 0.36 };
+  Object.assign(c, T);
+  const out = {};
+  for (const [k, sx, sign] of [['h1', c.x1, 1], ['h2', c.x2, -1]]) {
+    const r = 0.062 * c.scale;                        // 벨 반지름
+    const z = Math.max(c.minZ || 0.3, r / (c.rad * hx));   // 벨까지 거리
+    const B = V3(sx * hx * z, c.y * hy * z, -z);
+    // 화면에서 바깥으로 lean도 기울어 보이게 하는 좌우 방향 (원근 때문에 실제로는 더 크게 벌려야 함)
+    const p = c.pitch, dy = Math.sin(p), tl = Math.tan(c.lean * Math.PI / 180) * sign;
+    // d = (dx, dy, -dz), dx² + dz² = cos²p.  기울기 조건: dx·z - Bx·dz = tl·(dy·z - By·dz)
+    let best = 0, be = 1e9;
+    for (let a = -1.3; a <= 1.3; a += 0.005) { const dx = Math.sin(a) * Math.cos(p), dz = Math.cos(a) * Math.cos(p); const e = Math.abs(dx * z - B.x * dz - tl * (dy * z - B.y * dz)); if (e < be) { be = e; best = a; } }
+    const yaw = -best;                                // 내 기준: +면 왼쪽
+    const d = V3(-Math.sin(yaw) * Math.cos(p), Math.sin(p), -Math.cos(yaw) * Math.cos(p));
+    out[k] = { m: B.clone().addScaledVector(d, -L * c.scale), yaw, pitch: p, s: c.scale, bell: B };
+  }
+  return out;
 }
 const _mq = new THREE.Quaternion(), _md = new THREE.Vector3();
 function updateMe(dt, t) {
@@ -7350,19 +8760,20 @@ function updateMe(dt, t) {
   const ik = smooth01(ME.introK);
   ME.hold.visible = ik > 0.01;
   ME.hold.position.copy(mouth).add(_mv.set(0, -0.42 * (1 - ik), 0.08 * (1 - ik)));
-  // 두 대를 들면 벨을 치켜듦 (아래 버튼에 가리지 않게, 밸브와 두 손이 보이게)
-  // 가로 화면: 덜 치켜들고 더 벌림 (가운데 객석이 벨 사이로 보이게)
-  const y1 = yw - (SC.portrait ? 0.06 : 0.25) * sk, p1 = ph + (SC.portrait ? 0.24 : 0.09) * sk;
+  // 두 대를 들면: 1번은 오른쪽, 2번은 왼쪽으로 기울여 V자 (자세는 doublePose가 화면 폭에 맞춰 계산)
+  const D = ME.dbl, lf = (ME.lift * 0.05 + ME.pitchLift * 0.06) * 0.6, bob = br + ME.lift * 0.008;
+  const y1 = lerp(yw, D.h1.yaw, sk), p1 = lerp(ph, D.h1.pitch + lf, sk);
+  if (sk > 0.0005) ME.hold.position.lerp(_mv.copy(D.h1.m).setY(D.h1.m.y + bob), sk);
   ME.hold.quaternion.setFromUnitVectors(ME.axis, _md2.set(-Math.sin(y1) * Math.cos(p1), Math.sin(p1), -Math.cos(y1) * Math.cos(p1)));
-  ME.hold.scale.setScalar(P.scale);
+  ME.hold.scale.setScalar(lerp(P.scale, D.h1.s, sk));
   if (ME.LH) { ME.LH.position.y = -0.24 * sk; ME.LH.visible = sk < 0.55; }
   if (ME.hold2) {
     ME.hold2.visible = sk > 0.01;
     if (ME.hold2.visible) {
-      const y2 = yw + (SC.portrait ? 0.15 : 0.33) * sk, ph2 = ph + (SC.portrait ? 0.28 : 0.11) * sk;
-      ME.hold2.position.copy(mouth).add(_mv.set(-0.025 - 0.08 * (1 - sk), -0.36 * (1 - sk), 0.05 * (1 - sk)));
+      const y2 = D.h2.yaw, ph2 = D.h2.pitch + lf;
+      ME.hold2.position.copy(D.h2.m).add(_mv.set(-0.08 * (1 - sk), -0.36 * (1 - sk) + bob, 0.05 * (1 - sk)));
       ME.hold2.quaternion.setFromUnitVectors(ME.axis2, _md2.set(-Math.sin(y2) * Math.cos(ph2), Math.sin(ph2), -Math.cos(y2) * Math.cos(ph2)));
-      ME.hold2.scale.setScalar(P.scale);
+      ME.hold2.scale.setScalar(D.h2.s);
       const f2 = SPX.voice2 && SPX.harm != null ? fingeringFor(SPX.harm) : 0, v2 = ME.horn2.userData.valves || [];
       for (let i = 0; i < 3; i++) {
         ME.press2[i] = damp(ME.press2[i], (f2 >> i) & 1, 30, dt);
@@ -7371,14 +8782,17 @@ function updateMe(dt, t) {
       }
     }
   }
+  // 공연이 끝나면 트럼펫은 아래로 내려 둠 (사인하는 동안)
+  if (FIN.away > 0.001) { const k = smooth01(FIN.away); ME.hold.position.y -= 0.7 * k; ME.hold.position.z += 0.1 * k; if (k > 0.97) ME.hold.visible = false; if (ME.hold2) ME.hold2.visible = false; }
   if (ME.mpRig) {
     ME.mpRig.visible = ik < 0.6;
     if (ME.mpRig.visible) {
       ME.buzz = damp(ME.buzz, PRE.buzz ? 1 : 0, 18, dt);
       const j = ME.buzz * 0.0016;
-      ME.mpRig.position.set(-0.012 + Math.sin(t * 157) * j, -0.19 - ik * 0.5 + Math.sin(t * 131) * j + (1 - ME.buzz) * Math.sin(t * 1.3) * 0.004, -0.29 + ME.buzz * 0.03);
+      const M = ME.mpPose;
+      ME.mpRig.position.set(M.p.x + Math.sin(t * 157) * j, M.p.y - ik * 0.5 + Math.sin(t * 131) * j + (1 - ME.buzz) * Math.sin(t * 1.3) * 0.004, M.p.z + ME.buzz * 0.03);
       ME.mpRig.rotation.set(0.5 - ME.buzz * 0.1, 0.22, 0.12, 'YXZ');
-      ME.mpRig.scale.setScalar(1.25);
+      ME.mpRig.scale.setScalar(M.s);
     }
   }
 }
@@ -7425,8 +8839,9 @@ function onResize() {
   const hfov = SC.portrait ? 58 : 82;
   let vfov = 2 * Math.atan(Math.tan(hfov * Math.PI / 360) / asp) * 180 / Math.PI;
   vfov = clamp(vfov, 46, SC.portrait ? 80 : 88);
-  SC.camera.fov = vfov; SC.camera.aspect = asp; SC.camera.updateProjectionMatrix();
+  SC.camera.fov = vfov; SC.baseFov = vfov; SC.camera.aspect = asp; SC.camera.updateProjectionMatrix();
   SC.vmCam.fov = vfov; SC.vmCam.aspect = asp; SC.vmCam.updateProjectionMatrix();
+  if (FIN.on) finLayout();
   aimCamera();
   if (ME.rig) placeMe();
 }
@@ -7435,6 +8850,9 @@ function aimCamera() {
   SC.camera.position.set(e[0], e[1], e[2]);
   // 세로 화면은 오른쪽 줄기가 가리는 만큼 시선을 살짝 오른쪽으로 (무대 가운데가 화면 왼쪽 빈 곳에 오게)
   SC.camera.lookAt(l[0] + (SC.portrait ? 0.85 : 0.3), SC.portrait ? l[1] - 0.85 : l[1], l[2]);
+  // 공연이 끝난 뒤: 단 앞으로 다가가 팬들과 내민 물건을 내려다봄
+  const k = smooth01(FIN.camK);
+  if (k > 0.0005 && FIN.lay) { SC.camera.position.lerp(FIN.lay.eye, k); SC.camera.quaternion.slerp(FIN.lay.q, k); }
 }
 
 // ---------- 시작 ----------
@@ -7459,8 +8877,10 @@ function frame(dt) {
   if (AE.ctx) { const nowA = AE.ctx.currentTime; spUpdate(dt); ruleTick(nowA); endlessTick(nowA); missTick(dt, nowA); }
   preTick(); itlTick();
   reactUpdate(dt, t);
+  finTick(dt, t);
   directorUpdate(dt, t, audible, beat);
   crowdUpdate(dt, t, beat);
+  hypeUpdate(dt, t, beat);
   updateWindowFaces(dt, t, beat);
   fxUpdate(dt);
   updateMe(dt, t);
@@ -7505,7 +8925,7 @@ function loop() { requestAnimationFrame(loop); tick(true); }
 // 시험용: 원하는 시간만큼 진행한 장면을 그림
 window.__step = (sec = 1, fps = 30) => { for (let i = 0; i < sec * fps; i++) { NOW.t += 1 / fps; frame(1 / fps); } render(); window.__ready = true; return 'ok'; };
 window.__G = { SC, BAND, CROWD, ME, MUS, TP, AE, NOW, GAME, REACT, DIR, VQ, LAYOUT, UI, startGame, pauseGame, resumeGame, ribbonDown, ribbonMove, ribbonUp, setMode, render, stare, bandAwe, aimCamera };
-window.__G2 = { updateMe, bartenderDrop, SPX, PRE, ITL, AFTER, ENDL, MISS, RULE, WINP, BACKP, FXP, spPress, specialSetPiece, forceScene, itlStart, itlEnd, afterShow, afterEnd, endSong, nextSong, crowdJerk, gesture, reactEvent, addWindowFaces, addBackCrowd };
+window.__G2 = { updateMe, placeMe, doublePose, bartenderDrop, SPX, PRE, ITL, AFTER, ENDL, MISS, RULE, WINP, BACKP, FXP, spPress, spToggle, specialSetPiece, forceScene, itlStart, itlEnd, afterShow, afterEnd, endSong, nextSong, crowdJerk, gesture, reactEvent, addWindowFaces, addBackCrowd, HYPE, TOSS, crowdShock, throwGifts, poppers, scoreCards, toastWave, bartenderBell, tbWorship, bandFlourish, startChant, fxConfettiDrop, startCrowdScene, finishCrowdScene, myApplause, ovation, FIN, FIN_SLOTS, finRequest, finBegin, finEncore, finSigned, finLayout, finEnd };
 boot();
 if (/shot/.test(location.search)) { window.__step(1.5); }
 
