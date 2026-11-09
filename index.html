@@ -967,21 +967,34 @@ function synthStomp(ctx) {
 }
 // ---------- 사람 소리 만들기 줄 세우기 ----------
 // 환호·"헉" 같은 순간에는 목소리 수십 개를 한꺼번에 예약하는데(하나에 노드 열댓 개), 그걸 한 프레임에 다 만들면 그 프레임이 멈칫함.
-// 그래서 소리 날 시각 순으로 줄을 세워 두고, 곧 나야 하는 것(0.1초 안)만 그 프레임에 만들고 나머지는 남는 시간에 조금씩 미리 만듦.
-const VJOB = { q: [], busy: false };
+// 소리 날 시각 순으로 미리 준비하되, 임박한 소리도 한 작업의 시간·개수 제한을 넘기지 않음.
+// 남은 준비는 프레임 사이의 짧은 작업으로 이어 감. 소리의 종류·개수·예약된 재생 시각은 그대로 둠.
+const VJOB = { q: [], busy: false, timer: null };
+function vjobWake(delay = 0) {
+  if (VJOB.timer != null || !VJOB.q.length || !AE.ctx || AE.ctx.state !== 'running') return;
+  VJOB.timer = setTimeout(() => { VJOB.timer = null; vjobTick(); }, delay);
+}
 function vjob(when, fn, o) {
   if (VJOB.busy) return false;                 // 줄에서 꺼내 만드는 중
   const q = VJOB.q; let i = q.length; while (i > 0 && q[i - 1].when > when) i--;
   q.splice(i, 0, { when, fn, o });
+  vjobWake();
   return true;
 }
 function vjobTick() {
+  if (VJOB.timer != null) { clearTimeout(VJOB.timer); VJOB.timer = null; }
   const q = VJOB.q; if (!q.length || !AE.ctx || AE.ctx.state !== 'running') return;
-  const now = AE.ctx.currentTime, t0 = performance.now();
+  const t0 = performance.now(); let made = 0;
   VJOB.busy = true;
   try {
-    while (q.length && (q[0].when < now + 0.1 || performance.now() - t0 < 2)) { const j = q.shift(); j.fn(Math.max(j.when, now + 0.004), j.o); }
-  } finally { VJOB.busy = false; }
+    while (q.length && made < 6 && (made === 0 || performance.now() - t0 < 2)) {
+      const j = q.shift(); made++;
+      j.fn(Math.max(j.when, AE.ctx.currentTime + 0.004), j.o);
+    }
+  } finally {
+    VJOB.busy = false;
+    if (q.length) vjobWake(q[0].when < AE.ctx.currentTime + 0.1 ? 0 : 8);
+  }
 }
 // 한 사람의 "우—!" / "와—!" (실시간 합성: 톱니 → 포먼트 3개 → 외침 모양 음높이)
 const VOWEL = { u: [320, 870, 2300], o: [470, 900, 2500], a: [760, 1250, 2600], e: [560, 1750, 2600], ae: [700, 1650, 2500] };
@@ -4594,7 +4607,7 @@ function tpTrack(v) {
   TP.all.push(v);
   return v;
 }
-function tpCutAll(t, fade) { for (const v of TP.all) cutVoice(v, t, fade); TP.all.length = 0; if (SPX.voice2) { cutVoice(SPX.voice2, t, fade); SPX.voice2 = null; } }
+function tpCutAll(t, fade) { for (const v of TP.all) cutVoice(v, t, fade); TP.all.length = 0; if (SPX.voice2) { cutVoice(SPX.voice2, t, fade); SPX.voice2 = null; } SPX.revoiceDue = false; }
 const posToPitch = p => TP.lo + clamp(p, 0, 1) * (TP.hi - TP.lo);
 const pitchToPos = m => clamp((m - TP.lo) / (TP.hi - TP.lo), 0, 1);
 
@@ -6662,7 +6675,7 @@ function addBackCrowd(n) {
 // ===================== 더블 트럼펫 필살기 =====================
 // 게이지: 내 솔로로 차오름 (첫 번째는 빨리). 버튼(또는 Shift)을 한 번 누르면 왼손이 두 번째 트럼펫을 들고, 다시 누르면 내림.
 // 들고 부는 동안 두 번째 트럼펫이 화음을 냄 (게이지는 소리를 내는 동안만 닳고, 다 닳으면 저절로 내림). 가득 찬 게이지로 처음 불 때 큰 장면.
-const SPX = { g: 0, held: false, active: false, k: 0, firstCharge: true, voice2: null, pan: null, harm: null, pieceDue: false, pieces: 0, raisedEvt: false, hush: null, boomAt: 0, boomDone: true, uiG: -1 };
+const SPX = { g: 0, held: false, active: false, k: 0, firstCharge: true, voice2: null, pan: null, harm: null, lastRevoiceT: -99, revoiceDue: false, pieceDue: false, pieces: 0, raisedEvt: false, hush: null, boomAt: 0, boomDone: true, uiG: -1 };
 function spInitAudio() {
   const ctx = AE.ctx;
   SPX.pan = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
@@ -6685,22 +6698,25 @@ function spVoiceStart(t, m, lvl) {
   if (!s) return;
   const v = new SusVoice(s, hm, t, SPX.pan, { level: lvl * 0.82, fadeIn: 0.012, offset: s.start + 0.01 });
   if (v.src.detune) v.src.detune.value = 8;
-  SPX.voice2 = v; SPX.harm = hm;
+  SPX.voice2 = v; SPX.harm = hm; SPX.lastRevoiceT = t; SPX.revoiceDue = false;
 }
 function spVoiceMove(t, m, kind) {
   const v = SPX.voice2; if (!v || v.dead) return;
   const hm = harmFor(m, t);
-  if (hm === SPX.harm && TP.mode !== 'free') return;
+  if (hm === SPX.harm && TP.mode !== 'free' && !SPX.revoiceDue) return;
   SPX.harm = hm;
-  if (Math.abs(hm - v.s.m) > 5) {
-    const s = nearestSample('T', hm);
+  const s = Math.abs(hm - v.s.m) > 5 ? nearestSample('T', hm) : null;
+  SPX.revoiceDue = !!s && s !== v.s;
+  // 음정은 즉시 따라가고, 샘플 교체만 첫 번째 트럼펫과 같은 간격으로 제한.
+  if (SPX.revoiceDue && t - SPX.lastRevoiceT >= (TP.mode === 'free' ? 0.1 : 0.08)) {
     const nv = new SusVoice(s, hm, t, SPX.pan, { level: v.level, fadeIn: 0.02, offset: Math.min(s.start + 0.12, s.ls != null ? s.ls - 0.05 : 1) });
     if (nv.src.detune) nv.src.detune.value = 8;
     v.glideTo(hm, t, 0.02); v.release(t, 0.03); SPX.voice2 = nv;
+    SPX.lastRevoiceT = t; SPX.revoiceDue = false;
   } else v.glideTo(hm, t, kind === 'chord' ? 0.06 : 0.03);
 }
 function spVoiceStop(t, rel = 0.06, flick = null) {
-  const v = SPX.voice2; SPX.voice2 = null;
+  const v = SPX.voice2; SPX.voice2 = null; SPX.revoiceDue = false;
   if (!v || v.dead) return;
   if (flick === 'fall') { v.bend(-pick([7, 9]), t, 0.34); v.vibrato(0, t, 0.02); v.release(t + 0.16, 0.24); }
   else if (flick === 'doit') { v.bend(5, t, 0.2); v.release(t + 0.1, 0.16); }
@@ -6736,6 +6752,8 @@ function spUpdate(dt) {
     }
   }
   if (SPX.held && !SPX.active) SPX.held = false;
+  // 손가락이 멈춰도 보류한 샘플 교체는 마무리. 소리를 끈 뒤에는 다시 만들지 않음.
+  if (SPX.active && playing && TP.blowing && SPX.revoiceDue && now + 0.003 - SPX.lastRevoiceT >= (TP.mode === 'free' ? 0.1 : 0.08)) spVoiceMove(now + 0.003, TP.cur, 'slide');
   SPX.k = damp(SPX.k, SPX.active ? 1 : 0, SPX.active ? 7 : 5, dt);
   // 들어 올린 순간: 앞줄이 먼저 알아챔
   if (SPX.active && SPX.k > 0.85 && !SPX.raisedEvt) { SPX.raisedEvt = true; reactEvent('specialRaise', {}); }
