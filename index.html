@@ -66,6 +66,10 @@ button{font-family:inherit;color:inherit}
 .mode{display:inline-flex;border-radius:999px;background:var(--paper);box-shadow:0 0 0 3px var(--ink),0 4px 0 3px rgba(34,26,43,.3);padding:3px;gap:2px}
 .mode button{border:none;border-radius:999px;background:transparent;font:700 14px var(--ft);padding:7px 13px;cursor:pointer;white-space:nowrap}
 .mode button.on{background:var(--ink);color:var(--paper)}
+#autoMode{position:fixed;right:calc(10px + var(--sar));top:calc(64px + var(--sat));z-index:6;display:none}
+#finishHint{position:fixed;left:50%;bottom:calc(28px + var(--sab));transform:translateX(-50%);z-index:6;background:var(--paper);padding:10px 16px;border-radius:20px;font-weight:700;pointer-events:none;white-space:nowrap}
+#finishHint[hidden]{display:none}
+@media (min-aspect-ratio:1/1){#autoMode{left:calc(68px + var(--sal));right:auto;top:calc(66px + var(--sat))}}
 #hudMode{position:fixed;right:calc(10px + var(--sar));top:calc(12px + var(--sat));z-index:6;display:none}
 /* 공연 끝내기 · 끝난 뒤 버튼 */
 .pill{height:46px;padding:0 14px;border:0;border-radius:999px;background:var(--paper);box-shadow:0 0 0 3px var(--ink),0 4px 0 3px rgba(34,26,43,.3);display:inline-flex;align-items:center;gap:7px;font:700 14px var(--ft);cursor:pointer;white-space:nowrap}
@@ -191,6 +195,8 @@ button{font-family:inherit;color:inherit}
   <g transform="translate(60 60) scale(-1 1) rotate(-38) translate(-58 -24)"><use href="#tpt"/></g>
 </svg><i class="spark s1"></i><i class="spark s2"></i><i class="spark s3"></i></button>
 <div id="hudMode" class="mode"><button data-m="snap">보정</button><button data-m="free">자유</button></div>
+<div id="autoMode" class="mode"><button data-auto="off" class="on">직접</button><button data-auto="on">자동</button></div>
+<div id="finishHint" hidden>마지막 음을 연주하고 손을 떼세요</div>
 <a id="arcade" class="title" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#fffaf0" stroke="#221a2b" stroke-width="2.7" stroke-linejoin="round"/><g stroke="#221a2b" stroke-width="2.3" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#221a2b"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#221a2b" stroke-width="2.3" stroke-linecap="round"/></svg></a>
 
 <div id="title" class="screen">
@@ -3564,11 +3570,11 @@ const QUAL = {
   '7alt':  { tones: [0, 4, 10], S: [0, 1, 3, 4, 8, 10], W: [0, 1, 3, 4, 6, 8, 10], v: [[4, 8, 10, 15], [10, 13, 16, 20]], guide: [4, 10] },
   '7#11':  { tones: [0, 4, 7, 10], S: [0, 2, 4, 6, 7, 9, 10], W: [0, 2, 4, 6, 7, 9, 10], v: [[4, 6, 10, 14], [10, 14, 16, 18]], guide: [4, 10] },
   '7sus':  { tones: [0, 5, 7, 10], S: [0, 2, 5, 7, 9, 10], W: [0, 2, 4, 5, 7, 9, 10], v: [[5, 7, 10, 14], [10, 14, 17, 19]], guide: [5, 10] },
-  'm7':    { tones: [0, 3, 7, 10], S: [0, 2, 3, 5, 7, 10], W: [0, 2, 3, 5, 7, 9, 10], v: [[3, 7, 10, 14], [10, 14, 15, 19]], guide: [3, 10] },
-  'm9':    { tones: [0, 3, 7, 10], S: [0, 2, 3, 5, 7, 10], W: [0, 2, 3, 5, 7, 9, 10], v: [[3, 7, 10, 14], [10, 14, 15, 19]], guide: [3, 10] },
-  'm6':    { tones: [0, 3, 7, 9], S: [0, 2, 3, 7, 9], W: [0, 2, 3, 5, 7, 9, 11], v: [[3, 7, 9, 14], [9, 14, 15, 19]], guide: [3, 9] },
-  'mMaj7': { tones: [0, 3, 7, 11], S: [0, 2, 3, 7, 11], W: [0, 2, 3, 5, 7, 9, 11], v: [[3, 7, 11, 14], [11, 14, 15, 19]], guide: [3, 11] },
-  'm7b5':  { tones: [0, 3, 6, 10], S: [0, 3, 5, 6, 10], W: [0, 2, 3, 5, 6, 8, 10], v: [[3, 6, 10, 14], [10, 14, 15, 18]], guide: [3, 10] },
+  'm7':    { tones: [0, 3, 7, 10], S: [0, 2, 3, 5, 7, 9, 10], W: [0, 2, 3, 5, 7, 9, 10], v: [[3, 7, 10, 14], [10, 14, 15, 19]], guide: [3, 10] },
+  'm9':    { tones: [0, 3, 7, 10], S: [0, 2, 3, 5, 7, 9, 10], W: [0, 2, 3, 5, 7, 9, 10], v: [[3, 7, 10, 14], [10, 14, 15, 19]], guide: [3, 10] },
+  'm6':    { tones: [0, 3, 7, 9], S: [0, 2, 3, 7, 9, 11], W: [0, 2, 3, 5, 7, 9, 11], v: [[3, 7, 9, 14], [9, 14, 15, 19]], guide: [3, 9] },
+  'mMaj7': { tones: [0, 3, 7, 11], S: [0, 2, 3, 7, 9, 11], W: [0, 2, 3, 5, 7, 9, 11], v: [[3, 7, 11, 14], [11, 14, 15, 19]], guide: [3, 11] },
+  'm7b5':  { tones: [0, 3, 6, 10], S: [0, 3, 5, 6, 8, 10], W: [0, 2, 3, 5, 6, 8, 10], v: [[3, 6, 10, 14], [10, 14, 15, 18]], guide: [3, 10] },
   'dim7':  { tones: [0, 3, 6, 9], S: [0, 3, 6, 9], W: [0, 2, 3, 5, 6, 8, 9, 11], v: [[3, 6, 9, 12], [6, 9, 12, 15]], guide: [3, 9] },
 };
 const QUAL_NAME = { maj7: 'maj7', '6': '6', '69': '6/9', '7': '7', '9': '9', '13': '13', '7b9': '7♭9', '7#9': '7♯9', '7alt': '7alt', '7#11': '7♯11', '7sus': '7sus', m7: 'm7', m9: 'm9', m6: 'm6', mMaj7: 'mMaj7', m7b5: 'm7♭5', dim7: '°7' };
@@ -3624,7 +3630,7 @@ function snapPitch(target, ch, o = {}) {
   }
   if (best == null) best = nearestAllowed(target, ch, key);
   // 히스테리시스: 지금 음이 여전히 맞고 손가락이 많이 안 움직였으면 유지
-  if (o.cur != null && o.cur !== best && inSet(o.cur, ch, 'W') && Math.abs(target - o.cur) < Math.abs(target - best) + 0.45) return o.cur;
+  if (o.cur != null && o.cur !== best && inSet(o.cur, ch, key) && Math.abs(target - o.cur) < Math.abs(target - best) + 0.45) return o.cur;
   return best;
 }
 // 피아노 왼손 보이싱 (앞 보이싱에서 가장 덜 움직이는 것)
@@ -3692,6 +3698,7 @@ function pt(b, pos) {
 function chordAt(b, pos) { for (let i = b.chords.length - 1; i >= 0; i--) if (pos >= b.chords[i].at - 1e-6) return b.chords[i]; return b.chords[0]; }
 function barAtTime(t) { const B = MUS.bars; for (let i = B.length - 1; i >= 0; i--) if (B[i].t0 <= t + 1e-6) return B[i]; return B[0] || null; }
 function chordAtTime(t) {
+  if (MUS.fermata && !MUS.fermata.cut && t >= MUS.fermata.t) return MUS.fermata.ch;
   const b = barAtTime(t);
   if (!b || t > b.t0 + 4 * b.spb + 0.05) return MUS.gapChord || parseChord('C6');
   return chordAt(b, clamp((t - b.t0) / b.spb, 0, 3.999));
@@ -4151,8 +4158,8 @@ function makeImprov(who, S) {
 
 // ---------- 내 연주 상태 ----------
 const quietSec = S => clamp(1.5 * 4 * S.spb, 3.0, 5.0);
-function meQuiet(now, S) { return !TP.blowing && now - TP.lastSoundT > quietSec(S); }
-function meActive(now) { return TP.blowing || now - TP.lastSoundT < 1.3; }
+function meQuiet(now, S) { return !AUTO.on && !TP.blowing && now - TP.lastSoundT > quietSec(S); }
+function meActive(now) { return AUTO.on || TP.blowing || now - TP.lastSoundT < 1.3; }
 // 내 음 하나가 시작될 때 (트럼펫이 부름)
 function musicOnMyAttack(now) {
   const S = MUS.song; if (!S) return;
@@ -4491,7 +4498,9 @@ function fermataTick(now) {
   if (now > F.nextPiano - 0.1) { pianoNotes(F.nextPiano, voicingFor(F.ch, null, 62, 86), 2.6, 0.3, 'R', 0.05); F.nextPiano += 2.4; }
   if (now > F.nextBass - 0.1) { bassNote(F.nextBass, F.root, 2.0, 0.55); F.nextBass += 1.9; }
   const myHold = TP.blowing && F.wasBlowing;
-  if ((!myHold && age > 2.6) || age > 16) fermataCut(now + 0.04);
+  if (FIN.manualWaiting) {
+    if (FIN.manualPlayed && FIN.manualReleased && !TP.blowing && age > 0.2) fermataCut(now + 0.04);
+  } else if ((!myHold && age > 2.6) || age > 16) fermataCut(now + 0.04);
 }
 function fermataCut(t) {
   const F = MUS.fermata; if (!F || F.cut) return;
@@ -4618,7 +4627,7 @@ function initTrumpet() {
   TP.in.connect(TP.lp); TP.lp.connect(AE.buses.tp);
   try { const m = localStorage.getItem('egotrip.mode'); if (m === 'free' || m === 'snap') TP.mode = m; } catch (e) { }
 }
-function setMode(m) { TP.mode = m; try { localStorage.setItem('egotrip.mode', m); } catch (e) { } }
+function setMode(m) { if (AUTO.on) setAuto(false); TP.mode = m; try { localStorage.setItem('egotrip.mode', m); } catch (e) { } }
 // 높은 음일수록 조금 크게
 const levelFor = m => 0.86 + clamp((m - 60) / 26, 0, 1) * 0.3;
 const canPlay = () => !!AE.ctx;
@@ -4632,12 +4641,77 @@ function snapNow(t, cur) {
   const nb = barAtTime(t); const nextCh = nb ? chordAtTime(t + nb.spb * 0.6) : null;
   return snapPitch(TP.target, ch, { strong: isStrongTime(t), cur, nextCh, lo: TP.lo, hi: TP.hi });
 }
-function pitchNow(t, cur) { return TP.mode === 'free' ? TP.target : snapNow(t, cur); }
+function pitchNow(t, cur) { return TP.mode === 'free' && !AUTO.on ? TP.target : snapNow(t, cur); }
+
+// One musical clock drives both held-note resolution and automatic phrasing.
+const AUTO = { on: false, next: 0, n: 0, center: 70, dir: 1, savedMode: 'snap' };
+function autoSync() {
+  const key = [UI.playing, GAME.phase, FIN.req, AUTO.on].join('|');
+  if (AUTO.uiKey === key) return; AUTO.uiKey = key;
+  const el = document.getElementById('autoMode');
+  el.style.display = UI.playing && GAME.phase === 'play' && !FIN.req ? 'inline-flex' : 'none';
+  el.querySelectorAll('button').forEach(b => { const on = (b.dataset.auto === 'on') === AUTO.on; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  UI.el.hudMode.style.display = GAME.phase === 'play' && !AUTO.on ? 'inline-flex' : 'none';
+}
+function setAuto(on, keepInput = false) {
+  if (on && (!UI.playing || GAME.phase !== 'play' || FIN.req || FIN.on)) return;
+  if (AUTO.on === on) return;
+  if (on) {
+    releaseAllInput(); AUTO.savedMode = TP.mode; TP.mode = 'snap';
+    AUTO.on = true; AUTO.next = 0; AUTO.n = 0; AUTO.center = clamp(TP.target, 64, 77);
+    if (MUS.song && !['count','final','done'].includes(MUS.song.phase)) takeover(AE.ctx.currentTime);
+    UI.touched = true; UI.el.stem.classList.remove('hint');
+  } else {
+    AUTO.on = false;
+    if (keepInput) { TP.blowing = false; TP.pendingMove = false; noteOff(null); } else releaseAllInput();
+    spPress(false); TP.mode = AUTO.savedMode; if (!keepInput) fingerVisual(null);
+  }
+  syncMode(); autoSync();
+}
+function phraseSlot(t) {
+  const b = barAtTime(t); if (!b) return null;
+  const p = Math.max(0, (t - b.t0) / b.spb), beat = Math.floor(p);
+  const off = p - beat >= b.swing;
+  return { id: b.beat0 * 2 + beat * 2 + (off ? 1 : 0), strong: !off, next: pt(b, off ? beat + 1 : beat + 0.5) };
+}
+function autoTick(now) {
+  if (!AUTO.on || !UI.playing || GAME.phase !== 'play' || FIN.req || FIN.on || !MUS.running) return;
+  const S = MUS.song;
+  if (!S || ['count','final','done'].includes(S.phase)) return;
+  if (S.floor !== 'me' || S.phase !== 'solo') takeover(now);
+  if (now < AUTO.next && TP.blowing) return;
+  const slot = phraseSlot(now); if (!slot) return;
+  const motifs = [[0,2,4,7,5,2,-1,0],[0,3,2,5,7,4,2,-2],[0,-2,-4,0,3,5,2,0],[0,4,7,9,7,3,2,0]];
+  if (AUTO.n % 8 === 0) { AUTO.motif = pick(motifs); AUTO.center = clamp(AUTO.center + pick([-3,-2,2,3]), 63, 77); }
+  const offset = AUTO.motif[AUTO.n % 8];
+  TP.target = clamp(AUTO.center + offset, TP.lo, TP.hi); TP.pos = pitchToPos(TP.target);
+  TP.blowing = true; TP.lastMoveT = performance.now();
+  if (!TP.voice || AUTO.n % 3 === 0) noteOn('auto');
+  else moveTo(snapNow(now, null), 'slur', now + 0.004);
+  fingerVisual(pitchToPos(TP.cur));
+  AUTO.n++;
+  // Mostly swinging eighths, with quarter/half-note breathing space; never give up the solo.
+  AUTO.next = Math.max(now + 0.06, slot.next);
+  if (AUTO.n % 8 === 0) AUTO.next += curSpb() * pick([0, 0.5, 1]);
+  if (SPX.g >= 0.999 && !SPX.active && slot.strong) spPress(true);
+}
+function heldHarmonyTick(now) {
+  const slot = phraseSlot(now); if (!slot) return;
+  const ch = chordAtTime(now + 0.01), changed = TP.chord !== ch.name;
+  if (!changed && TP.flowSlot === slot.id) return;
+  TP.flowSlot = slot.id; TP.chord = ch.name;
+  // Weak-beat colours resolve on the next beat even if the finger never moves.
+  const out = snapPitch(TP.target, ch, { strong: FIN.req || slot.strong, lo: TP.lo, hi: TP.hi });
+  if (out !== TP.cur) moveTo(out, changed ? 'chord' : 'resolve', now + 0.003);
+}
+
 
 // 소리 시작
 function noteOn(kind = 'touch') {
   if (!canPlay()) return;
   const now = AE.ctx.currentTime, t = now + 0.004;
+  if (FIN.manualWaiting && kind !== 'auto') { FIN.manualPlayed = true; FIN.manualReleased = false; }
+  TP.flowSlot = phraseSlot(now)?.id;
   const out = pitchNow(t, null);
   const fast = t - TP.lastAttackT < 0.28;
   TP.alt = fast ? !TP.alt : false;
@@ -4745,6 +4819,7 @@ function endShake(t) {
 // ---------- 입력 (0~1 위치) ----------
 function ribbonDown(pos) {
   if (!AE.ctx || GAME.phase === 'finale') return;
+  if (AUTO.on) setAuto(false, true);
   if (GAME.phase === 'pre') { preBuzzDown(pos); return; }
   if (!UI.touched) { UI.touched = true; UI.el.stem.classList.remove('hint'); }
   TP.air = [{ t: performance.now(), pos }]; TP.pendingMove = false; TP.lastPitchUpdate = -99; TP.lastPos = pos; TP.lastAirT = performance.now();
@@ -4787,6 +4862,7 @@ function ribbonUp() {
   let flick = null;
   if (sp < -2.2 && TP.cur > 60) flick = 'fall'; else if (sp > 2.6) flick = 'doit';
   noteOff(flick);
+  if (FIN.manualWaiting && FIN.manualPlayed) FIN.manualReleased = true;
 }
 function ribbonSpeed(ms) {   // 띠 길이/초
   const a = TP.air; if (a.length < 2 || performance.now() - a[a.length - 1].t > ms) return 0;
@@ -4813,14 +4889,14 @@ function releaseAllInput() { if (typeof PRE !== 'undefined' && PRE.buzz) preBuzz
 function trumpetTick() {
   flushRibbonMove();
   const now = AE.ctx.currentTime;
+  autoTick(now);
   if (TP.blowing && TP.revoiceDue && now + 0.003 - TP.lastRevoiceT >= (TP.mode === 'free' ? 0.1 : 0.08)) moveTo(pitchNow(now + 0.003, Math.round(TP.cur)), 'slide', now + 0.003);
   let v = TP.voice;
   if (TP.blowing) TP.lastSoundT = now;
   if (!TP.blowing || !v || v.dead || TP.shake) return;
   // 화음이 바뀌면 (보정 모드) 맞는 음으로 미끄러짐
   if (TP.mode === 'snap') {
-    const ch = chordAtTime(now + 0.01);
-    if (TP.chord !== ch.name) { TP.chord = ch.name; const out = snapPitch(TP.target, ch, { strong: true, cur: inSet(Math.round(TP.cur), ch, 'S') ? Math.round(TP.cur) : null, lo: TP.lo, hi: TP.hi }); if (out !== TP.cur) moveTo(out, 'chord', now + 0.003); }
+    heldHarmonyTick(now);
   }
   v = TP.voice; if (!v || v.dead) return;
   // 오래 끌면 비브라토
@@ -7368,7 +7444,8 @@ function bigOnEvent(ev) {
 const UI = { el: {}, playing: false, marksKey: '', kbPos: null, inputRect: null, fingerPos: null, fingerDirty: false, cancelInput: null };
 function initUI() {
   const $ = id => document.getElementById(id);
-  Object.assign(UI.el, { stem: $('stem'), ribbon: $('ribbon'), marks: $('marks'), finger: $('finger'), controls: $('controls'), title: $('title'), start: $('start'), fill: document.querySelector('#start .fill'), startLabel: document.querySelector('#start b'), paused: $('paused'), pause: $('pause'), hudMode: $('hudMode'), nextSong: $('nextSong'), special: $('special'), endShow: $('endShow'), finBar: $('finBar'), encore: $('encore'), finHome: $('finHome') });
+  Object.assign(UI.el, { stem: $('stem'), ribbon: $('ribbon'), marks: $('marks'), finger: $('finger'), controls: $('controls'), title: $('title'), start: $('start'), fill: document.querySelector('#start .fill'), startLabel: document.querySelector('#start b'), paused: $('paused'), pause: $('pause'), hudMode: $('hudMode'), autoMode: $('autoMode'), nextSong: $('nextSong'), special: $('special'), endShow: $('endShow'), finBar: $('finBar'), encore: $('encore'), finHome: $('finHome') });
+  document.querySelectorAll('[data-auto]').forEach(b => b.onclick = () => setAuto(b.dataset.auto === 'on'));
   bindInput();
   bindSpecial();
   finBind();
@@ -7384,7 +7461,7 @@ function initUI() {
   // 앱이 뒤로 가면 소리까지 멈춤
   document.addEventListener('visibilitychange', () => { if (document.hidden) { afterSave(); if (UI.playing) pauseGame(); else if (AE.ctx && AE.ctx.state === 'running') AE.ctx.suspend(); } });
   window.addEventListener('pagehide', () => { afterSave(); if (UI.playing) pauseGame(); });
-  window.addEventListener('blur', () => { releaseAllInput(); fingerVisual(null); });
+  window.addEventListener('blur', () => { if (UI.playing) pauseGame(); else { releaseAllInput(); fingerVisual(null); } });
   const tryDecode = async () => {
     if (!window.JAZZ_AUDIO) return;
     try {
@@ -7477,7 +7554,7 @@ function bindInput() {
   const stepKey = d => {
     let p = UI.kbPos != null ? UI.kbPos : TP.pos;
     if (TP.mode === 'free') p = pitchToPos(Math.round(posToPitch(p)) + d);
-    else { const ch = chordAtTime((AE.ctx ? AE.ctx.currentTime : 0) + 0.02); const m = stepAllowed(Math.round(posToPitch(p)), d, ch, 'S'); p = pitchToPos(m); }
+    else { const ch = chordAtTime((AE.ctx ? AE.ctx.currentTime : 0) + 0.02); const m = stepAllowed(Math.round(posToPitch(p)), d, ch, 'W'); p = pitchToPos(m); }
     UI.kbPos = clamp(p, 0, 1);
     if (TP.blowing || PRE.buzz) { ribbonMove(UI.kbPos); fingerVisual(UI.kbPos); } else TP.pos = UI.kbPos;
   };
@@ -7506,7 +7583,7 @@ const ARC = { el: null, key: '', at: 0 };
 function arcadeSync(force) {
   const a = ARC.el || (ARC.el = document.getElementById('arcade')); if (!a) return;
   const E = UI.el, title = !E.title.classList.contains('hide'), paused = GAME.state === 'paused';
-  const key = [SC.W, SC.H, title, paused, GAME.phase, FIN.req, FIN.on, FIN.stage, E.controls.className, E.pause.style.display].join('|');
+  const key = [SC.W, SC.H, title, paused, GAME.phase, FIN.req, FIN.on, FIN.stage, AUTO.on, E.controls.className, E.pause.style.display].join('|');
   if (!force && key === ARC.key) return;
   ARC.key = key;
   const target = title ? '_top' : '_blank';
@@ -7517,7 +7594,7 @@ function arcadeSync(force) {
   const W = SC.W, fw = 52, fh = 48, gap = 9, pr = E.pause.getBoundingClientRect();
   const y1 = (pr.height ? (pr.top + pr.bottom) / 2 : 33) - fh / 2;
   const obs = [];
-  for (const id of ['pause', 'nextSong', 'endShow', 'hudMode', 'finBar', 'stem']) { const e = E[id]; if (!e) continue; const r = e.getBoundingClientRect(); if (r.width > 0 && r.height > 0) obs.push(r); }
+  for (const id of ['pause', 'nextSong', 'endShow', 'hudMode', 'autoMode', 'finBar', 'stem']) { const e = E[id]; if (!e) continue; const r = e.getBoundingClientRect(); if (r.width > 0 && r.height > 0) obs.push(r); }
   const spot = y => {
     const blocks = obs.filter(r => r.bottom + gap > y && r.top - gap < y + fh).map(r => [r.left - gap, r.right + gap]);
     const free = c => c - fw / 2 >= 4 && c + fw / 2 <= W - 4 && !blocks.some(b => c + fw / 2 > b[0] && c - fw / 2 < b[1]);
@@ -7540,6 +7617,7 @@ function arcadeSync(force) {
 function uiTick() {
   { const pn = performance.now(); if (pn - ARC.at > 200) { ARC.at = pn; arcadeSync(false); } }
   if (UI.el.nextSong && AE.ctx) UI.el.nextSong.disabled = !UI.playing || AE.ctx.currentTime < (MUS.skipUntil || 0);
+  autoSync();
   flushFingerVisual();
   if (!UI.playing && UI.marksKey) return;
   const now = AE.ctx ? AE.ctx.currentTime : 0;
@@ -7552,7 +7630,7 @@ function uiTick() {
   const add = (m, cls) => { const i = document.createElement('i'); i.className = cls; i.style.top = ((1 - pitchToPos(m)) * 100) + '%'; box.appendChild(i); };
   if (TP.mode === 'snap') {
     const ch = chordAtTime(now + 0.03);
-    for (let m = TP.lo; m <= TP.hi; m++) { if (isChordTone(m, ch)) add(m, 'ct'); else if (inSet(m, ch, 'S')) add(m, 'st'); }
+    for (let m = TP.lo; m <= TP.hi; m++) { if (isChordTone(m, ch)) add(m, 'ct'); else if (inSet(m, ch, 'W')) add(m, 'st'); }
   } else for (let m = TP.lo; m <= TP.hi; m++) add(m, mod12(m) === 0 ? 'tk c' : 'tk');
 }
 
@@ -8129,6 +8207,11 @@ const FIN_PENQ = (() => {
 // ---------- 끝내기 버튼 ----------
 function finRequest() {
   if (FIN.req || FIN.on || GAME.phase !== 'play' || !UI.playing || !AE.ctx || !MUS.running) return;
+  const fromAuto = AUTO.on;
+  if (fromAuto) setAuto(false);
+  FIN.manualWaiting = fromAuto; FIN.manualPlayed = false; FIN.manualReleased = false;
+  document.getElementById('finishHint').hidden = !fromAuto;
+  if (fromAuto) UI.el.stem.classList.add('hint');
   FIN.req = true; FIN.reqT = NOW.t;
   finUI();
   if (ITL.cur) itlEnd();
@@ -8144,7 +8227,10 @@ function finRequest() {
     MUS.nextT = now + 0.14; S.showEnd = true;
     enterFinal(S); schedTick();
   } else if (S && !S.ended && (S.phase === 'final' || (MUS.fermata && !MUS.fermata.cut) || cutDue)) S.showEnd = true;   // 이미 끝나 가는 중: 끊기는 순간 시작
-  else { if (!S) finStab(now); finBegin(); }
+  else if (fromAuto) {
+    if (MUS.gap) MUS.gap.hold = true;
+    genFinal({ final: MUS.gapChord || chordAtTime(now), tune: { ending: 'fermata' }, showEnd: true }, { t0: now + 0.06 });
+  } else { if (!S) finStab(now); finBegin(); }
 }
 // 곡 사이에 눌렀을 때: 밴드가 한 방 찍어 줌
 function finStab(now) {
@@ -8304,6 +8390,8 @@ function finBuildPen() {
 // ---------- 시작 ----------
 function finBegin() {
   if (FIN.on) return;
+  if (AUTO.on) setAuto(false);
+  FIN.manualWaiting = false; document.getElementById('finishHint').hidden = true; UI.el.stem.classList.remove('hint');
   finBuild(); finLayout();
   const t = NOW.t, R = REACT, hot = clamp((R.peak || 0) / 100, 0, 1);
   Object.assign(FIN, { on: true, stage: 'ovation', t0: t, stageT: t, band: true, signed: 0, kindN: 0, faint: null, cur: null, ink: 0, inkT: -9, draw: null, camT: 0, loud: 1, bump: 0, cheerUntil: t + 2.5, hushK: 0, nextYell: t + 1, nextFlash: t + 4 });
@@ -9338,5 +9426,6 @@ bootSoon();
 </script>
 </body>
 </html>
+
 
 
