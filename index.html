@@ -5160,6 +5160,15 @@ function crowdAct(m, k, dur, extra = {}) {
   if (m.act && m.act.story && NOW.t < m.act.until) return;
   m.act = { k, t0: NOW.t, until: NOW.t + dur, ...extra };
 }
+// 턱을 괴고 감상: 주먹을 턱 밑에 받치고(고개가 돌아간 쪽 손), 팔꿈치는 가슴 앞으로 내림. 반대 팔은 배 앞으로 가로질러 그 팔꿈치를 받침
+function chinPose(p, a, F) {
+  const R = p.R;
+  if (!a.hand) a.hand = facePoint(p, 0, -R, R).sub(F.c).dot(F.r) < -0.03 ? 'L' : 'R';      // 동작 하나가 끝날 때까지 같은 손
+  const side = a.hand, other = side === 'R' ? 'L' : 'R', sg = side === 'R' ? 1 : -1;
+  p.reach(side, facePoint(p, -sg * R * 0.1, -R * 1.28, R * 0.68), at(F, 0.5, sg * 0.1, -0.5), null, 'fist');
+  const el = p.bones[BONE['fore' + side]].getWorldPosition(_cv3);
+  p.reach(other, el.clone().addScaledVector(F.r, -sg * 0.06).addScaledVector(UPY, -0.035), at(F, 0.1, -sg * 0.5, -0.3), null, 'flat');
+}
 function runCrowdAct(m, t, beat) {
   const p = m.p, a = m.act, F = frameOf(p), h = p.h;
   if (a.story) { runCrowdScene(m, t, beat); return; }
@@ -5218,17 +5227,36 @@ function runCrowdAct(m, t, beat) {
     case 'cheeks': cheekHands(p); break;
     case 'throw': actThrow(m, p, a, F, t); break;
     case 'popper': actPopper(m, p, a, F, t); break;
-    case 'whistle': p.reach('R', at(F, 0.2, 0.03, 0.3), null, null, 'pinch'); p.rest('L'); break;
-    case 'snap': {
-      const ph = ((beat + 1) % 2 + 2) % 2, hit = Math.exp(-Math.pow((ph - 1) / 0.14, 2));
-      p.reach('R', at(F, 0.22, 0.22, 0.12 + hit * 0.04), null, null, hit > 0.5 ? 'point' : 'pinch'); p.rest('L');
+    case 'whistle': {
+      // 두 손가락을 입에 물고 휘파람: 손은 (고개가 돌아가 있어도) 입을 따라가고 팔꿈치는 옆으로
+      const R = p.R;
+      p.reach('R', facePoint(p, -R * 0.35, -R * 0.7, R * 0.85), at(F, 0.1, 0.5, -0.05), null, 'pinch'); p.rest('L');
       break;
     }
-    case 'sip': { const ph = clamp((t - a.t0) / (a.until - a.t0), 0, 1), up2 = Math.sin(ph * Math.PI); p.reach('R', at(F, lerp(0.32, 0.18, up2), 0.12 - up2 * 0.08, lerp(-0.12, 0.3, smooth01(up2 * 1.3))), null, null, 'grip'); p.rest('L'); break; }
+    case 'snap': {
+      // 2·4박에 손가락 튕기기: 팔꿈치는 옆구리에 붙이고 손만 어깨 앞에서 까딱
+      const ph = ((beat + 1) % 2 + 2) % 2, hit = Math.exp(-Math.pow((ph - 1) / 0.14, 2));
+      p.reach('R', at(F, 0.2, 0.24, 0.08 + hit * 0.05), at(F, 0.05, 0.36, -0.5), null, hit > 0.5 ? 'point' : 'pinch'); p.rest('L');
+      break;
+    }
+    case 'sip': {
+      // 잔을 들어 한 모금 (잔이 손에 보이고, 고개가 돌아가 있어도 입으로 감)
+      const ph = clamp((t - a.t0) / (a.until - a.t0), 0, 1), up2 = smooth01(Math.sin(ph * Math.PI) * 1.3), R = p.R;
+      p.reach('R', at(F, 0.3, 0.14, -0.14).lerp(facePoint(p, -R * 0.2, -R * 1.45, R * 1.05), up2), at(F, 0.15, 0.42, -0.45), palmQ(p, 'R'), 'grip'); p.rest('L');
+      makeCrowdProp(m, 'cup').visible = true;
+      break;
+    }
     case 'talk': { const ph = (t - a.t0) * 3; p.reach('R', at(F, 0.3, 0.18, 0.0 + Math.sin(ph) * 0.05), null, null, 'relax'); p.rest('L'); break; }
-    case 'chin': p.reach('R', at(F, 0.22, 0.04, 0.3), null, null, 'fist'); p.rest('L'); break;
-    case 'conduct': { const bp = ((beat % 1) + 1) % 1; p.reach('R', at(F, 0.3, 0.22 + Math.sin(bp * Math.PI * 2) * 0.08, 0.2 + Math.cos(bp * Math.PI * 2) * 0.1), null, null, 'pinch'); p.rest('L'); break; }
-    case 'airhorn': { const f = Math.sin(t * 8) * 0.02; p.reach('L', at(F, 0.32, -0.02, 0.32 + f), null, null, 'grip'); p.reach('R', at(F, 0.42, 0.04, 0.3 + f), null, null, 'relax'); break; }
+    case 'chin': chinPose(p, a, F); break;
+    case 'conduct': { const bp = ((beat % 1) + 1) % 1; p.reach('R', at(F, 0.3, 0.22 + Math.sin(bp * Math.PI * 2) * 0.08, 0.2 + Math.cos(bp * Math.PI * 2) * 0.1), at(F, 0, 0.45, -0.4), null, 'pinch'); p.rest('L'); break; }
+    case 'airhorn': {
+      // 트럼펫 부는 시늉: 고개를 살짝 돌려 치켜들고, 주먹 둘을 입 앞에 앞뒤로 대고 밸브 누르듯 손가락을 까딱
+      const R = p.R, sh = Math.sin(t * 8) * 0.012, k = Math.floor(t * 9 + m.phase0 * 7) % 3, sd = m.phase0 > 1 ? 1 : -1;
+      p.c.look.copy(CROWD.me).addScaledVector(F.r, sd * 2.2).add(_cv3.set(0, 1.3, 0));
+      p.reach('L', facePoint(p, R * 0.08, -R * 0.62 + sh, R * 1.25), at(F, 0.1, -0.5, -0.15), null, 'grip');
+      p.reach('R', facePoint(p, -R * 0.1, -R * 0.5 + sh, R * 1.9), at(F, 0.1, 0.5, -0.15), null, ['grip', 'relax', 'pinch'][k]);
+      break;
+    }
     case 'slap': { const ph = (t - a.t0) * 6, d = Math.abs(Math.sin(ph * Math.PI)); if (m.spot.table) p.reach('R', m.spot.table.clone().add(V3(0, 0.05 + d * 0.15, 0)).lerp(F.c, 0.25), null, null, 'flat'); p.rest('L'); break; }
     default: p.rest('L'); p.rest('R');
   }
