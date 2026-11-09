@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#fff4de">
+<meta property="og:type" content="website">
+<meta property="og:title" content="인정욕구 채우기">
+<meta property="og:image" content="https://aaffffffffff123-lang.github.io/egotrip/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <title>인정욕구 채우기</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎺</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -69,6 +75,18 @@ button{font-family:inherit;color:inherit}
 #endShow i{display:block;width:11px;height:11px;border-radius:2.5px;background:var(--vermilion)}
 #finBar{position:fixed;left:calc(70px + var(--sal));top:calc(10px + var(--sat));z-index:6;display:none;gap:12px}
 
+/* 혐규오락실: 위쪽 가운데의 얼굴 버튼. 첫 화면에서는 이름을 같이 보여 주고, 공연 중에는 얼굴만 (그 줄의 다른 버튼과 겹치면 가장 가까운 빈자리 — 자리는 스크립트가 잡음) */
+#arcade{position:fixed;left:50%;top:calc(9px + var(--sat));z-index:6;display:flex;align-items:center;gap:7px;height:48px;padding:2px 4px;transform:translateX(-50%);
+  text-decoration:none;color:var(--ink);touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-drag:none}
+#arcade svg{display:block;width:44px;height:44px;flex:none;overflow:visible;filter:drop-shadow(0 3.5px 0 rgba(34,26,43,.3))}
+#arcade:active svg{transform:translateY(2px);filter:drop-shadow(0 1.5px 0 rgba(34,26,43,.3))}
+#arcade .aw{display:none;align-items:center;gap:3px;font:700 20px/1 var(--ft);letter-spacing:-.03em;white-space:nowrap;text-shadow:0 0 4px var(--paper),0 0 4px var(--paper),0 0 8px var(--paper)}
+#arcade .aw b{display:flex;flex-direction:column;align-items:center;gap:1px;font:700 10.5px/1 var(--ft);color:#e0301e;text-shadow:none}
+#arcade.title{z-index:12}
+#arcade.title .aw{display:flex}
+#arcade.over{z-index:12}
+#arcade.placed{transform:none;transition:left .2s ease,top .2s ease}
+#arcade.off{display:none}
 /* ---------- 덮개 화면 ---------- */
 .screen{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:calc(14px + var(--sat)) 14px calc(14px + var(--sab));background:rgba(255,244,222,.28)}
 .screen.hide{display:none}
@@ -79,7 +97,7 @@ button{font-family:inherit;color:inherit}
 .kicker{margin-top:10px;font:700 13px var(--ft);color:var(--cobalt);letter-spacing:.14em}
 /* ---------- 첫 화면: 제목과 시작 버튼 하나 (아무 데나 눌러도 시작) ---------- */
 #title{flex-direction:column;justify-content:space-between;align-items:center;cursor:pointer;
-  padding:calc(7vh + var(--sat)) 16px calc(8vh + var(--sab));
+  padding:calc(max(7vh,56px) + var(--sat)) 16px calc(8vh + var(--sab));
   background:linear-gradient(180deg,rgba(255,244,222,.86) 0%,rgba(255,244,222,.5) 26%,rgba(255,244,222,0) 48%,rgba(255,244,222,0) 62%,rgba(255,244,222,.55) 86%,rgba(255,244,222,.8) 100%)}
 .logo{display:block;width:min(92vw,560px);height:auto;max-height:42vh;transform:rotate(-3.5deg);overflow:visible;
   filter:drop-shadow(0 7px 0 rgba(34,26,43,.22))}
@@ -97,7 +115,7 @@ button{font-family:inherit;color:inherit}
 #start:not(:disabled){animation:startPulse 1.5s ease-in-out infinite}
 #start:not(:disabled):active{animation:none;transform:translateY(4px);box-shadow:0 0 0 3.5px var(--ink),0 4px 0 3.5px rgba(34,26,43,.32)}
 @keyframes startPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
-@media (min-aspect-ratio:1/1){ #title{padding-top:calc(4vh + var(--sat));padding-bottom:calc(6vh + var(--sab))} .logo{max-height:52vh} }
+@media (min-aspect-ratio:1/1){ #title{padding-top:calc(4vh + 32px + var(--sat));padding-bottom:calc(6vh + var(--sab))} .logo{max-height:47vh} }
 .pickmode{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 12px}
 .pickmode button{border:none;border-radius:16px;padding:12px 10px 11px;text-align:left;background:var(--cream);box-shadow:0 0 0 2.5px var(--ink),0 4px 0 2.5px rgba(34,26,43,.25);cursor:pointer}
 .pickmode button b{display:block;font:900 19px var(--fd)}
@@ -176,6 +194,7 @@ button{font-family:inherit;color:inherit}
   <g transform="translate(60 60) scale(-1 1) rotate(-38) translate(-58 -24)"><use href="#tpt"/></g>
 </svg><i class="spark s1"></i><i class="spark s2"></i><i class="spark s3"></i></button>
 <div id="hudMode" class="mode"><button data-m="snap">보정</button><button data-m="free">자유</button></div>
+<a id="arcade" class="title" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#fffaf0" stroke="#221a2b" stroke-width="2.7" stroke-linejoin="round"/><g stroke="#221a2b" stroke-width="2.3" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#221a2b"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#221a2b" stroke-width="2.3" stroke-linecap="round"/></svg><span class="aw"><b><span>혐</span><span>규</span></b>오락실</span></a>
 
 <div id="title" class="screen">
   <svg class="logo" viewBox="0 0 640 380" role="img" aria-label="인정욕구 채우기">
@@ -345,7 +364,7 @@ function M4(p = [0, 0, 0], r = [0, 0, 0], s = [1, 1, 1]) {
 }
 // 꼭짓점 색을 입힌 복제본 (병합용). uv는 지움
 function vcol(geo, color, m) {
-  let g = geo.index ? geo.toNonIndexed() : geo.clone();
+  let g = geo.index ? geo.toNonIndexed() : new THREE.BufferGeometry().copy(geo);
   if (m) g.applyMatrix4(m);
   for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
   const c = color instanceof THREE.Color ? color : new THREE.Color(color), n = g.attributes.position.count, a = new Float32Array(n * 3);
@@ -355,7 +374,14 @@ function vcol(geo, color, m) {
 }
 function mergeVC(list) { return mergeGeometries(list, false); }
 // 모서리 둥근 상자 (가운데 원점)
+const RBOX = new Map();
 function rbox(w, h, d, r = 0.02, seg = 3) {
+  const key = w + '|' + h + '|' + d + '|' + r + '|' + seg;
+  let m = RBOX.get(key);
+  if (!m) { m = rboxMake(w, h, d, r, seg); RBOX.set(key, m); }
+  return new THREE.BufferGeometry().copy(m);
+}
+function rboxMake(w, h, d, r, seg) {
   r = Math.min(r, w / 2 - 1e-4, h / 2 - 1e-4);
   const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
   s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r);
@@ -575,17 +601,16 @@ function synthTableSlap(ctx) {
 function synthApplause(ctx, dur, density) {
   const sr = ctx.sampleRate, n = Math.floor(dur * sr), L = new Float32Array(n), R = new Float32Array(n);
   const clapN = Math.floor(0.12 * sr), nz = noiseArr(clapN * 8);
-  const people = Math.floor(density / 4.5);
+  const people = Math.floor(density / 4.5), one = new Float64Array(clapN);
   for (let p = 0; p < people; p++) {
     const rate = rand(3.6, 5.6), pan = rand(-1, 1), gl = Math.sqrt((1 - pan) / 2), gr = Math.sqrt((1 + pan) / 2), amp = rand(0.35, 1);
     const fc = rand(900, 2400), off = Math.floor(rand(0, clapN * 7));
+    // 이 사람의 박수 한 번: 치는 내내 같은 소리라 한 번만 계산해 두고 되풀이해 얹음 (전에는 칠 때마다 표본마다 exp를 다시 계산)
+    for (let i = 0; i < clapN; i++) one[i] = nz[off + i] * Math.exp(-i / sr * (60 + fc / 40)) * amp;
     let t = rand(0, 0.3);
     while (t < dur) {
-      const s = Math.floor(t * sr);
-      for (let i = 0; i < clapN && s + i < n; i++) {
-        const v = nz[off + i] * Math.exp(-i / sr * (60 + fc / 40)) * amp;
-        L[s + i] += v * gl; R[s + i] += v * gr;
-      }
+      const s = Math.floor(t * sr), m = Math.min(clapN, n - s);
+      for (let i = 0; i < m; i++) { const v = one[i]; L[s + i] += v * gl; R[s + i] += v * gr; }
       t += (1 / rate) * rand(0.92, 1.08);
     }
   }
@@ -619,7 +644,7 @@ function createAudio() {
   lim.threshold.value = -2.5; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
   glue.connect(master); master.connect(lim); lim.connect(ctx.destination);
   AE.master = master; AE.glue = glue; AE.lim = lim;
-  const rev = ctx.createConvolver(); rev.buffer = makeIR(ctx, 1.9, 3.4);
+  const rev = ctx.createConvolver();                 // 잔향 버퍼는 합성 묶음에서 만들어 decodePack 끝에 끼움
   const revOut = ctx.createGain(); revOut.gain.value = 0.8;
   rev.connect(revOut); revOut.connect(glue);
   AE.rev = rev;
@@ -646,6 +671,63 @@ function createAudio() {
   return ctx;
 }
 
+// ---------- 합성 소리 묶음 ----------
+// 전에는 샘플을 다 푼 뒤 본 화면에서 한꺼번에 만들어서, 그동안(느린 폰은 몇 초) 화면이 멈춰 있었음.
+// 이제는 맨 처음에 워커로 보냄. 합성 함수들은 ctx에서 sampleRate와 createBuffer만 쓰므로 글자 그대로 워커로 옮길 수 있음.
+const SYNTH_STEPS = [
+  ['ir', c => makeIR(c, 1.9, 3.4)],
+  ['kick', c => synthKick(c)], ['hat', c => synthHat(c)], ['hatOpen', c => synthHat(c, true)], ['brush', c => synthBrushSweep(c)], ['btap', c => synthBrushTap(c)],
+  ['tomHi', c => synthTom(c, 175)], ['tomLo', c => synthTom(c, 105)], ['stick', c => synthStickClick(c)],
+  ['claps', c => [0, 1, 2, 3, 4].map(() => synthClap(c))], ['snaps', c => [0, 1, 2].map(() => synthSnap(c))], ['clinks', c => [0, 1, 2].map(() => synthClink(c))],
+  ['shaker', c => synthShake(c)], ['slap', c => synthTableSlap(c)], ['applause', c => synthApplause(c, 6.3, 160)], ['applauseBig', c => synthApplause(c, 7.1, 420)],
+  ['roar', c => synthRoar(c, 6.5)], ['stomp', c => synthStomp(c)], ['room', c => synthRoomTone(c)], ['babble', c => synthBabble(c, 7.5)],
+];
+function synthWorkerSrc() {
+  const C = { rand, randi, pick, clamp, lerp };
+  const F = [makeIR, biquadCoef, filt, noiseArr, toBuf, synthKick, synthHat, synthBrushSweep, synthBrushTap, synthTom, synthStickClick, synthClap, synthSnap, synthClink, synthShake, synthTableSlap, synthApplause, synthRoomTone, synthRoar, synthStomp, synthBabble];
+  return Object.keys(C).map(k => 'const ' + k + ' = ' + C[k].toString() + ';').join('\n') + '\n' + F.map(f => f.toString()).join('\n') + '\n'
+    + 'const SYNTH_STEPS = [' + SYNTH_STEPS.map(s => '[' + JSON.stringify(s[0]) + ', ' + s[1].toString() + ']').join(', ') + '];\n'
+    + 'onmessage = e => { postMessage(1); const sr = e.data.sr; const ctx = { sampleRate: sr, createBuffer: (n, len) => { const ch = []; for (let i = 0; i < n; i++) ch.push(new Float32Array(len)); return { ch, getChannelData: c => ch[c] }; } };'
+    + ' const out = {}, tr = []; const pack = b => { for (const c of b.ch) tr.push(c.buffer); return { ch: b.ch }; };'
+    + ' for (const s of SYNTH_STEPS) { const r = s[1](ctx); out[s[0]] = Array.isArray(r) ? r.map(pack) : pack(r); }'
+    + ' postMessage(out, tr); };';
+}
+// onStart: 합성이 실제로 돌기 시작했을 때(워커가 떴을 때, 또는 워커를 못 써서 본 화면에서 만들기로 했을 때) 한 번 부름
+function synthBegin(onStart) {
+  if (AE.synP) { if (onStart) onStart(); return AE.synP; }
+  const ctx = createAudio(), sr = ctx.sampleRate;
+  (AE.at || (AE.at = {})).syn0 = performance.now();
+  const started = () => { const f = onStart; onStart = null; if (f) f(); };
+  const real = o => { const b = ctx.createBuffer(o.ch.length, o.ch[0].length, sr); for (let i = 0; i < o.ch.length; i++) b.getChannelData(i).set(o.ch[i]); return b; };
+  // 워커를 못 쓸 때: 본 화면에서 만들되 하나 만들 때마다 화면이 숨 돌릴 틈을 줌 (무대 만들기가 먼저 끼어듦)
+  const local = async () => { started(); const S = {}; for (const s of SYNTH_STEPS) { await new Promise(r => setTimeout(r, 0)); S[s[0]] = s[1](ctx); } AE.at.syn = performance.now(); return S; };
+  AE.synP = new Promise(resolve => {
+    let done = false, alive = false, w = null, timer = 0;
+    const fallback = () => { if (done) return; done = true; clearTimeout(timer); try { if (w) w.terminate(); } catch (e) { } local().then(resolve); };
+    // 무대를 다 만들고 4초가 지나도록 워커가 뜨지도 않았으면(소식 없음) 기다리지 않고 본 화면에서 만듦
+    AE.synWatch = () => setTimeout(() => { if (!alive) fallback(); }, 4000);
+    try {
+      if (/noworker/.test(location.search)) throw new Error('noworker');      // 시험용: 워커 없이
+      w = new Worker(URL.createObjectURL(new Blob([synthWorkerSrc()], { type: 'text/javascript' })));
+      w.onmessage = e => {
+        if (e.data === 1) { alive = true; started(); return; }
+        if (done) return; done = true; clearTimeout(timer);
+        const S = {}; for (const k in e.data) S[k] = Array.isArray(e.data[k]) ? e.data[k].map(real) : real(e.data[k]);
+        AE.synWorker = true; AE.at.syn = performance.now(); w.terminate(); resolve(S);
+      };
+      w.onerror = e => { if (e && e.preventDefault) e.preventDefault(); fallback(); };
+      timer = setTimeout(fallback, 45000);
+      w.postMessage({ sr });
+    } catch (e) { fallback(); }
+  });
+  return AE.synP;
+}
+// ---------- 샘플 풀기: 한 번만 시작하고, 진행률은 나중에 화면이 붙음 ----------
+const PACK = { p: null, f: 0, on: null };
+function packBegin() {
+  if (!PACK.p) { PACK.p = decodePack(f => { PACK.f = f; if (PACK.on) PACK.on(f); }); PACK.p.catch(() => { }); }
+  return PACK.p;
+}
 async function decodePack(onProgress) {
   const ctx = createAudio(), P = window.JAZZ_AUDIO;
   if (!P) throw new Error('소리 묶음을 못 불러왔습니다');
@@ -670,27 +752,14 @@ async function decodePack(onProgress) {
     else if (key[0] === 'D') { sets.D = sets.D || {}; sets.D[key.slice(1)] = s; }
     done++; onProgress && onProgress(done / keys.length);
   };
-  const queue = keys.slice();
-  await Promise.all(new Array(4).fill(0).map(async () => { while (queue.length) await worker(queue.shift()); }));
+  // 전부 한꺼번에 맡김: 푸는 일 자체는 브라우저가 다른 스레드에서 하므로 무대를 만드는 동안 같이 진행됨
+  await Promise.all(keys.map(worker));
   for (const k in sets) if (Array.isArray(sets[k])) sets[k].sort((a, b) => a.m - b.m || a.rr - b.rr);
   AE.sets = sets;
-  // 합성 소리
-  const S = AE.syn;
-  S.kick = synthKick(ctx); S.hat = synthHat(ctx); S.hatOpen = synthHat(ctx, true);
-  S.brush = synthBrushSweep(ctx); S.btap = synthBrushTap(ctx);
-  S.tomHi = synthTom(ctx, 175); S.tomLo = synthTom(ctx, 105);
-  S.stick = synthStickClick(ctx);
-  S.claps = [0, 1, 2, 3, 4].map(() => synthClap(ctx));
-  S.snaps = [0, 1, 2].map(() => synthSnap(ctx));
-  S.clinks = [0, 1, 2].map(() => synthClink(ctx));
-  S.shaker = synthShake(ctx);
-  S.slap = synthTableSlap(ctx);
-  S.applause = synthApplause(ctx, 6.3, 160);
-  S.applauseBig = synthApplause(ctx, 7.1, 420);
-  S.roar = synthRoar(ctx, 6.5);
-  S.stomp = synthStomp(ctx);
-  S.room = synthRoomTone(ctx);
-  S.babble = synthBabble(ctx, 7.5);
+  (AE.at || (AE.at = {})).sets = performance.now();          // 불러오기 시각 기록 (점검용)
+  // 합성 소리·잔향 (맨 처음부터 따로 만들고 있던 것을 여기서 받음)
+  Object.assign(AE.syn, await synthBegin());
+  AE.rev.buffer = AE.syn.ir;
   const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0);
   for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
   AE.noise = nb;
@@ -862,6 +931,9 @@ function setBed(name, v, time = 0.6) { const b = BED[name]; if (b) b.g.gain.setT
 function synthRoar(ctx, dur) {
   const sr = ctx.sampleRate, n = Math.floor(dur * sr), L = new Float32Array(n), R = new Float32Array(n);
   const vowels = [[750, 1200, 2600], [550, 1800, 2600], [450, 850, 2500], [650, 1100, 2400]];
+  // 톱니 근사(하모닉 8개) 한 주기를 표로 만들어 둠 (표본마다 sin 여덟 번 하던 것을 대신함)
+  const SAWN = 2048, saw = new Float32Array(SAWN + 1);
+  for (let j = 0; j <= SAWN; j++) { let x = 0; for (let hh = 1; hh <= 8; hh++) x += Math.sin(2 * Math.PI * j / SAWN * hh) / hh; saw[j] = x; }
   // 목소리 30명: 각자 다른 높이·모음·위치
   for (let v = 0; v < 30; v++) {
     const fem = Math.random() < 0.5, f0 = fem ? rand(240, 420) : rand(120, 210), vw = pick(vowels);
@@ -876,8 +948,8 @@ function synthRoar(ctx, dur) {
     for (let i = 0; i < seg.length; i++) {
       const t = i / sr, k = t / len;
       const f = f0 * (1 + (glide - 1) * Math.sin(Math.PI * Math.min(1, k * 1.4))) * (1 + vibD * Math.sin(2 * Math.PI * vib * t));
-      ph += f / sr;
-      let x = 0; for (let hh = 1; hh <= 8; hh++) x += Math.sin(2 * Math.PI * ph * hh) / hh;
+      ph += f / sr; ph -= Math.floor(ph);
+      const q = ph * SAWN, j = q | 0, x = saw[j] + (saw[j + 1] - saw[j]) * (q - j);
       const env = Math.sin(Math.PI * k) ** 0.7;
       seg[i] = x * env * amp + (Math.random() * 2 - 1) * 0.35 * env * amp;
     }
@@ -896,10 +968,28 @@ function synthStomp(ctx) {
   for (let i = 0; i < n; i++) { const t = i / sr; x[i] = Math.sin(2 * Math.PI * (70 + 40 * Math.exp(-t * 30)) * t) * Math.exp(-t * 14) + nz[i] * Math.exp(-t * 30) * 0.8; }
   return toBuf(ctx, x, 0.85);
 }
+// ---------- 사람 소리 만들기 줄 세우기 ----------
+// 환호·"헉" 같은 순간에는 목소리 수십 개를 한꺼번에 예약하는데(하나에 노드 열댓 개), 그걸 한 프레임에 다 만들면 그 프레임이 멈칫함.
+// 그래서 소리 날 시각 순으로 줄을 세워 두고, 곧 나야 하는 것(0.1초 안)만 그 프레임에 만들고 나머지는 남는 시간에 조금씩 미리 만듦.
+const VJOB = { q: [], busy: false };
+function vjob(when, fn, o) {
+  if (VJOB.busy) return false;                 // 줄에서 꺼내 만드는 중
+  const q = VJOB.q; let i = q.length; while (i > 0 && q[i - 1].when > when) i--;
+  q.splice(i, 0, { when, fn, o });
+  return true;
+}
+function vjobTick() {
+  const q = VJOB.q; if (!q.length || !AE.ctx || AE.ctx.state !== 'running') return;
+  const now = AE.ctx.currentTime, t0 = performance.now();
+  VJOB.busy = true;
+  try {
+    while (q.length && (q[0].when < now + 0.1 || performance.now() - t0 < 2)) { const j = q.shift(); j.fn(Math.max(j.when, now + 0.004), j.o); }
+  } finally { VJOB.busy = false; }
+}
 // 한 사람의 "우—!" / "와—!" (실시간 합성: 톱니 → 포먼트 3개 → 외침 모양 음높이)
 const VOWEL = { u: [320, 870, 2300], o: [470, 900, 2500], a: [760, 1250, 2600], e: [560, 1750, 2600], ae: [700, 1650, 2500] };
 function whoop(when, o = {}) {
-  const ctx = AE.ctx; if (!ctx) return;
+  const ctx = AE.ctx; if (!ctx || vjob(when, whoop, o)) return;
   const fem = o.fem != null ? o.fem : Math.random() < 0.5;
   const f0 = o.f0 || (fem ? rand(330, 520) : rand(170, 290));
   const kind = o.kind || pick(['woo', 'woo', 'hoo', 'ahh', 'yow']);
@@ -934,7 +1024,7 @@ function whoop(when, o = {}) {
 }
 // 손가락 휘파람: 높은 사인 + 숨소리, 위로 쭉 올렸다 꺾임
 function whistleCall(when, o = {}) {
-  const ctx = AE.ctx; if (!ctx) return;
+  const ctx = AE.ctx; if (!ctx || vjob(when, whistleCall, o)) return;
   const f = o.f || rand(1900, 2700), kind = o.kind || pick(['up', 'wolf', 'trill']);
   const osc = ctx.createOscillator(); osc.type = 'sine';
   const g = ctx.createGain(); g.gain.setValueAtTime(0, when);
@@ -953,7 +1043,7 @@ function whistleCall(when, o = {}) {
 // ===================== 큰 반응용 사람 소리 (말 없음) =====================
 // 공용: 톱니 목소리 하나 (포먼트 3개 + 숨소리), 음높이 곡선은 [시간비율, 배수] 목록
 function voiceBlip(when, o) {
-  const ctx = AE.ctx; if (!ctx || !AE.noise) return;
+  const ctx = AE.ctx; if (!ctx || !AE.noise || vjob(when, voiceBlip, o)) return;
   const dur = o.dur, f0 = o.f0, v0 = o.v0 || VOWEL.a, v1 = o.v1 || v0, sh = o.fem ? 1.12 : 1;
   const osc = ctx.createOscillator(); osc.type = 'sawtooth';
   const fr = osc.frequency; fr.setValueAtTime(f0 * (o.curve ? o.curve[0][1] : 1), when);
@@ -989,7 +1079,7 @@ function voiceBlip(when, o) {
 }
 // 숨 하나: 걸러진 소음 (들숨·날숨)
 function breathBlip(when, o) {
-  const ctx = AE.ctx; if (!ctx || !AE.noise) return;
+  const ctx = AE.ctx; if (!ctx || !AE.noise || vjob(when, breathBlip, o)) return;
   const dur = o.dur, ns = ctx.createBufferSource(); ns.buffer = AE.noise;
   const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = o.q || 2.2;
   bp.frequency.setValueAtTime(o.f0, when); bp.frequency.exponentialRampToValueAtTime(o.f1, when + dur);
@@ -2418,12 +2508,16 @@ function makeMonitor(w = 0.5, hBack = 0.3, d = 0.4) {
 // ===================== 사람: 뼈대 하나 + 메시 하나 (표정·팔 IK·앉기/서기/점프) =====================
 // 모든 부품을 뼈에 붙여 한 메시로 합침 → 사람 하나 = 그리기 2번(몸·얼굴) + 외곽선
 // 기준 자세: 서서 팔을 내린 자세, 얼굴은 +z
-const PEOPLE = { all: [] };
+const PEOPLE = { all: [], drawing: false };
 const _pv1 = new THREE.Vector3(), _pv2 = new THREE.Vector3(), _pv3 = new THREE.Vector3(), _pv4 = new THREE.Vector3(), _pv5 = new THREE.Vector3();
 const _pq1 = new THREE.Quaternion(), _pq2 = new THREE.Quaternion(), _pq3 = new THREE.Quaternion();
 const _pm1 = new THREE.Matrix4();
 const _pe1 = new THREE.Euler();
 const UPY = new THREE.Vector3(0, 1, 0);
+// IK 계산용 임시 값 (사람마다·프레임마다 새로 만들지 않게)
+const _ik = { S: new THREE.Vector3(), dv: new THREE.Vector3(), pp: new THREE.Vector3(), E: new THREE.Vector3(), Tc: new THREE.Vector3(), ax: new THREE.Vector3(), t: new THREE.Vector3(),
+  X: new THREE.Vector3(), Y: new THREE.Vector3(), Z: new THREE.Vector3(), m: new THREE.Matrix4(), qw: new THREE.Quaternion(), qp: new THREE.Quaternion() };
+const PERSON_SYNC = THREE.Object3D.prototype.updateMatrixWorld;
 
 const SKINS = ['#ffdcc0', '#f6c9a2', '#eab48a', '#d79a6c', '#b97a4f', '#93593a', '#6e3f27', '#f9d7bc', '#c98d63'];
 const HAIR_COLORS = ['#1e1a1e', '#3a2418', '#5c3a22', '#8a5530', '#c99552', '#e8d9c0', '#2a2b33', '#9a3a22', '#d65a2a', '#4a2a6a'];
@@ -2435,7 +2529,7 @@ class Rig {
   constructor() { this.parts = [[], [], []]; }
   // geo: 인덱스 있는 BufferGeometry, color, bone(인덱스) 또는 weightFn(pos)→[[bone,w],...], m: Matrix4, group: 0 몸 1 얼굴
   add(geo, color, bone, m = null, group = 0, tint = null) {
-    const g = geo.index ? geo.clone() : mergeVertices(geo.clone());
+    const g = geo.index ? geo : mergeVertices(geo);      // 넘겨받는 모양은 전부 부르는 쪽에서 방금 만든 것 (다시 쓰지 않음)
     if (m) g.applyMatrix4(m);
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
     if (!g.attributes.normal) g.computeVertexNormals();
@@ -2684,7 +2778,7 @@ class Person {
     // 허리 벨트 + 바지 엉덩이
     if (!isDress) {
       rig.add(latheY([[0.001, hipY - 0.13 * h], [0.15 * w, hipY - 0.115 * h], [0.168 * w, hipY - 0.05 * h], [0.162 * w, hipY + 0.012 * h], [0.001, hipY + 0.014 * h]], sseg).scale(1, 1, 0.78), pants, Bn.hips);
-      rig.add(G.tor(1, 0.06, sseg, 6).rotateX(Math.PI / 2), L.belt || '#2a1e1a', Bn.hips, M4([0, hipY + 0.005 * h, 0], 0, [0.163 * w, 0.163 * w * 0.78, 0.18]));
+      rig.add(G.tor(1, 0.06, sseg, 6).rotateX(Math.PI / 2), L.belt || '#2a1e1a', Bn.hips, M4([0, hipY + 0.005 * h, 0], 0, [0.163 * w, 0.18, 0.163 * w * 0.78]));
     } else {
       rig.add(latheY([[0.001, hipY - 0.04 * h], [0.17 * w, hipY - 0.03 * h], [0.24 * w, hipY - 0.3 * h], [0.27 * w, hipY - 0.42 * h], [0.001, hipY - 0.425 * h]], sseg).scale(1, 1, 0.85), L.dress || top, Bn.hips);
     }
@@ -2819,6 +2913,11 @@ class Person {
     mesh.frustumCulled = false; mesh.castShadow = !this.lod; mesh.receiveShadow = false;
     this.root.add(mesh);
     mesh.bind(new THREE.Skeleton(this.bones));
+    // 그릴 때: 지난번 그린 뒤로 자세가 안 바뀐 사람은 뼈 행렬 계산과 뼈 텍스처 올리기를 건너뜀 (관객은 초당 20~30번만 움직이고 화면은 60번 그림. 숨겨 둔 사람도 여기서 걸러짐)
+    const self = this, sk = mesh.skeleton, skUpdate = sk.update;
+    this.dirty = true; this.skDirty = true;
+    this.root.updateMatrixWorld = function (force) { if (PEOPLE.drawing) { if (!self.dirty) return; self.dirty = false; } PERSON_SYNC.call(this, force); };
+    sk.update = function () { if (!self.skDirty) return; self.skDirty = false; skUpdate.call(this); };
   }
   buildHair(rig, hc, hb, R, hair, seg, sseg) {
     const L = this.look, st = L.hair || 'short', Bn = BONE;
@@ -2827,9 +2926,24 @@ class Person {
       rig.add(g, hair, hb, M4([hc.x, hc.y + R * 0.02, hc.z - R * 0.02], [tilt, 0, 0], [R * k, R * k * 1.02, R * k]));
     };
     switch (st) {
-      case 'bald':
-        rig.add(G.tor(1, 0.22, 20, 6, Math.PI * 1.1), hair, hb, M4([hc.x, hc.y - R * 0.05, hc.z - R * 0.12], [Math.PI / 2, 0, Math.PI * 1.45], [R * 0.98, R * 0.98, R * 0.8]));
+      case 'bald': {
+        // 정수리는 비고 뒤통수와 양옆에만 남은 머리. 다른 머리 모양(cap)처럼 머리통보다 조금 큰 구 껍질인데, 위쪽과 얼굴 쪽이 없는 띠:
+        // 뒤통수에서는 목덜미까지 내려오고, 옆으로 갈수록 얕아지다가 귀 바로 앞에서 둥글게 끝남. 뒤통수를 가운데로 좌우 대칭.
+        // (구의 경도: 270도 = 뒤통수, 0·180도 = 양옆, 90도 = 앞)
+        const N = Math.max(14, Math.round(sseg * 0.8)), M = 4, span = Math.PI * 1.22, pos = [], idx = [];
+        for (let i = 0; i <= N; i++) {
+          const u = i / N, t = Math.abs(2 * u - 1), phi = Math.PI * 1.5 + (u - 0.5) * span;      // t: 뒤통수 0 → 양 끝 1
+          const end = t > 0.8 ? Math.sqrt(Math.max(0, 1 - ((t - 0.8) / 0.2) ** 2)) : 1;           // 끝은 둥글게 오므림
+          // 위쪽 끝: 모자를 쓴 사람은 모자 속까지 올려서 모자와 머리카락 사이에 맨살 띠가 보이지 않게 함
+          const top = (L.hat ? 0.2 + 0.15 * t * t : 0.32 + 0.05 * t * t) * Math.PI, bot = (0.7 - 0.12 * t * t * (3 - 2 * t)) * Math.PI, mid = (top + bot) / 2, half = (bot - top) / 2 * end;
+          for (let j = 0; j <= M; j++) { const th = mid + half * (2 * j / M - 1); pos.push(-Math.cos(phi) * Math.sin(th), Math.cos(th), Math.sin(phi) * Math.sin(th)); }
+        }
+        for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) { const a = i * (M + 1) + j, b = a + M + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+        rig.add(g, hair, hb, M4([hc.x, hc.y + R * 0.02, hc.z - R * 0.02], 0, [R * 1.06, R * 1.06 * 1.02, R * 1.06]));
         break;
+      }
       case 'buzz': cap(1.035, -0.55, 0.55); break;
       case 'short': cap(1.09, -0.52, 0.56);
         rig.add(G.sph(14, 8), hair, hb, M4([hc.x + R * 0.25, hc.y + R * 0.72, hc.z + R * 0.5], [0.4, 0, -0.5], [R * 0.48, R * 0.2, R * 0.32]));
@@ -2949,9 +3063,8 @@ class Person {
     const lean = s.lean + (1 - st) * 0.05 + bounce * 0.04 + bang * 0.25 * Math.max(0, Math.sin(beat * Math.PI * 2)) - shock * 0.07;
     B[Bn.spine].rotation.set(lean * 0.45, s.twist * 0.45, s.side * 0.5 - sway * 0.06);
     B[Bn.chest].rotation.set(lean * 0.55, s.twist * 0.55, s.side * 0.5 + sway * 0.1);
-    // 머리: 시선
-    this.root.updateMatrixWorld(true);
-    B[Bn.chest].updateWorldMatrix(true, false);
+    // 머리: 시선. 여기서 뼈 전체의 월드 행렬을 한 번 맞춤 (엉덩이·허리·가슴은 위에서 정했고, 팔다리 IK는 이 값을 그대로 씀)
+    PERSON_SYNC.call(this.root, true);
     const hp = _pv1.setFromMatrixPosition(B[Bn.neck].matrixWorld);
     const rel = _pv2.copy(c.look).sub(hp);
     _pq1.setFromRotationMatrix(B[Bn.chest].matrixWorld).invert();
@@ -2972,10 +3085,10 @@ class Person {
     this.updateArm('L', dt); this.updateArm('R', dt);
     // 얼굴 뼈
     this.updateFace(dt, t);
+    this.dirty = true; this.skDirty = true;      // 다음에 그릴 때 행렬·뼈 텍스처를 다시 올림
   }
   updateLegs(st, dt, c) {
     const B = this.bones, Bn = BONE, h = this.h;
-    B[Bn.hips].updateWorldMatrix(true, false);
     for (const s of ['L', 'R']) {
       const sx = s === 'L' ? 1 : -1;
       // 발 목표 (루트 기준): 앉음 = 의자 앞 바닥, 서 있음 = 엉덩이 아래
@@ -2989,8 +3102,7 @@ class Person {
       const tgt = this.local(fx, fy, fz, _pv3);
       const pole = this.local(fx * 1.1, this.restW[Bn.shinL].y + 0.3, 1.5, _pv4);
       this.ik2(Bn['thigh' + s], Bn['shin' + s], tgt, pole, this.P.thighLen, this.P.shinLen);
-      // 발은 바닥과 평행
-      B[Bn['shin' + s]].updateWorldMatrix(true, false);
+      // 발은 바닥과 평행 (정강이 행렬은 ik2가 방금 맞춰 둠)
       _pq2.setFromRotationMatrix(B[Bn['shin' + s]].matrixWorld).invert();
       _pq3.setFromRotationMatrix(this.root.matrixWorld);
       B[Bn['foot' + s]].quaternion.copy(_pq2.multiply(_pq3));
@@ -3015,51 +3127,44 @@ class Person {
     // 목표점 부드럽게 (갑자기 튀지 않게)
     if (!A.init) { A.cur.copy(tgt); A.init = true; }
     A.cur.lerp(tgt, 1 - Math.exp(-dt * (A.mode === 'ik' ? 22 : 8)));
-    B[iu].parent.updateWorldMatrix(true, false);
     let pole = A.has ? A.pole : this.local(sx * 0.7, 0.9, -0.6, _pv4);
     this.ik2(iu, iff, A.cur, pole, this.P.upperLen, this.P.foreLen, true);
     if (A.q) {
-      B[iff].updateWorldMatrix(true, false);
       _pq2.setFromRotationMatrix(B[iff].matrixWorld).invert();
       B[ih].quaternion.copy(_pq2.multiply(_pq3.copy(A.q)));
     } else B[ih].rotation.set(0.15, 0, 0);
   }
   // 두 마디 IK: 뼈의 -y가 팔다리 방향
+  // update() 안에서만 부름: 부모 뼈(엉덩이·쇄골)의 월드 행렬은 update 처음의 전체 갱신 때 맞춰진 값을 그대로 씀
   ik2(i1, i2, target, pole, L1, L2, arm = false) {
-    const B = this.bones, b1 = B[i1], b2 = B[i2];
-    b1.parent.updateWorldMatrix(true, false);
-    const S = _pv1.setFromMatrixPosition(_pm1.multiplyMatrices(b1.parent.matrixWorld, new THREE.Matrix4().makeTranslation(b1.position.x, b1.position.y, b1.position.z)));
+    const B = this.bones, b1 = B[i1], b2 = B[i2], K = _ik;
+    const S = K.S.copy(b1.position).applyMatrix4(b1.parent.matrixWorld);
     const sc = this.root.scale.x || 1; L1 *= sc; L2 *= sc;
-    const T = _pv2.copy(target);
-    const dv = T.clone().sub(S); let d = dv.length();
+    const dv = K.dv.copy(target).sub(S); let d = dv.length();
     const dmin = Math.abs(L1 - L2) + 1e-3, dmax = L1 + L2 - 1e-3;
     d = clamp(d, dmin, dmax);
     const dir = dv.normalize();
     const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-    let pp = pole.clone().sub(S); pp.sub(dir.clone().multiplyScalar(pp.dot(dir)));
-    if (pp.lengthSq() < 1e-8) pp.set(0, 0, 1).sub(dir.clone().multiplyScalar(dir.z));
+    const pp = K.pp.copy(pole).sub(S); pp.addScaledVector(dir, -pp.dot(dir));
+    if (pp.lengthSq() < 1e-8) pp.set(0, 0, 1).addScaledVector(dir, -dir.z);
     pp.normalize();
-    const E = S.clone().add(dir.clone().multiplyScalar(a)).add(pp.clone().multiplyScalar(hh));
-    const Tc = S.clone().add(dir.clone().multiplyScalar(d));
+    const E = K.E.copy(S).addScaledVector(dir, a).addScaledVector(pp, hh);
+    const Tc = K.Tc.copy(S).addScaledVector(dir, d);
     // 굽힘 축
-    let ax = new THREE.Vector3().subVectors(E, S).cross(new THREE.Vector3().subVectors(Tc, E));
+    const ax = K.ax.subVectors(E, S).cross(K.t.subVectors(Tc, E));
     if (ax.lengthSq() < 1e-10) ax.copy(dir).cross(pp);
     ax.normalize(); if (arm) ax.negate();
-    const setBone = (bone, from, to) => {
-      const Y = new THREE.Vector3().subVectors(from, to).normalize();
-      const X = ax.clone().sub(Y.clone().multiplyScalar(ax.dot(Y))).normalize();
-      const Z = new THREE.Vector3().crossVectors(X, Y);
-      const m = new THREE.Matrix4().makeBasis(X, Y, Z);
-      const qw = new THREE.Quaternion().setFromRotationMatrix(m);
-      bone.parent.updateWorldMatrix(true, false);
-      const qp = new THREE.Quaternion().setFromRotationMatrix(bone.parent.matrixWorld);
-      // 부모 스케일 영향 없음 (스케일은 루트에만)
-      bone.quaternion.copy(qp.invert().multiply(qw));
-    };
-    setBone(b1, S, E);
-    b1.updateWorldMatrix(false, false);
-    setBone(b2, E, Tc);
-    b2.updateWorldMatrix(false, false);
+    this.ikBone(b1, S, E, ax); b1.updateWorldMatrix(false, false);
+    this.ikBone(b2, E, Tc, ax); b2.updateWorldMatrix(false, false);
+  }
+  ikBone(bone, from, to, ax) {
+    const K = _ik, Y = K.Y.subVectors(from, to).normalize();
+    const X = K.X.copy(ax).addScaledVector(Y, -ax.dot(Y)).normalize();
+    const Z = K.Z.crossVectors(X, Y);
+    K.qw.setFromRotationMatrix(K.m.makeBasis(X, Y, Z));
+    // 부모 스케일 영향 없음 (스케일은 루트에만)
+    K.qp.setFromRotationMatrix(bone.parent.matrixWorld);
+    bone.quaternion.copy(K.qp.invert().multiply(K.qw));
   }
   updateFace(dt, t) {
     const B = this.bones, Bn = BONE, f = this.face, R = this.R, hw = this.restW[Bn.head];
@@ -4981,15 +5086,50 @@ function placeTromboneAfter() {
   horn.updateMatrixWorld(true);
 }
 // ---------- 베이스 ----------
+// 연주자 기준 악기 자리. 머리가 크고 아프로가 넓어서 넥과 줄감개는 왼쪽 어깨 바깥 앞으로 지나가게 세움 (전에는 넥 끝이 머리 한가운데를 뚫고 지나갔음)
+//   pos: 엔드핀 자리 (x 왼쪽, z 앞) · rot: 뒤로 기울기 / 앞판이 보는 방향 / 옆 기울기 · twist, lean: 몸을 악기 쪽으로 틀고 숙이는 정도 · pluckUp: 뜯는 자리(지판 끝)
+const BASS_POSE = { pos: [0.35, 0, 0.42], rot: [-0.2, -0.42, 0], twist: 0.7, lean: 0.16, pluckUp: 0.1 };
+// 넥 위쪽의 점들 [x, y, z, 머리에서 떨어져야 할 거리]: 너트, 줄감개 두 줄(옆으로 10cm쯤 나옴), 소용돌이
+const BASS_GUARD = [[0, 1.62, 0.19, 0.08], [0, 1.685, 0.134, 0.15], [0, 1.76, 0.11, 0.15], [0, 1.835, 0.065, 0.11]];
+const _bsA = new THREE.Vector3(), _bsB = new THREE.Vector3(), _bsC = new THREE.Vector3(), _bsD = new THREE.Vector3(), _bsE = new THREE.Euler(), _bsM = new THREE.Matrix4();
+// 고개를 돌리거나 끄덕여 머리(아프로)가 넥 쪽으로 오면, 모자란 만큼 악기 위쪽을 바깥으로 기울여 비켜 줌
+function bassAvoidHead(bs, b, dt, fast) {
+  const hb = bs.bones[BONE.head], R = bs.R, hc = bs.headC;
+  hb.updateWorldMatrix(true, false); b.updateMatrixWorld(true);
+  const inv = _bsM.copy(hb.matrixWorld).invert();
+  // 머리 뼈 기준 덩어리 둘: 아프로(buildHair의 afro와 같은 자리·크기, 울퉁불퉁한 만큼 여유), 얼굴·귀
+  const vols = [[0, hc.y + R * 0.75, hc.z - R * 0.36, R * 1.52, R * 1.2, R * 1.35], [0, hc.y, hc.z, R * 1.12, R * 1.06, R * 1.02]];
+  let need = 0; _bsD.set(0, 0, 0);
+  for (const g of BASS_GUARD) {
+    const pw = _bsA.set(g[0], g[1], g[2]).applyMatrix4(b.matrixWorld), pl = _bsB.copy(pw).applyMatrix4(inv);
+    for (const v of vols) {
+      const dx = pl.x - v[0], dy = pl.y - v[1], dz = pl.z - v[2], len = Math.hypot(dx, dy, dz) || 1e-6;
+      const q = Math.hypot(dx / v[3], dy / v[4], dz / v[5]) || 1e-6;      // 1이면 겉면
+      const lack = g[3] - (q - 1) * len / q;                            // 겉면까지 거리가 모자란 만큼
+      if (lack > need) { need = lack; _bsD.set(v[0], v[1], v[2]).applyMatrix4(hb.matrixWorld).sub(pw).negate().setY(0); }
+    }
+  }
+  if (!DIR.bassPush) DIR.bassPush = new THREE.Vector3();
+  const want = need > 0 && _bsD.lengthSq() > 1e-8 ? _bsD.normalize().multiplyScalar(Math.min(need, 0.24)) : _bsD.set(0, 0, 0);
+  DIR.bassPush.lerp(want, fast ? 1 : 1 - Math.exp(-dt * (want.lengthSq() > DIR.bassPush.lengthSq() ? 14 : 4)));
+  const push = DIR.bassPush.length();
+  if (push > 0.0015) {
+    // 엔드핀을 축으로 위쪽이 push만큼 밀려나게
+    const axis = _bsC.crossVectors(UPY, _bsA.copy(DIR.bassPush).normalize());
+    b.quaternion.premultiply(_dq2.setFromAxisAngle(axis, push / 1.72));
+  }
+}
 function updateBassist(dt, t) {
-  const bs = BAND.bs, b = bs.inst;
+  const bs = BAND.bs, b = bs.inst, P = BASS_POSE;
+  // 몸은 악기 쪽(왼쪽)으로 틀어 서서 오른손이 줄에 닿게. 나를 돌아볼 때는 풀림
+  bs.c.twist += P.twist * (1 - smooth01(bs.turn)); bs.c.lean = P.lean;
   bs.root.updateMatrixWorld(true);
-  // 연주자 앞 왼쪽에 세우고 몸 쪽으로 기울임
-  b.position.copy(bs.local(0.16, 0, 0.3));
-  b.quaternion.copy(bs.root.getWorldQuaternion(_dq)).multiply(_dq2.setFromEuler(new THREE.Euler(-0.22, 0.42, 0.1, 'YXZ')));
-  // 박수 받을 때 베이스를 한 바퀴 휙
+  b.position.copy(bs.local(P.pos[0], P.pos[1], P.pos[2]));
+  b.quaternion.copy(bs.root.getWorldQuaternion(_dq)).multiply(_dq2.setFromEuler(_bsE.set(P.rot[0], P.rot[1], P.rot[2], 'YXZ')));
+  // 박수 받을 때 베이스를 한 바퀴 휙 (넥이 축에서 앞으로 나와 있어 돌 때 머리 쪽으로 휘둘리므로, 비키기는 돌린 뒤 자세로 계산)
   let spinning = false;
   if (DIR.bassSpin) { const k = (NOW.t - DIR.bassSpin.t0) / DIR.bassSpin.dur; if (k >= 1) DIR.bassSpin = null; else if (k > 0) { spinning = true; b.quaternion.multiply(_dq2.setFromAxisAngle(UPY, smooth01(k) * Math.PI * 2)); } }
+  bassAvoidHead(bs, b, dt, spinning);
   b.updateMatrixWorld(true);
   DIR.pluck = Math.max(0, DIR.pluck - dt * 9);
   const top = findA(b, 'neckTop'), low = findA(b, 'neckLow'), pl = findA(b, 'pluck');
@@ -4998,7 +5138,11 @@ function updateBassist(dt, t) {
     const lh = wpos(top, _d1).clone().lerp(wpos(low, _d2), k);
     const towardMe = bs.local(0, 1.2, -0.3).sub(lh).normalize().multiplyScalar(0.05);
     bs.reach('L', lh.add(towardMe), bs.local(0.9, 1.1, -0.2), null, 'grip');
-    const rp = wpos(pl, _d3).clone().add(bs.local(0, 0, 0).sub(bs.local(1, 0, 0)).multiplyScalar(-0.06 + DIR.pluck * 0.07)).add(V3(0, DIR.pluck * 0.02, 0));
+    // 오른손: 지판 끝 줄 위에 손끝이 닿게 (손목은 팔 방향으로 손 길이만큼 뒤). 뜯는 순간 줄을 오른쪽으로 당겼다 놓음
+    const upB = _bsA.set(0, 1, 0).transformDirection(b.matrixWorld), right = _bsB.copy(bs.local(0, 0, 0)).sub(bs.local(1, 0, 0));
+    const pt = wpos(pl, _d3).clone().addScaledVector(upB, P.pluckUp);
+    const sh = bs.bones[BONE.upperR].getWorldPosition(_bsC), arm = _bsD.copy(pt).sub(sh).normalize();
+    const rp = pt.addScaledVector(arm, -0.085).addScaledVector(right, DIR.pluck * 0.035).add(V3(0, DIR.pluck * 0.02, 0));
     bs.reach('R', rp, bs.local(-0.9, 0.7, -0.4), null, DIR.pluck > 0.3 ? 'point' : 'relax');
     if (spinning) bs.reach('R', bs.local(-0.34, 1.78, 0.2), null, null, 'spread');
   }
@@ -5051,19 +5195,24 @@ function updateDrummer(dt, now) {
     DIR['dt' + s] = FIN.band ? DIR['dh' + s].clone().add(dr.local(s === 'L' ? -0.12 : 0.12, 0.5, 0.05).sub(dr.local(0, 0, 0))) : tgt;
     dr.reach(s, DIR['dh' + s], dr.local(s === 'L' ? 0.9 : -0.9, 0.7, -0.5), null, 'fist');
   }
-  // 필살기: 왼손으로 폰 꺼내 나를 찍음 (오른손은 라이드 계속)
-  const film = DIR.drPhone && NOW.t < DIR.drPhone.until;
+  // 필살기: 왼손으로 폰을 꺼내 나를 찍음 (오른손은 라이드 계속). 몸을 내 쪽으로 돌리고, 폰은 얼굴 옆(왼손 쪽)에 세워 들어 얼굴이 가리지 않게
+  const F = DIR.drPhone, film = !!F && NOW.t < F.until;
   if (!DIR.drPhoneProp) DIR.drPhoneProp = makeCrowdProp({ props: {}, p: dr }, 'phone');
   dr.sticks.L.visible = !film && !DIR.brushes; dr.sticks.bL.visible = !film && DIR.brushes;
   if (film) {
-    const hw = dr.headWorld(_d3), toMe = SC.camera.position.clone().sub(hw).normalize();
-    const lift = smoothstep(0, 0.6, NOW.t - DIR.drPhone.t0);
-    const php = hw.clone().addScaledVector(toMe, 0.3).add(V3(0, -0.1 - (1 - lift) * 0.4, 0));
-    dr.reach('L', php, dr.local(0.9, 0.7, -0.5), null, 'grip');
-    const hb = dr.bones[BONE.handL]; hb.updateWorldMatrix(true, false);
-    const ph = DIR.drPhoneProp; ph.visible = true; ph.position.setFromMatrixPosition(hb.matrixWorld).addScaledVector(toMe, 0.03); ph.lookAt(SC.camera.position);
-    dr.glance = NOW.t + 0.3;
-  } else if (DIR.drPhoneProp) DIR.drPhoneProp.visible = false;
+    const age = NOW.t - F.t0, D = F.until - F.t0;
+    const k = smoothstep(0.05, 0.6, age) * (1 - smoothstep(D - 0.65, D - 0.1, age));      // 꺼내 들기 · 끝나면 내려 넣기
+    dr.stare = { until: NOW.t + 0.25, turn: 0.75 };
+    if (!F.faced) { F.faced = true; dr.express('jawdrop', 1.5); later(1.5, () => dr.express('stunlaugh', 2.4)); later(3.9, () => dr.express('grin', 5.6)); }
+    const hw = dr.headWorld(_d3), toMe = _dph1.copy(SC.camera.position).sub(hw).normalize();
+    const side = _dph2.crossVectors(UPY, toMe).normalize();                              // 내가 볼 때 오른쪽 = 그의 왼손 쪽
+    // 폰 가운데: 무릎 위에서 → 얼굴 옆 앞
+    const c = dr.local(0.16, dr.seatY + 0.2, 0.26).lerp(hw.clone().addScaledVector(toMe, 0.3).addScaledVector(side, DRPHONE.side).add(_dph3.set(0, DRPHONE.up, 0)), k);
+    // 손목은 폰 아래. 손바닥이 폰 뒷면(나를 보는 면)을 받치고 손가락은 위로
+    const wrist = c.clone().addScaledVector(UPY, -DRPHONE.grip).addScaledVector(toMe, 0.024).addScaledVector(side, 0.012);
+    dr.reach('L', wrist, wrist.clone().addScaledVector(UPY, -0.6).addScaledVector(side, 0.3), handQuat(UPY, _dph3.copy(toMe).negate(), 'L'), 'relax');
+    F.on = true;
+  } else if (DIR.drPhoneProp) { DIR.drPhoneProp.visible = false; if (F) F.on = false; }
   // 심벌 흔들림
   for (const c of [P.ride, P.crash, P.hihat]) { if (!c) continue; const u = c.userData; u.wob = u.wob || 0; u.wv = u.wv || 0; u.wv += (-u.wob * 90 - u.wv * 3.5) * dt; u.wob += u.wv * dt; c.rotation.x = u.wob * 0.16; c.rotation.z = u.wob * 0.1; }
   DIR.hatClose = Math.max(0, DIR.hatClose - dt * 10);
@@ -5073,8 +5222,20 @@ function pieceFor(name) {
   const P = BAND.kit.userData.pieces || {};
   return name === 'ride' || name === 'ridebell' ? P.ride : name === 'crash' ? P.crash : name === 'tomHi' ? P.tom1 : name === 'tomLo' ? P.tom2 : name === 'hat' || name === 'hatOpen' ? P.hihat : P.snare;
 }
+const DRPHONE = { side: 0.23, up: -0.02, grip: 0.15 };      // 얼굴 옆으로 · 위아래 · 손목에서 폰 가운데까지
+const _dph1 = new THREE.Vector3(), _dph2 = new THREE.Vector3(), _dph3 = new THREE.Vector3();
+function placeDrummerPhone() {
+  const F = DIR.drPhone, ph = DIR.drPhoneProp;
+  if (!ph || !F || !F.on) return;
+  const hb = BAND.dr.bones[BONE.handL]; hb.updateWorldMatrix(true, false);
+  const hp = _dph1.setFromMatrixPosition(hb.matrixWorld), toMe = _dph2.copy(SC.camera.position).sub(hp).normalize(), side = _dph3.crossVectors(UPY, toMe).normalize();
+  ph.visible = true;
+  ph.position.copy(hp).addScaledVector(UPY, DRPHONE.grip).addScaledVector(toMe, -0.024).addScaledVector(side, -0.012);
+  ph.lookAt(SC.camera.position);      // 렌즈 있는 뒷면이 나를 봄
+}
 function placeSticksAfter() {
   const dr = BAND.dr;
+  placeDrummerPhone();
   for (const s of ['L', 'R']) {
     const hb = dr.bones[BONE['hand' + s]]; hb.updateWorldMatrix(true, false);
     const hp = V3(0, -0.06, 0.012).applyMatrix4(hb.matrixWorld);
@@ -5360,8 +5521,30 @@ function sceneClap(p, F, t, high = false) {
   p.reach('L', at(F, 0.27, -sep, high ? 0.62 : 0.12), null, null, 'flat');
   p.reach('R', at(F, 0.27, sep, high ? 0.62 : 0.12), null, null, 'flat');
 }
+// 소품 모양은 종류별로 한 번만 만들어 두고(모양·재질을 같이 씀) 사람마다는 복제만 함.
+// 전에는 꺼낼 때마다 모양을 처음부터 다시 만들어서, 여럿이 한꺼번에 소품을 꺼내는 큰 장면에서 화면이 멈칫했음
+const PROP_TPL = {};
+function crowdPropKey(m, kind) {
+  if (kind === 'glasses') return null;                                              // 사람마다 크기가 달라 따로 만듦 (처음에 한 번)
+  if (kind === 'towel') return kind + '|' + ((m.p.look && m.p.look.top) || '');    // 수건 띠는 옷 색
+  if (kind === 'bouquet') return kind + '|' + ((m.p.look.seed || 0) % 3);
+  return kind;
+}
+function crowdPropTemplate(kind, m = { props: {}, p: { look: {} } }) {
+  const key = crowdPropKey(m, kind);
+  if (PROP_TPL[key]) return PROP_TPL[key];
+  const g = PROP_TPL[key] = buildCrowdProp(m, kind);
+  SC.scene.add(g);      // 본은 늘 숨겨 둠 (미리 그리기 때 셰이더·버퍼가 올라가도록 장면에만 넣어 둠)
+  return g;
+}
 function makeCrowdProp(m, kind) {
   if (m.props[kind]) return m.props[kind];
+  const key = crowdPropKey(m, kind);
+  const g = key ? crowdPropTemplate(kind, m).clone(true) : buildCrowdProp(m, kind);
+  if (kind === 'card') { const f = g.getObjectByName('cardFace'); f.material = f.material.clone(); g.userData = { face: f, text: '10' }; }      // 점수판 숫자는 판마다 다름
+  SC.scene.add(g); m.props[kind] = g; return g;
+}
+function buildCrowdProp(m, kind) {
   const g = new THREE.Group(); g.name = 'audience-' + kind; g.visible = false;
   const add = (geo, col, pos = [0, 0, 0], basic = false) => {
     const mesh = new THREE.Mesh(geo, basic ? new THREE.MeshBasicMaterial({ color: col }) : toonMat(col, { outline: 0.003 }));
@@ -5386,16 +5569,16 @@ function makeCrowdProp(m, kind) {
       add(new THREE.CylinderGeometry(0.004, 0.004, p.R * 0.9, 5), col, [sx * p.R * 0.82, 0, -p.R * 0.4]).rotation.x = Math.PI / 2;
     }
     add(new THREE.CylinderGeometry(0.004, 0.004, E.x, 5), col).rotation.z = Math.PI / 2;
-  } else { const ud = hypeProp(kind, add, m); if (ud) Object.assign(g.userData, ud); }
+  } else hypeProp(kind, add, m);
   // Keep each small prop cheap on mobile, including the existing outline pass.
   const solids = g.children.filter(o => o.isMesh && !o.material.isMeshBasicMaterial);
   if (solids.length > 1) {
     for (const o of solids) o.updateMatrix();
     const packed = _vm(solids.map(o => [o.geometry, o.material.color, o.matrix]));
     for (const o of solids) { g.remove(o); o.geometry.dispose(); o.material.dispose(); }
-    g.add(new THREE.Mesh(packed, toonVC({ outline: 0.003 })));
+    g.add(new THREE.Mesh(packed, PROP_TPL.mat || (PROP_TPL.mat = toonVC({ outline: 0.003 }))));
   }
-  SC.scene.add(g); m.props[kind] = g; return g;
+  return g;
 }
 function phonePose(m, F, t, pro) {
   const p = m.p, age = t - m.act.t0;
@@ -5615,6 +5798,8 @@ function burstFace(m, burst, t) {
   m.burstMood = burst.k > 0.8 ? pick(['scream', 'grin', 'laugh', 'stunlaugh', 'jawdrop']) : 'smile';
   return m.burstMood;
 }
+// 관객 자세 갱신 간격. 기기가 느리면(PERF.level이 올라가면) 뒤쪽 사람들부터 덜 자주 움직임. 맨 앞줄은 그대로
+const CROWD_RATE = { far: [1 / 20, 1 / 15, 1 / 12, 1 / 12], near: [1 / 30, 1 / 24, 1 / 20, 1 / 20] };
 function crowdUpdate(dt, t, beat) {
   const R = REACT, f = R.frenzy, burst = R.burst && t < R.burst.until ? R.burst : null;
   CROWD.me.copy(SC.camera ? SC.camera.position : V3(0, 2.4, 1));
@@ -5625,7 +5810,7 @@ function crowdUpdate(dt, t, beat) {
   for (const ev of R.events) { if (ev._crowd) continue; ev._crowd = true; crowdOnEvent(ev); }
   for (const m of CROWD.list) {
     m.animDt = (m.animDt || 0) + dt; m.animElapsed = (m.animElapsed || 0) + dt;
-    const interval = m.far ? 1 / 20 : 1 / 30;
+    const interval = m.far ? CROWD_RATE.far[PERF.level] : (m.kind === 'front' ? 1 / 30 : CROWD_RATE.near[PERF.level]);
     if (m.animDt + 1e-6 < interval) continue;
     const actorDt = Math.min(m.animElapsed, 0.1); m.animElapsed = 0; m.animDt %= interval;
     const p = m.p;
@@ -6314,28 +6499,38 @@ function resetBigPose(m) {
 }
 // 얼굴 색 (숨 참기): 0 보통 ~ 3 보랏빛. 머리·턱에 붙은 피부색 정점만 물들임 (눈·입·머리카락은 그대로)
 const _tintRed = new THREE.Color('#ff3a2a'), _tintPurple = new THREE.Color('#c0306e');
+// 얼굴 살색 꼭짓점 목록 (사람마다 한 번). 전에는 숨 참는 장면이 시작될 때 관객 전원 것을 한꺼번에 찾느라 그 순간 화면이 멈칫했음 → 첫 화면에서 미리 해 둠
+function faceTintPrep(p) {
+  if (p.tintIdx || !p.mesh) return;
+  const geo = p.mesh.geometry, col = geo.getAttribute('color'); if (!col) return;
+  const SI = geo.getAttribute('skinIndex').array, SW = geo.getAttribute('skinWeight').array, C = col.array;
+  const skin = _tintSkin.set((p.look && p.look.skin) || '#f6c9a2'), idx = [], hd = BONE.head, jw = BONE.jaw;
+  for (let i = 0, n = col.count; i < n; i++) {
+    const a = i * 4; let w = 0;
+    if (SI[a] === hd || SI[a] === jw) w += SW[a];
+    if (SI[a + 1] === hd || SI[a + 1] === jw) w += SW[a + 1];
+    if (SI[a + 2] === hd || SI[a + 2] === jw) w += SW[a + 2];
+    if (SI[a + 3] === hd || SI[a + 3] === jw) w += SW[a + 3];
+    if (w < 0.5) continue;
+    const dr = C[i * 3] - skin.r, dg = C[i * 3 + 1] - skin.g, db = C[i * 3 + 2] - skin.b;
+    if (dr * dr + dg * dg + db * db < 0.02) idx.push(i);
+  }
+  p.tintIdx = idx; p.tintBase = new Float32Array(idx.length * 3);
+  for (let j = 0; j < idx.length; j++) { const v = idx[j] * 3; p.tintBase[j * 3] = C[v]; p.tintBase[j * 3 + 1] = C[v + 1]; p.tintBase[j * 3 + 2] = C[v + 2]; }
+  p.tintFrom = idx.length ? idx[0] : 0; p.tintTo = idx.length ? idx[idx.length - 1] : 0;      // 색을 바꾼 뒤 이 구간만 다시 올림
+  if (p.tintLv == null) p.tintLv = 0;
+}
+const _tintSkin = new THREE.Color();
 function faceTint(p, lv) {
   lv = clamp(Math.round(lv), 0, 3);
   if (p.tintLv === lv || !p.mesh) return;
   if (!p.tintIdx && lv === 0) { p.tintLv = 0; return; }
   const geo = p.mesh.geometry, col = geo.getAttribute('color');
   if (!col) return;
-  if (!p.tintIdx) {
-    const si = geo.getAttribute('skinIndex'), sw = geo.getAttribute('skinWeight');
-    const skin = new THREE.Color((p.look && p.look.skin) || '#f6c9a2'), idx = [];
-    for (let i = 0; i < col.count; i++) {
-      let w = 0;
-      for (let k = 0; k < 4; k++) { const b = si.getComponent(i, k); if (b === BONE.head || b === BONE.jaw) w += sw.getComponent(i, k); }
-      if (w < 0.5) continue;
-      const dr = col.getX(i) - skin.r, dg = col.getY(i) - skin.g, db = col.getZ(i) - skin.b;
-      if (dr * dr + dg * dg + db * db < 0.02) idx.push(i);
-    }
-    p.tintIdx = idx; p.tintBase = new Float32Array(idx.length * 3);
-    idx.forEach((v, j) => { p.tintBase[j * 3] = col.getX(v); p.tintBase[j * 3 + 1] = col.getY(v); p.tintBase[j * 3 + 2] = col.getZ(v); });
-  }
+  if (!p.tintIdx) faceTintPrep(p);
   const amt = [0, 0.3, 0.5, 0.58][lv], tg = lv === 3 ? _tintPurple : _tintRed, B = p.tintBase;
   for (let j = 0; j < p.tintIdx.length; j++) col.setXYZ(p.tintIdx[j], lerp(B[j * 3], tg.r, amt), lerp(B[j * 3 + 1], tg.g, amt), lerp(B[j * 3 + 2], tg.b, amt));
-  col.needsUpdate = true;
+  if (p.tintIdx.length) { col.addUpdateRange(p.tintFrom * 3, (p.tintTo - p.tintFrom + 1) * 3); col.needsUpdate = true; }
   p.tintLv = lv;
 }
 // 큰 장면 바로 걸기 (쿨다운·동시 인원 제한 무시: 큰 순간 전용)
@@ -6400,7 +6595,7 @@ function runBartenderDrop(m, t, dt, beat) {
 }
 
 // ---------- 창문 밖 구경꾼 (필살기 쓸 때마다 늘어남) ----------
-const WINP = { list: [], slots: [] };
+const WINP = { list: [], slots: [], pool: [] };
 function initWindowSlots() {
   const R = LAYOUT.room, L = [-5.6, -8.6, -11.6], Rr = [-7.2, -10.6];
   const s = [];
@@ -6410,14 +6605,21 @@ function initWindowSlots() {
   }
   WINP.slots = s;
 }
+// 창밖 사람은 미리 만들어 숨겨 두고(공연 중에 새로 만들면 그 순간 화면이 멈칫함) 필요할 때 꺼내 세움
+function windowPerson(i) {
+  if (WINP.pool[i]) return WINP.pool[i];
+  const sl = WINP.slots[i], look = randomLook(700 + i * 13);
+  look.h = rand(0.98, 1.08);
+  const p = new Person(look, { lod: 2 });
+  p.root.position.set(sl.x, 0.34, sl.z); p.root.rotation.y = sl.yaw; p.mesh.castShadow = false;   // 바깥 계단 위 (안쪽 사람들 머리 너머로 보이게)
+  p.c.groove = 0; p.c.nod = 0; p.c.sway = 0; p.root.visible = false; SC.scene.add(p.root);
+  return WINP.pool[i] = p;
+}
 function addWindowFaces(n) {
   for (let k = 0; k < n && WINP.list.length < WINP.slots.length; k++) {
-    const sl = WINP.slots[WINP.list.length], look = randomLook(700 + WINP.list.length * 13);
-    look.h = rand(0.98, 1.08);
-    const p = new Person(look, { lod: 2 });
-    p.root.position.set(sl.x, 0.34, sl.z); p.root.rotation.y = sl.yaw; p.mesh.castShadow = false;   // 바깥 계단 위 (안쪽 사람들 머리 너머로 보이게)
-    p.c.groove = 0; p.c.nod = 0; p.c.sway = 0; SC.scene.add(p.root);
-    WINP.list.push({ p, sl, style: WINP.list.length % 3, born: NOW.t, animDt: Math.random() / 15 });
+    const i = WINP.list.length, p = windowPerson(i);
+    p.root.visible = true;
+    WINP.list.push({ p, sl: WINP.slots[i], style: i % 3, born: NOW.t, animDt: Math.random() / 15 });
     p.update(0, NOW.t, 0);
   }
 }
@@ -6439,13 +6641,19 @@ function updateWindowFaces(dt, t, beat) {
   }
 }
 // 뒤쪽에 서서 보는 사람 (소문 듣고 들어옴)
-const BACKP = { n: 0, spots: [[-5.6, -12.75], [5.5, -12.8], [-3.9, -12.95], [3.6, -12.9], [-1.4, -12.85], [1.6, -12.95], [-6.3, -11.2], [6.4, -11.4]] };
+const BACKP = { n: 0, pool: [], spots: [[-5.6, -12.75], [5.5, -12.8], [-3.9, -12.95], [3.6, -12.9], [-1.4, -12.85], [1.6, -12.95], [-6.3, -11.2], [6.4, -11.4]] };
+function backPerson(i) {
+  if (BACKP.pool[i]) return BACKP.pool[i];
+  const [x, z] = BACKP.spots[i], look = randomLook(500 + (i + 1) * 17);
+  const p = new Person(look, { seated: false, lod: 2 });
+  p.root.position.set(x, 0, z); p.root.rotation.order = 'YXZ'; p.root.rotation.y = Math.atan2(0 - x, -2.5 - z); p.mesh.castShadow = false; p.root.visible = false; SC.scene.add(p.root);
+  return BACKP.pool[i] = p;
+}
 function addBackCrowd(n) {
   for (let k = 0; k < n && BACKP.n < BACKP.spots.length; k++) {
-    const [x, z] = BACKP.spots[BACKP.n++], look = randomLook(500 + BACKP.n * 17);
-    const yaw = Math.atan2(0 - x, -2.5 - z);
-    const p = new Person(look, { seated: false, lod: 2 });
-    p.root.position.set(x, 0, z); p.root.rotation.order = 'YXZ'; p.root.rotation.y = yaw; p.mesh.castShadow = false; SC.scene.add(p.root);
+    const i = BACKP.n++, [x, z] = BACKP.spots[i], yaw = Math.atan2(0 - x, -2.5 - z);
+    const p = backPerson(i);
+    p.root.visible = true;
     const m = { p, kind: 'back', spot: { pos: V3(x, 0, z), yaw }, watch: Math.random() * 0.5, wild: Math.random(), act: null, nextAct: 0, friend: null, far: true, standWish: 1, standNow: 1, phase0: Math.random() * 2, nextScene: NOW.t + 3, sceneCount: 0, pending: null, props: {}, standDelay: 0, standThreshold: 0, animDt: Math.random() / 20, signature: 'mouthFreeze', followK: rand(0.7, 1.2) };
     p.c.stand = 1; p.update(0, NOW.t, 0);
     CROWD.list.push(m);
@@ -7151,6 +7359,7 @@ function initUI() {
   finBind();
   document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); setMode(b.dataset.m); syncMode(); }));
   syncMode();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => arcadeSync(true));
   $('resume').onclick = () => resumeGame();
   $('toTitle').onclick = () => location.reload();
   UI.el.pause.onclick = () => pauseGame();
@@ -7165,14 +7374,16 @@ function initUI() {
     if (!window.JAZZ_AUDIO) return;
     try {
       createAudio();
-      await decodePack(f => { UI.el.fill.style.width = Math.round(f * 100) + '%'; });
+      PACK.on = f => { UI.el.fill.style.width = Math.round(f * 100) + '%'; }; PACK.on(PACK.f);
+      await packBegin();
       initTrumpet(); spInitAudio(); startBeds(); syncMode();
       UI.el.start.disabled = false; UI.el.startLabel.textContent = '시작';
       // 기다리는 동안 이미 눌렀으면 바로 시작
       if (UI.wantStart) startGame(); else if (AE.ctx.state === 'running') AE.ctx.suspend();
     } catch (e) { UI.el.startLabel.textContent = '소리를 못 불러왔습니다'; console.error(e); }
   };
-  if (window.__audioReady) tryDecode(); else window.addEventListener('audiopack', () => { if (window.__audioFailed) UI.el.startLabel.textContent = '소리 파일(audio.js)을 못 찾았습니다'; else tryDecode(); });
+  const packMissing = () => { UI.el.startLabel.textContent = '소리 파일(audio.js)을 못 찾았습니다'; };
+  if (window.__audioReady) tryDecode(); else if (window.__audioFailed) packMissing(); else window.addEventListener('audiopack', () => { if (window.__audioFailed) packMissing(); else tryDecode(); });
 }
 function titleTap() {
   if (UI.playing || UI.starting) return;
@@ -7185,6 +7396,11 @@ function titleTap() {
 function syncMode() { document.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', b.dataset.m === TP.mode)); UI.marksKey = ''; }
 async function startGame() {
   if (!AE.decoded || UI.playing || UI.starting) return;
+  if (WARM.q.length) {      // 준비물을 아직 만드는 중: 이 터치로 소리 잠금만 풀어 두고, 다 되면 바로 시작
+    UI.wantStart = true; UI.el.startLabel.textContent = '곧 시작';
+    try { if (AE.ctx.state !== 'running') AE.ctx.resume().catch(() => { }); } catch (e) { }
+    return;
+  }
   UI.starting = true;
   try { await AE.ctx.resume(); } catch (e) { }
   UI.starting = false; UI.wantStart = false;
@@ -7251,7 +7467,7 @@ function bindInput() {
     if (TP.blowing || PRE.buzz) { ribbonMove(UI.kbPos); fingerVisual(UI.kbPos); } else TP.pos = UI.kbPos;
   };
   window.addEventListener('keydown', e => {
-    if (!UI.playing) { if ((e.code === 'Space' || e.code === 'Enter') && !UI.el.title.classList.contains('hide')) { e.preventDefault(); titleTap(); } return; }
+    if (!UI.playing) { if ((e.code === 'Space' || e.code === 'Enter') && !UI.el.title.classList.contains('hide') && !(document.activeElement && document.activeElement.id === 'arcade')) { e.preventDefault(); titleTap(); } return; }
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat && !space) { space = true; const p = UI.kbPos != null ? UI.kbPos : TP.pos; fingerVisual(p); ribbonDown(p); } }
     else if (e.code === 'KeyW' || e.code === 'ArrowUp') { e.preventDefault(); stepKey(1); }
     else if (e.code === 'KeyS' || e.code === 'ArrowDown') { e.preventDefault(); stepKey(-1); }
@@ -7268,8 +7484,46 @@ function bindSpecial() {
   b.addEventListener('animationend', e => { if (e.animationName === 'spNope') b.classList.remove('nope'); });
   window.addEventListener('keydown', e => { if (e.key === 'Shift' && !e.repeat && UI.playing && GAME.phase === 'play') spToggle(); });
 }
+// ---------- 혐규오락실 얼굴 버튼 ----------
+// 자리는 위쪽 가운데. 그 줄의 다른 버튼과 겹치면 가운데에서 가장 가까운 빈자리로, 그 줄에 자리가 없으면 둘째 줄 가운데로 옮김.
+// 공연 중에 누르면 새 탭으로 열어 하던 공연이 날아가지 않게 함 (첫 화면에서는 그냥 이동)
+const ARC = { el: null, key: '', at: 0 };
+function arcadeSync(force) {
+  const a = ARC.el || (ARC.el = document.getElementById('arcade')); if (!a) return;
+  const E = UI.el, title = !E.title.classList.contains('hide'), paused = GAME.state === 'paused';
+  const key = [SC.W, SC.H, title, paused, GAME.phase, FIN.req, FIN.on, FIN.stage, E.controls.className, E.pause.style.display].join('|');
+  if (!force && key === ARC.key) return;
+  ARC.key = key;
+  const target = title ? '_top' : '_blank';
+  if (a.target !== target) { a.target = target; if (title) a.removeAttribute('rel'); else a.rel = 'noopener'; }
+  a.classList.toggle('title', title);
+  if (title) { a.classList.remove('placed', 'off', 'over'); a.style.left = ''; a.style.top = ''; return; }
+  // 얼굴만: 52×48 상자. 멈춤 버튼과 같은 줄이 첫째 줄
+  const W = SC.W, fw = 52, fh = 48, gap = 9, pr = E.pause.getBoundingClientRect();
+  const y1 = (pr.height ? (pr.top + pr.bottom) / 2 : 33) - fh / 2;
+  const obs = [];
+  for (const id of ['pause', 'nextSong', 'endShow', 'hudMode', 'finBar', 'stem']) { const e = E[id]; if (!e) continue; const r = e.getBoundingClientRect(); if (r.width > 0 && r.height > 0) obs.push(r); }
+  const spot = y => {
+    const blocks = obs.filter(r => r.bottom + gap > y && r.top - gap < y + fh).map(r => [r.left - gap, r.right + gap]);
+    const free = c => c - fw / 2 >= 4 && c + fw / 2 <= W - 4 && !blocks.some(b => c + fw / 2 > b[0] && c - fw / 2 < b[1]);
+    let best = null;
+    for (const c of [W / 2, ...blocks.map(b => b[1] + fw / 2), ...blocks.map(b => b[0] - fw / 2)]) if (free(c) && (best == null || Math.abs(c - W / 2) < Math.abs(best - W / 2))) best = c;
+    return best;
+  };
+  let y = y1, c = spot(y1);
+  if (c == null || Math.abs(c - W / 2) > W * 0.3) { const c2 = spot(y1 + 56); if (c2 != null) { c = c2; y = y1 + 56; } }
+  let off = c == null, over = false;
+  if (!off && paused) {
+    // 멈춤 창과 겹치면 숨기고, 안 겹치면 창 위에서 누를 수 있게
+    const card = E.paused.querySelector('.card'), r = card ? card.getBoundingClientRect() : null;
+    if (r && r.width && c + fw / 2 > r.left - 6 && c - fw / 2 < r.right + 6 && y + fh > r.top - 6 && y < r.bottom + 6) off = true; else over = true;
+  }
+  a.classList.toggle('off', off); a.classList.toggle('over', over);
+  if (!off) { a.style.left = Math.round(c - fw / 2) + 'px'; a.style.top = Math.round(y) + 'px'; a.classList.add('placed'); }
+}
 // 줄기 표시: 보정 모드는 지금 화음의 음 자리, 자유 모드는 반음 눈금
 function uiTick() {
+  { const pn = performance.now(); if (pn - ARC.at > 200) { ARC.at = pn; arcadeSync(false); } }
   if (UI.el.nextSong && AE.ctx) UI.el.nextSong.disabled = !UI.playing || AE.ctx.currentTime < (MUS.skipUntil || 0);
   flushFingerVisual();
   if (!UI.playing && UI.marksKey) return;
@@ -7412,7 +7666,8 @@ function actPopper(m, p, a, F, t) {
 }
 
 // ---------- 무대로 날아드는 꽃다발·장미·모자 ----------
-const TOSS = { fly: [], pool: [], landed: [], geos: null, mat: null, baked: null, dirty: 0, max: 56 };
+// 내려앉은 것은 종류별 덩어리(beds)의 빈칸에 꼭짓점만 써 넣음. 전에는 하나 내려앉을 때마다 바닥의 전부를 다시 합쳤고(그 순간 화면이 멈칫함), 합치기 전까지는 방금 떨어진 것이 잠깐 사라졌음
+const TOSS = { fly: [], pool: [], geos: null, mat: null, beds: null, cap: { bouquet: 18, rose: 18, hat: 10 } };
 function tossGeos() {
   if (TOSS.geos) return TOSS.geos;
   const G2 = {};
@@ -7428,7 +7683,37 @@ function tossGeos() {
   const hat = (col, band) => _vm([[new THREE.CylinderGeometry(0.085, 0.1, 0.1, 16).translate(0, 0.05, 0), col], [new THREE.CylinderGeometry(0.17, 0.17, 0.012, 20), col], [new THREE.CylinderGeometry(0.102, 0.102, 0.026, 16).translate(0, 0.02, 0), band]]);
   G2.hat = [hat('#22244a', '#ee4a2c'), hat('#6b3a1e', '#ffbf2e'), hat('#2f5a42', '#fff4de')];
   TOSS.geos = G2; TOSS.mat = toonVC({ outline: 0.003 });
+  // 종류별 바닥 덩어리: 칸 하나 = 그 종류에서 꼭짓점이 가장 많은 모양 크기
+  TOSS.beds = {};
+  for (const k in TOSS.cap) {
+    const vmax = Math.max(...G2[k].map(g => g.attributes.position.count)), geo = new THREE.BufferGeometry();
+    for (const a of ['position', 'normal', 'color']) { const at = new THREE.BufferAttribute(new Float32Array(TOSS.cap[k] * vmax * 3), 3); at.setUsage(THREE.DynamicDrawUsage); geo.setAttribute(a, at); }
+    geo.setDrawRange(0, 0);
+    const mesh = new THREE.Mesh(geo, TOSS.mat); mesh.name = 'gifts-' + k; mesh.frustumCulled = false; mesh.castShadow = false; mesh.visible = false; SC.scene.add(mesh);
+    TOSS.beds[k] = { mesh, geo, vmax, n: 0 };
+  }
   return G2;
+}
+// 날아다닐 것 몇 개를 미리 만들어 둠
+function tossWarm(n = 10) {
+  const G2 = tossGeos();
+  while (TOSS.pool.length + TOSS.fly.length < n) { const it = { mesh: new THREE.Mesh(G2.rose[0], TOSS.mat) }; it.mesh.castShadow = false; it.mesh.visible = false; SC.scene.add(it.mesh); TOSS.pool.push(it); }
+}
+// 내려앉은 것 하나를 바닥 덩어리의 다음 칸에 써 넣음 (칸이 다 차면 가장 오래된 칸부터 덮어씀)
+function tossLand(it) {
+  const B = TOSS.beds[it.kind], cap = TOSS.cap[it.kind], A = it.geo.attributes, cnt = A.position.count, o = (B.n % cap) * B.vmax;
+  const e = _hm.compose(it.pos, it.rest, _hv.set(1, 1, 1)).elements, P = B.geo.attributes.position, N = B.geo.attributes.normal, C = B.geo.attributes.color;
+  const sp = A.position.array, sn = A.normal.array, sc = A.color.array, dp = P.array, dn = N.array, dc = C.array;
+  for (let i = 0; i < B.vmax; i++) {
+    const j = (o + i) * 3;
+    if (i >= cnt) { dp[j] = dp[j + 1] = dp[j + 2] = 0; continue; }      // 남는 꼭짓점은 한 점에 모아 안 보이게
+    const k = i * 3, x = sp[k], y = sp[k + 1], z = sp[k + 2], nx = sn[k], ny = sn[k + 1], nz = sn[k + 2];
+    dp[j] = e[0] * x + e[4] * y + e[8] * z + e[12]; dp[j + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; dp[j + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+    dn[j] = e[0] * nx + e[4] * ny + e[8] * nz; dn[j + 1] = e[1] * nx + e[5] * ny + e[9] * nz; dn[j + 2] = e[2] * nx + e[6] * ny + e[10] * nz;
+    dc[j] = sc[k]; dc[j + 1] = sc[k + 1]; dc[j + 2] = sc[k + 2];
+  }
+  for (const a of [P, N, C]) { a.addUpdateRange(o * 3, B.vmax * 3); a.needsUpdate = true; }
+  B.n++; B.geo.setDrawRange(0, Math.min(B.n, cap) * B.vmax); B.mesh.visible = true;
 }
 // 떨어질 자리: 무대 앞 가장자리와 내 앞 가운데 길
 function tossTarget() {
@@ -7467,26 +7752,17 @@ function tossUpdate(dt) {
       it.down += dt; it.pos.addScaledVector(it.vel, dt); it.vel.multiplyScalar(Math.max(0, 1 - 7 * dt)); it.q.slerp(it.rest, 1 - Math.exp(-14 * dt));
       if (it.down > 0.4) {
         it.mesh.visible = false; TOSS.fly.splice(i, 1); TOSS.pool.push(it);
-        TOSS.landed.push({ geo: it.geo, m: new THREE.Matrix4().compose(it.pos, it.rest, V3(1, 1, 1)) });
-        while (TOSS.landed.length > TOSS.max) TOSS.landed.shift();
-        TOSS.dirty = NOW.t + 0.25;
+        tossLand(it);
         continue;
       }
     }
     it.mesh.position.copy(it.pos); it.mesh.quaternion.copy(it.q);
   }
-  // 내려앉은 것들은 한 덩어리로 합쳐 그림
-  if (TOSS.dirty && NOW.t >= TOSS.dirty && !TOSS.fly.some(it => it.down)) {
-    TOSS.dirty = 0;
-    const geo = TOSS.landed.length ? mergeGeometries(TOSS.landed.map(o => o.geo.clone().applyMatrix4(o.m)), false) : null;
-    if (TOSS.baked) { TOSS.baked.geometry.dispose(); if (geo) TOSS.baked.geometry = geo; TOSS.baked.visible = !!geo; }
-    else if (geo) { TOSS.baked = new THREE.Mesh(geo, TOSS.mat); TOSS.baked.name = 'gifts'; TOSS.baked.frustumCulled = false; SC.scene.add(TOSS.baked); }
-  }
 }
 function tossClear() {
   for (const it of TOSS.fly) { it.mesh.visible = false; TOSS.pool.push(it); }
-  TOSS.fly.length = 0; TOSS.landed.length = 0; TOSS.dirty = 0;
-  if (TOSS.baked) TOSS.baked.visible = false;
+  TOSS.fly.length = 0;
+  if (TOSS.beds) for (const k in TOSS.beds) { const B = TOSS.beds[k]; B.n = 0; B.geo.setDrawRange(0, 0); B.mesh.visible = false; }
 }
 // 객석 여기저기서 n개가 날아옴
 function throwGifts(n, win = 2.5, kinds = null) {
@@ -7524,7 +7800,7 @@ function hypeProp(kind, add, m) {
   if (kind === 'card') {
     add(rbox(0.25, 0.33, 0.012, 0.02, 2), '#fffaf0');
     const f = add(new THREE.PlaneGeometry(0.228, 0.306), '#ffffff', [0, 0, 0.0075], true);
-    f.material.map = cardTex('10'); return { face: f, text: '10' };
+    f.name = 'cardFace'; f.material.map = cardTex('10'); return null;
   }
   if (kind === 'towel') {
     const col = (m.p.look && m.p.look.top) || '#fff4de';
@@ -7889,20 +8165,22 @@ function finLayout() {
 }
 
 // ---------- 준비물: 사인받을 물건 · 펜 든 내 손 ----------
-function finBuild() {
-  if (FIN.built) return; FIN.built = true;
-  for (let i = 0; i < 6; i++) FIN.items.push(finMakeItem());
-  FIN.pen = finBuildPen(); FIN.pen.visible = false; ME.rig.add(FIN.pen);
+function finBuild() { while (!FIN.built) finBuildStep(); }
+// 한 번에 하나씩 만듦 (첫 화면에서 미리 조금씩 만들어 두려고 나눠 놓음. 공연 끝에 처음 만들면 그 순간 화면이 멈칫함)
+function finBuildStep() {
+  if (FIN.built) return;
+  if (FIN.items.length < 6) { FIN.items.push(finMakeItem()); return; }
+  FIN.pen = finBuildPen(); FIN.pen.visible = false; ME.rig.add(FIN.pen); FIN.built = true;
 }
-function finMakeItem() {
-  const g = new THREE.Group(); g.name = 'sign-item'; g.visible = false;
-  const body = parts => new THREE.Mesh(_vm(parts), toonVC({ outline: 0.003 }));
-  const kinds = {};
+// 물건 네 종류의 몸통 모양 (여섯 개가 같이 씀)
+function finKindGeos() {
+  if (FIN.geo) return FIN.geo;
+  const G2 = {};
   // 음반: 종이 재킷 + 오른쪽으로 삐져나온 판
-  kinds.lp = body([[rbox(0.31, 0.31, 0.007, 0.003, 1), '#fffaf0'],
+  G2.lp = _vm([[rbox(0.31, 0.31, 0.007, 0.003, 1), '#fffaf0'],
     [new THREE.CylinderGeometry(0.146, 0.146, 0.003, 30).rotateX(Math.PI / 2).translate(0.085, 0, -0.0075), '#1b1828']]);      // 판은 재킷 뒤에 (겹치면 외곽선이 재킷 앞으로 비쳐 나옴)
   // 포스터
-  kinds.poster = body([[rbox(0.28, 0.37, 0.004, 0.002, 1), '#fffaf0']]);
+  G2.poster = _vm([[rbox(0.28, 0.37, 0.004, 0.002, 1), '#fffaf0']]);
   // 흰 티셔츠 (어깨를 잡고 펼쳐 듦)
   {
     const s = new THREE.Shape();
@@ -7910,14 +8188,21 @@ function finMakeItem() {
     s.quadraticCurveTo(0, 0.12, -0.05, 0.17); s.lineTo(-0.105, 0.17); s.lineTo(-0.2, 0.095); s.lineTo(-0.185, 0.03); s.lineTo(-0.15, 0.05); s.lineTo(-0.15, -0.17);
     const sg = new THREE.ExtrudeGeometry(s, { depth: 0.006, bevelEnabled: false, curveSegments: 8 }).translate(0, 0, -0.003);
     const nk = new THREE.TorusGeometry(0.052, 0.0045, 6, 14, Math.PI).rotateZ(Math.PI).translate(0, 0.172, 0.003).scale(1, 0.9, 1);
-    kinds.tee = body([[sg, '#fffdf6'], [nk, '#e6dcc8']]);
+    G2.tee = _vm([[sg, '#fffdf6'], [nk, '#e6dcc8']]);
   }
   // 스케치북: 파란 표지 + 종이 + 위쪽 스프링
   {
     const parts = [[rbox(0.36, 0.27, 0.012, 0.004, 1), '#2f5bd8'], [rbox(0.342, 0.252, 0.005, 0.002, 1).translate(0, 0, 0.0065), '#fffaf0']];
     for (let i = 0; i < 9; i++) parts.push([new THREE.TorusGeometry(0.011, 0.0022, 5, 12).rotateY(Math.PI / 2).translate(-0.14 + i * 0.035, 0.134, 0.004), '#8d93a8']);
-    kinds.book = body(parts);
+    G2.book = _vm(parts);
   }
+  FIN.mat = toonVC({ outline: 0.003 });
+  return FIN.geo = G2;
+}
+function finMakeItem() {
+  const g = new THREE.Group(); g.name = 'sign-item'; g.visible = false;
+  const G2 = finKindGeos(), kinds = {};
+  for (const k in G2) kinds[k] = new THREE.Mesh(G2[k], FIN.mat);
   for (const k in kinds) { kinds[k].visible = false; g.add(kinds[k]); }
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 384;
   const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
@@ -8612,8 +8897,15 @@ function sleeveOn(g, wrist, elbow, mats) {
 // 오른손: 손끝 셋이 밸브 단추 위, 손등은 오른쪽 위
 function buildRightHand(horn, mats) {
   const g = new THREE.Group(); g.name = 'rightHand';
-  const tops = valveTops(horn), r = 0.0088;
+  const tops = valveTops(horn), r = 0.0088, sk = mats.skin;
   const fingers = [], knuckles = [];
+  // 손톱: 끝마디의 등 쪽(굽은 바깥쪽)에 얹음 → 위에서 내려다보면 손등·손톱이 보임
+  const nail = (T, D, P, rad, k = 1) => {
+    const s = new THREE.Vector3().subVectors(T, D).normalize(), p = new THREE.Vector3().subVectors(D, P).normalize();
+    const n = p.addScaledVector(s, -p.dot(s)).normalize();
+    return ellipsoid(T.clone().addScaledVector(s, -0.0035 * k).addScaledVector(n, rad - 0.0011), s, new THREE.Vector3().crossVectors(s, n), [0.0066 * k, 0.0055 * k, 0.0022], mats.nail, 12);
+  };
+  // 검지·중지·약지: 손끝이 1·2·3번 밸브 단추 위 (누를 때 뿌리 마디를 축으로 내려감)
   for (let i = 0; i < 3; i++) {
     const T = tops[i].clone().add(V3(0.001, r * 0.95, 0));
     const D = T.clone().add(V3(0.011, 0.02, 0));
@@ -8622,22 +8914,26 @@ function buildRightHand(horn, mats) {
     const piv = new THREE.Group(); piv.position.copy(K); g.add(piv);
     const off = K.clone().negate();
     const add = m => { m.position.add(off); piv.add(m); };
-    add(capsuleBetween(T, D, r * 0.94, mats.skin)); add(capsuleBetween(D, P, r, mats.skin)); add(capsuleBetween(P, K, r * 1.08, mats.skin));
-    const nd = new THREE.Vector3().subVectors(D, T).normalize();
-    add(ellipsoid(T.clone().addScaledVector(nd, 0.006).add(V3(0.0045, 0.0005, 0)), nd, V3(0, 0, 1), [0.0062, 0.0052, 0.0022], mats.nail, 12));
+    add(capsuleBetween(T, D, r * 0.94, sk)); add(capsuleBetween(D, P, r, sk)); add(capsuleBetween(P, K, r * 1.08, sk));
+    add(nail(T, D, P, r * 0.94));
     fingers.push(piv); knuckles.push(K);
   }
-  // 새끼손가락: 굽혀서 쉼
-  const K3 = knuckles[2].clone().add(V3(-0.002, -0.009, -0.019));
-  const P3 = K3.clone().add(V3(-0.017, 0.007, -0.004)), T3 = P3.clone().add(V3(-0.008, -0.013, 0.001));
-  g.add(capsuleBetween(K3, P3, 0.0076, mats.skin), capsuleBetween(P3, T3, 0.0072, mats.skin));
-  // 손등
-  const kAvg = knuckles.reduce((a, k) => a.add(k), V3(0, 0, 0)).multiplyScalar(1 / 3).add(V3(0, -0.002, -0.004));
+  // 새끼손가락: 약지 옆(벨 쪽)에 나란히, 조금 짧고 가늘게. 3번 밸브 앞 허공에 살짝 굽혀 둠
+  const K3 = knuckles[2].clone().add(V3(-0.003, -0.008, -0.02));
+  const P3 = K3.clone().add(V3(-0.022, 0.003, -0.005)), D3 = P3.clone().add(V3(-0.017, -0.011, -0.003)), T3 = D3.clone().add(V3(-0.008, -0.016, -0.001));
+  g.add(capsuleBetween(K3, P3, 0.0082, sk), capsuleBetween(P3, D3, 0.0077, sk), capsuleBetween(D3, T3, 0.0072, sk), nail(T3, D3, P3, 0.0072, 0.86));
+  knuckles.push(K3);
+  // 손등 + 뿌리 마디 넷
+  const kAvg = knuckles.slice(0, 3).reduce((a, k) => a.add(k), V3(0, 0, 0)).multiplyScalar(1 / 3).add(V3(0, -0.002, -0.004));
   const W = kAvg.clone().add(V3(0.05, -0.056, 0.016));
-  g.add(handBack(knuckles[0].clone().add(V3(0, -0.002, 0.004)), K3, W, mats.skin, 0.026, 0.02));
-  // 엄지: 리드파이프 아래로
-  const TB = W.clone().add(V3(-0.014, 0.018, -0.028)), TM = TB.clone().add(V3(-0.028, -0.004, -0.012)), TT = TM.clone().add(V3(-0.022, 0.004, -0.004));
-  g.add(capsuleBetween(TB, TM, 0.0105, mats.skin), capsuleBetween(TM, TT, 0.0095, mats.skin));
+  g.add(handBack(knuckles[0].clone().add(V3(0, -0.002, 0.004)), K3, W, sk, 0.026, 0.02));
+  knuckles.forEach((K, i) => { const b = new THREE.Mesh(new THREE.SphereGeometry((i === 3 ? 0.0082 : r) * 1.2, 14, 10), sk); b.position.copy(K).add(V3(0.002, 0.0008, 0)); g.add(b); });
+  // 엄지: 손목의 내 쪽(검지 쪽) 옆에서 나와 리드파이프 밑으로 들어가 1번 밸브 뒤를 받침.
+  // 오른손은 손등을 위에서 보면 엄지가 내 쪽(가까운 쪽)에 있음 — 전에는 엄지가 손바닥 속에 묻혀 안 보이고, 벨 쪽의 짧은 새끼손가락이 엄지처럼 보여 왼손으로 읽혔음
+  const TB = W.clone().add(V3(-0.007, -0.009, 0.034)), TM = TB.clone().add(V3(-0.026, -0.03, 0.012)), TI = TM.clone().add(V3(-0.028, -0.026, 0.002)), TT = TI.clone().add(V3(-0.03, -0.016, -0.006));
+  g.add(capsuleBetween(TB, TM, 0.0118, sk), capsuleBetween(TM, TI, 0.0108, sk), capsuleBetween(TI, TT, 0.0098, sk));
+  g.add(ellipsoid(W.clone().lerp(TM, 0.5).add(V3(0, 0.003, 0.004)), new THREE.Vector3().subVectors(TM, W), V3(0, 0, 1), [0.03, 0.019, 0.015], sk));      // 엄지 두덩
+  g.add(nail(TT, TI, TM, 0.0098, 1.05));
   sleeveOn(g, W, W.clone().add(V3(0.13, -0.2, 0.25)), mats);
   g.userData.fingers = fingers;
   return g;
@@ -8885,14 +9181,18 @@ function aimCamera() {
 
 // ---------- 시작 ----------
 function boot() {
+  const bootT0 = performance.now();
   initScene();
+  perfRestore();
   VENUE = buildVenue(SC.scene);
   setupBand(SC.scene);
   setupCrowd(SC.scene);
   setupMe();
   bigInit();
   initUI();
+  warmSetup();
   SC.renderer.shadowMap.needsUpdate = true;
+  if (AE.at) { AE.at.boot0 = bootT0; AE.at.boot1 = performance.now(); }
   window.__booted = true;
   if (/norender/.test(location.search)) setInterval(() => tick(false), 33);   // 시험용: 그리지 않고 진행만
   else if (!/shot/.test(location.search)) requestAnimationFrame(loop);
@@ -8915,14 +9215,57 @@ function frame(dt) {
   if (VENUE && VENUE.setMood) VENUE.setMood(REACT.frenzy, t);
   if (VENUE && VENUE.update) VENUE.update(dt, t, beat);
   uiTick();
+  vjobTick();
 }
 function render() {
   const R = SC.renderer;
+  if (WARM.draw) warmDraw();
   R.clear();
   NOW.frame++; if (NOW.frame % PERF.shadowEvery === 1 || PERF.shadowEvery === 1) R.shadowMap.needsUpdate = true;
-  SC.effect.render(SC.scene, SC.camera);
-  R.clearDepth();
-  SC.effect.render(SC.vmScene, SC.vmCam);
+  PEOPLE.drawing = true;
+  try {
+    SC.effect.render(SC.scene, SC.camera);
+    R.clearDepth();
+    SC.effect.render(SC.vmScene, SC.vmCam);
+  } finally { PEOPLE.drawing = false; }
+}
+// ---------- 미리 만들어 두기 ----------
+// 공연 도중 처음 만들거나 처음 그리면 그 순간 화면이 멈칫하는 것들을 첫 화면에서 조금씩 만들어 둠:
+// 뒤늦게 오는 구경꾼, 소품 모양, 던지는 꽃, 점수판 글자, 사인받을 물건. 다 만들면 숨겨 둔 것까지 한 번 그려서 셰이더·버퍼·텍스처를 미리 올림.
+// (첫 화면에서 다 못 끝냈으면 공연 전 정적 동안 이어서 함. 그래도 안 된 것은 전처럼 필요할 때 만듦)
+const WARM = { q: [], draw: false, done: false };
+function warmAdd(fn) { WARM.q.push(fn); }
+function warmTick(budget) {
+  const t0 = performance.now();
+  do { const fn = WARM.q.shift(); try { fn(); } catch (e) { console.error('warm', e); } } while (WARM.q.length && performance.now() - t0 < budget);
+}
+function warmSetup() {
+  for (const k of ['phone', 'cup', 'popper', 'card', 'soul', 'pad', 'cloth']) warmAdd(() => crowdPropTemplate(k));
+  warmAdd(() => tossWarm(10));
+  warmAdd(() => { const go = () => { for (const t of ['10', '11', '100']) SC.renderer.initTexture(cardTex(t)); }; if (document.fonts && document.fonts.status !== 'loaded' && document.fonts.ready) document.fonts.ready.then(go); else go(); });
+  for (let i = 0; i < WINP.slots.length; i++) warmAdd(() => windowPerson(i));
+  for (let i = 0; i < BACKP.spots.length; i++) warmAdd(() => backPerson(i));
+  for (let i = 0; i < 7; i++) warmAdd(finBuildStep);
+  for (const m of CROWD.list) warmAdd(() => faceTintPrep(m.p));
+  warmAdd(() => { WARM.draw = true; });
+}
+// 숨겨 둔 것·화면 밖에 있는 것까지 전부 한 번 그림 (바로 뒤에 정상 화면을 다시 그리므로 눈에는 안 보임)
+function warmDraw() {
+  WARM.draw = false; WARM.done = true;
+  const R = SC.renderer, hidden = [], culled = [];
+  for (const sc of [SC.scene, SC.vmScene]) sc.traverse(o => {
+    if (o.isLight) return;
+    if (!o.visible) { hidden.push(o); o.visible = true; }
+    if (o.frustumCulled && (o.isMesh || o.isPoints || o.isSprite || o.isLine)) { culled.push(o); o.frustumCulled = false; }
+  });
+  for (const p of PEOPLE.all) { p.dirty = true; p.skDirty = true; }
+  try {
+    R.shadowMap.needsUpdate = true; R.clear();
+    SC.effect.render(SC.scene, SC.camera); R.clearDepth(); SC.effect.render(SC.vmScene, SC.vmCam);
+  } catch (e) { console.error('warm draw', e); }
+  for (const o of hidden) o.visible = false;
+  for (const o of culled) o.frustumCulled = true;
+  R.shadowMap.needsUpdate = true;
 }
 // 느린 기기: 몇 초 재 보고 해상도·그림자 갱신을 단계적으로 낮춤 (올리지는 않음)
 const PERF = { acc: 0, n: 0, level: 0, shadowEvery: 2 };
@@ -8932,12 +9275,20 @@ function perfTick(rawDt) {
   if (PERF.acc < 3) return;
   const avg = PERF.acc / PERF.n; PERF.acc = 0; PERF.n = 0;
   if (avg > 0.026 && PERF.level < 3) {
-    PERF.level++;
-    const dpr = window.devicePixelRatio || 1;
-    SC.renderer.setPixelRatio(Math.min(dpr, [1.75, 1.4, 1.15, 1][PERF.level]));
-    SC.renderer.setSize(SC.W, SC.H, false);
-    PERF.shadowEvery = [2, 3, 5, 8][PERF.level];
+    PERF.level = Math.min(3, PERF.level + (avg > 0.045 ? 2 : 1));
+    perfApply();
+    try { sessionStorage.setItem('egotrip.perf', String(PERF.level)); } catch (e) { }
   }
+}
+function perfApply() {
+  const dpr = window.devicePixelRatio || 1;
+  SC.renderer.setPixelRatio(Math.min(dpr, [1.75, 1.4, 1.15, 1][PERF.level]));
+  SC.renderer.setSize(SC.W, SC.H, false);
+  PERF.shadowEvery = [2, 3, 5, 8][PERF.level];
+}
+// 이 탭에서 앞서 낮춰 둔 단계가 있으면 그 단계에서 시작
+function perfRestore() {
+  try { const lv = Math.round(+sessionStorage.getItem('egotrip.perf')); if (lv >= 1 && lv <= 3) { PERF.level = lv; perfApply(); } } catch (e) { }
 }
 function tick(draw) {
   const n = performance.now();
@@ -8946,16 +9297,28 @@ function tick(draw) {
   dt = clamp(dt, 0, 0.1);
   if (GAME.state === 'paused') dt = 0;
   NOW.dt = dt; NOW.t += dt;
+  // 첫 화면에서는 한 프레임에 16ms씩(이미 시작을 눌러 기다리는 중이면 40ms씩) 미리 만들기에 씀. 공연 중으로 넘어온 뒤라면 3ms씩만
+  if (WARM.q.length) { warmTick(GAME.phase === 'title' ? (UI.wantStart ? 40 : 16) : 3); if (!WARM.q.length && UI.wantStart && AE.decoded && !UI.playing) startGame(); }
+  const pf = window.__prof, p0 = pf ? performance.now() : 0;
   try { frame(dt); } catch (err) { if (!tick.errs) tick.errs = 0; if (tick.errs++ < 5) console.error(err); }
+  const p1 = pf ? performance.now() : 0;
   if (draw) render();
+  if (pf) pf(p1 - p0, draw ? performance.now() - p1 : 0, dt);
 }
 function loop() { requestAnimationFrame(loop); tick(true); }
 // 시험용: 원하는 시간만큼 진행한 장면을 그림
 window.__step = (sec = 1, fps = 30) => { for (let i = 0; i < sec * fps; i++) { NOW.t += 1 / fps; frame(1 / fps); } render(); window.__ready = true; return 'ok'; };
 window.__G = { SC, BAND, CROWD, ME, MUS, TP, AE, NOW, GAME, REACT, DIR, VQ, LAYOUT, UI, startGame, pauseGame, resumeGame, ribbonDown, ribbonMove, ribbonUp, setMode, render, stare, bandAwe, aimCamera };
-window.__G2 = { updateMe, placeMe, doublePose, bartenderDrop, SPX, PRE, ITL, AFTER, ENDL, MISS, RULE, WINP, BACKP, FXP, spPress, spToggle, specialSetPiece, forceScene, itlStart, itlEnd, afterShow, afterEnd, endSong, nextSong, crowdJerk, gesture, reactEvent, addWindowFaces, addBackCrowd, HYPE, TOSS, crowdShock, throwGifts, poppers, scoreCards, toastWave, bartenderBell, tbWorship, bandFlourish, startChant, fxConfettiDrop, startCrowdScene, finishCrowdScene, myApplause, ovation, FIN, FIN_SLOTS, finRequest, finBegin, finEncore, finSigned, finLayout, finEnd };
-boot();
-if (/shot/.test(location.search)) { window.__step(1.5); }
+window.__G2 = { updateMe, placeMe, doublePose, bartenderDrop, SPX, PRE, ITL, AFTER, ENDL, MISS, RULE, WINP, BACKP, FXP, spPress, spToggle, specialSetPiece, forceScene, itlStart, itlEnd, afterShow, afterEnd, endSong, nextSong, crowdJerk, gesture, reactEvent, addWindowFaces, addBackCrowd, HYPE, TOSS, crowdShock, throwGifts, poppers, scoreCards, toastWave, bartenderBell, tbWorship, bandFlourish, startChant, fxConfettiDrop, startCrowdScene, finishCrowdScene, myApplause, ovation, FIN, FIN_SLOTS, finRequest, finBegin, finEncore, finSigned, finLayout, finEnd, PERF, PEOPLE, Person, randomLook, makeCrowdProp, THREE, BASS_POSE, BASS_GUARD, DRPHONE, WARM, WINP, BACKP, PROP_TPL, crowdPropTemplate, tossWarm, CROWD_RATE, VJOB, SYNTH_STEPS, synthBegin, PACK, RBOX, perfTick, perfRestore };
+// 무대 만들기(본 화면이 1초~몇 초 멈춤)에 들어가기 전에 소리 쪽 일을 먼저 출발시킴.
+// 워커는 본 화면이 쉬어야 뜨므로, 워커가 떴다는 신호를 받고 나서(안 오면 0.4초 뒤) 무대를 만듦.
+function bootSoon() {
+  let ran = false;
+  const go = () => { if (ran) return; ran = true; boot(); if (AE.synWatch) AE.synWatch(); if (/shot/.test(location.search)) { window.__step(1.5); } };
+  try { synthBegin(() => setTimeout(go, 0)); if (window.JAZZ_AUDIO) packBegin(); } catch (e) { console.error(e); }
+  setTimeout(go, 400);
+}
+bootSoon();
 
 </script>
 </body>
