@@ -4175,7 +4175,16 @@ function takeover(now) {
   if (S.phase === 'trades') S.tradesDone = true;
   S.phase = 'solo'; S.floor = 'me'; S.pending = null; S.toHead = false; S.filler = false; S.cued = false;
   MUS.soloWho = 'me';
-  vq(now, 'song', 'takeover', { from: prev });
+  // A queued theme/band-solo cue belongs to the floor we just interrupted.
+  // Keep tuneStart, but let its reset run before the new player takeover.
+  let reactionAt = now;
+  for (let i = VQ.length - 1; i >= 0; i--) {
+    const e = VQ[i];
+    if (e.who !== 'song') continue;
+    if (e.type === 'tuneStart') reactionAt = Math.max(reactionAt, e.t);
+    else if (['seg', 'solo', 'soloEnd', 'cue', 'takeover'].includes(e.type)) VQ.splice(i, 1);
+  }
+  vq(reactionAt, 'song', 'takeover', { from: prev });
   dlog('takeover', { from: prev, fb: S.fb });
 }
 function cancelSoloNotes(now) {
