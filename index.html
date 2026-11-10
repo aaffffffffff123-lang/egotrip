@@ -995,7 +995,7 @@ function synthStomp(ctx) {
 // 환호·"헉" 같은 순간에는 목소리 수십 개를 한꺼번에 예약하는데(하나에 노드 열댓 개), 그걸 한 프레임에 다 만들면 그 프레임이 멈칫함.
 // 소리 날 시각 순으로 미리 준비하되, 임박한 소리도 한 작업의 시간·개수 제한을 넘기지 않음.
 // 남은 준비는 프레임 사이의 짧은 작업으로 이어 감. 소리의 종류·개수·예약된 재생 시각은 그대로 둠.
-const VJOB = { q: [], busy: false, timer: null };
+const VJOB = { q: [], busy: false, timer: null, look: 0.5 };
 function vjobWake(delay = 0) {
   if (VJOB.timer != null || !VJOB.q.length || !AE.ctx || AE.ctx.state !== 'running') return;
   VJOB.timer = setTimeout(() => { VJOB.timer = null; vjobTick(); }, delay);
@@ -1004,6 +1004,8 @@ function vjob(when, fn, o) {
   if (VJOB.busy) return false;                 // 줄에서 꺼내 만드는 중
   const q = VJOB.q; let i = q.length; while (i > 0 && q[i - 1].when > when) i--;
   q.splice(i, 0, { when, fn, o });
+  // 더 이른 환호가 들어오면 먼 미래 작업의 대기 타이머를 앞당긴다.
+  if (i === 0 && VJOB.timer != null) { clearTimeout(VJOB.timer); VJOB.timer = null; }
   vjobWake();
   return true;
 }
@@ -1014,12 +1016,15 @@ function vjobTick() {
   VJOB.busy = true;
   try {
     while (q.length && made < 6 && (made === 0 || performance.now() - t0 < 2)) {
+      // 먼 미래의 소리까지 지금 만들지 않는다. 재생 시각·음색·개수는 그대로.
+      if (q[0].when > AE.ctx.currentTime + VJOB.look) break;
       const j = q.shift(); made++;
       j.fn(Math.max(j.when, AE.ctx.currentTime + 0.004), j.o);
     }
   } finally {
     VJOB.busy = false;
-    if (q.length) vjobWake(q[0].when < AE.ctx.currentTime + 0.1 ? 0 : 8);
+    if (q.length) vjobWake(Math.max(q[0].when < AE.ctx.currentTime + 0.1 ? 0 : 8,
+      Math.min(100, (q[0].when - AE.ctx.currentTime - VJOB.look) * 1000)));
   }
 }
 // 한 사람의 "우—!" / "와—!" (실시간 합성: 톱니 → 포먼트 3개 → 외침 모양 음높이)
@@ -9789,6 +9794,39 @@ function sleeveOn(g, wrist, elbow, mats) {
   rim.position.copy(s0); rim.quaternion.setFromUnitVectors(V3(0, 0, 1), dir); g.add(rim);
 }
 // 오른손: 손끝 셋이 밸브 단추 위, 손등은 오른쪽 위
+// 손 안에서 함께 움직이는 불투명 조각만 묶는다. 손가락 pivot은 그대로 둔다.
+// OutlineEffect는 object normal을 쓰므로 비균일 scale 부품은 병합하지 않는다.
+function batchHandMeshes(root) {
+  for (const child of root.children.slice()) if (child.isGroup) batchHandMeshes(child);
+  const buckets = new Map();
+  for (const m of root.children) {
+    if (!m.isMesh || m.children.length || Array.isArray(m.material) || m.material.transparent ||
+        m.scale.x !== 1 || m.scale.y !== 1 || m.scale.z !== 1 || !m.visible) continue;
+    const g = m.geometry;
+    if (Object.keys(g.morphAttributes).length || g.drawRange.start !== 0 || g.drawRange.count !== Infinity) continue;
+    const attrs = Object.keys(g.attributes).sort().map(k => {
+      const a = g.attributes[k]; return k + ':' + a.itemSize + ':' + a.normalized + ':' + a.array.constructor.name;
+    }).join(',');
+    const key = m.material.uuid + ':' + m.castShadow + ':' + m.receiveShadow + ':' + m.renderOrder + ':' + m.layers.mask + ':' + !!g.index + ':' + attrs;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(m);
+  }
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const parts = list.map(m => { m.updateMatrix(); return m.geometry.clone().applyMatrix4(m.matrix); });
+    const geo = mergeGeometries(parts, false);
+    for (const g of parts) g.dispose();
+    if (!geo) continue;
+    const first = list[0], merged = new THREE.Mesh(geo, first.material);
+    merged.castShadow = first.castShadow; merged.receiveShadow = first.receiveShadow;
+    merged.renderOrder = first.renderOrder; merged.layers.mask = first.layers.mask;
+    merged.name = 'batchedHand';
+    for (const m of list) root.remove(m);
+    root.add(merged);
+  }
+  return root;
+}
+
 function buildRightHand(horn, mats) {
   const g = new THREE.Group(); g.name = 'rightHand';
   const tops = valveTops(horn), r = 0.0088, sk = mats.skin;
@@ -9830,7 +9868,7 @@ function buildRightHand(horn, mats) {
   g.add(nail(TT, TI, TM, 0.0098, 1.05));
   sleeveOn(g, W, W.clone().add(V3(0.13, -0.2, 0.25)), mats);
   g.userData.fingers = fingers;
-  return g;
+  return batchHandMeshes(g);
 }
 // 왼손: 밸브 케이싱을 왼쪽에서 감싸 쥠
 function buildLeftHand(horn, mats) {
@@ -9853,7 +9891,7 @@ function buildLeftHand(horn, mats) {
   const TB = W.clone().add(V3(0.012, 0.03, -0.012)), TM = TB.clone().add(V3(0.006, 0.024, -0.016)), TT = TM.clone().add(V3(0.004, 0.012, -0.018));
   g.add(capsuleBetween(TB, TM, 0.011, mats.skin), capsuleBetween(TM, TT, 0.0098, mats.skin));
   sleeveOn(g, W, W.clone().add(V3(-0.11, -0.21, 0.25)), mats);
-  return g;
+  return batchHandMeshes(g);
 }
 function setupMe() {
   const rig = new THREE.Group(); SC.vmScene.add(rig); ME.rig = rig;
@@ -10047,6 +10085,7 @@ function initScene() {
   window.addEventListener('resize', onResize);
 }
 function onResize() {
+  PERF.skipNext = true;
   UI.inputRect = null;
   if (UI.fingerPos != null) UI.fingerDirty = true;
   const w = window.innerWidth, h = window.innerHeight;
@@ -10162,13 +10201,18 @@ function warmDraw() {
   R.shadowMap.needsUpdate = true;
 }
 // 느린 기기: 몇 초 재 보고 해상도·그림자 갱신을 단계적으로 낮춤 (올리지는 않음)
-const PERF = { acc: 0, n: 0, level: 0, shadowEvery: 2 };
+const PERF = { acc: 0, n: 0, stalls: 0, level: 0, shadowEvery: 2, skipNext: false };
+document.addEventListener('visibilitychange', () => { PERF.skipNext = true; });
 function perfTick(rawDt) {
-  if (GAME.state !== 'play' || document.hidden || rawDt <= 0 || rawDt > 0.5) { PERF.acc = 0; PERF.n = 0; return; }
-  PERF.acc += rawDt; PERF.n++;
+  if (GAME.state !== 'play' || document.hidden || rawDt <= 0 || PERF.skipNext) {
+    PERF.acc = 0; PERF.n = 0; PERF.stalls = 0; PERF.skipNext = false; return;
+  }
+  // 긴 멈춤도 포함하되 한 번의 탭 복귀·창 크기 변경으로 품질을 낮추지 않는다.
+  PERF.acc += Math.min(rawDt, 1); PERF.n++;
+  if (rawDt > 0.1) PERF.stalls++;
   if (PERF.acc < 3) return;
-  const avg = PERF.acc / PERF.n; PERF.acc = 0; PERF.n = 0;
-  if (avg > 0.026 && PERF.level < 3) {
+  const avg = PERF.acc / PERF.n, stalls = PERF.stalls; PERF.acc = 0; PERF.n = 0; PERF.stalls = 0;
+  if ((avg > 0.026 || stalls >= 3) && PERF.level < 3) {
     PERF.level = Math.min(3, PERF.level + (avg > 0.045 ? 2 : 1));
     perfApply();
     try { sessionStorage.setItem('egotrip.perf', String(PERF.level)); } catch (e) { }
