@@ -733,6 +733,8 @@ function packBegin() {
   if (!PACK.p) { PACK.p = decodePack(f => { PACK.f = f; if (PACK.on) PACK.on(f); }); PACK.p.catch(() => { }); }
   return PACK.p;
 }
+// 트럼펫 지속음 녹음의 음정 보정값(센트). 고리 구간의 실제 음높이를 재서 평균율 기준으로 맞춤.
+const T_TUNE = { T57: 2.6, T60: 3.0, T67: -3.1, T70: -1.8, T74: -0.8, T81: -4.6, T84: 1.9, T85: 11.4, T88: -11.8 };
 async function decodePack(onProgress) {
   const ctx = createAudio(), P = window.JAZZ_AUDIO;
   if (!P) throw new Error('소리 묶음을 못 불러왔습니다');
@@ -748,7 +750,7 @@ async function decodePack(onProgress) {
     const onS = pi + Math.round(meta.on * sr);
     const clearTo = Math.max(0, onS - Math.round(0.0025 * sr));
     for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < clearTo; i++) d[i] = 0; }
-    const s = { key, buf, m: meta.m, c: meta.c || 0, start: clearTo / sr, on: onS / sr };
+    const s = { key, buf, m: meta.m, c: (meta.c || 0) + (T_TUNE[key] || 0), start: clearTo / sr, on: onS / sr };
     if (meta.ls != null) { s.ls = onS / sr + meta.ls; s.le = onS / sr + meta.le; }
     const m = key.match(/^([A-Z])(\d+)(?:r(\d))?$/);
     if (m) {
@@ -7530,7 +7532,16 @@ function addBackCrowd(n) {
 // ===================== 더블 트럼펫 필살기 =====================
 // 게이지: 내 솔로로 차오름 (첫 번째는 빨리). 버튼(또는 Shift)을 한 번 누르면 왼손이 두 번째 트럼펫을 들고, 다시 누르면 내림.
 // 들고 부는 동안 두 번째 트럼펫이 화음을 냄 (게이지는 소리를 내는 동안만 닳고, 다 닳으면 저절로 내림). 가득 찬 게이지로 처음 불 때 큰 장면.
-const SPX = { g: 0, held: false, active: false, k: 0, firstCharge: true, voice2: null, pan: null, harm: null, lastRevoiceT: -99, revoiceDue: false, pieceDue: false, pieces: 0, raisedEvt: false, hush: null, boomAt: 0, boomDone: true, uiG: -1 };
+// 두 대 소리가 작은 스피커(폰)에서 지지직 찢어지던 문제:
+//  - 두 번째 트럼펫이 리드와 거의 같은 크기로 얹혀서 트럼펫 음량이 한 대일 때보다 4~6dB 커졌고,
+//  - 평균율 3도 + 8센트 어긋남이라 두 소리의 배음이 계속 부딪혀 소리 크기가 빠르게 출렁였음.
+// 그래서: 리드와의 음정을 순정률로 맞추고, 두 번째는 조금 어둡고 작게, 두 대를 부는 동안은 트럼펫 전체를 살짝 내려 합친 크기를 한 대일 때와 비슷하게 둠.
+const SP_JI = { 3: -15.6, 4: 13.7, 5: 2.0, 8: -13.7, 9: 15.6 };   // 리드보다 n반음 아래 음을 순정 음정으로 만드는 보정(센트)
+const SP_LEVEL = 0.62, SP_DUCK = 0.78, SP_CUT = 5000;
+const spTune = (m, hm) => SP_JI[Math.round(m - hm)] || 0;
+function spFilter() { const f = AE.ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.5; f.frequency.value = SP_CUT; return f; }
+function spRetune(v, m, hm, t, now) { const d = v && v.src.detune; if (!d) return; const c = spTune(m, hm); if (now) d.setValueAtTime(c, t); else d.setTargetAtTime(c, t, 0.004); }
+const SPX = { g: 0, held: false, active: false, k: 0, duck: 1, firstCharge: true, voice2: null, pan: null, harm: null, lastRevoiceT: -99, revoiceDue: false, pieceDue: false, pieces: 0, raisedEvt: false, hush: null, boomAt: 0, boomDone: true, uiG: -1 };
 function spInitAudio() {
   const ctx = AE.ctx;
   SPX.pan = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
@@ -7551,25 +7562,24 @@ function spVoiceStart(t, m, lvl) {
   spVoiceStop(t, 0.02);
   const hm = harmFor(m, t), s = nearestSample('T', hm);
   if (!s) return;
-  const v = new SusVoice(s, hm, t, SPX.pan, { level: lvl * 0.82, fadeIn: 0.012, offset: s.start + 0.01 });
-  if (v.src.detune) v.src.detune.value = 8;
+  const v = new SusVoice(s, hm, t, SPX.pan, { level: lvl * SP_LEVEL, fadeIn: 0.012, offset: s.start + 0.01, filter: spFilter() });
+  spRetune(v, m, hm, t, true);
   SPX.voice2 = v; SPX.harm = hm; SPX.lastRevoiceT = t; SPX.revoiceDue = false;
 }
 function spVoiceMove(t, m, kind) {
   const v = SPX.voice2; if (!v || v.dead) return;
   const hm = harmFor(m, t);
-  if (hm === SPX.harm && TP.mode !== 'free' && !SPX.revoiceDue) return;
+  if (hm === SPX.harm && TP.mode !== 'free' && !SPX.revoiceDue) { spRetune(v, m, hm, t); return; }   // 리드만 움직여 음정 간격이 바뀐 경우: 조율만 다시
   SPX.harm = hm;
   const s = Math.abs(hm - v.s.m) > 5 ? nearestSample('T', hm) : null;
   SPX.revoiceDue = !!s && s !== v.s;
   // 음정은 즉시 따라가고, 샘플 교체만 첫 번째 트럼펫과 같은 간격으로 제한.
   if (SPX.revoiceDue && t - SPX.lastRevoiceT >= (TP.mode === 'free' ? 0.1 : 0.08)) {
-    const nv = new SusVoice(s, hm, t, SPX.pan, { level: v.level, fadeIn: 0.02, offset: Math.min(s.start + 0.12, s.ls != null ? s.ls - 0.05 : 1) });
-    if (nv.src.detune) nv.src.detune.value = 8;
-    v.glideTo(hm, t, 0.02); v.release(t, 0.03); SPX.voice2 = nv;
+    const nv = new SusVoice(s, hm, t, SPX.pan, { level: v.level, fadeIn: 0.02, offset: Math.min(s.start + 0.12, s.ls != null ? s.ls - 0.05 : 1), filter: spFilter() });
+    spRetune(nv, m, hm, t, true);
+    v.glideTo(hm, t, 0.02); spRetune(v, m, hm, t); v.release(t, 0.03); SPX.voice2 = nv;
     SPX.lastRevoiceT = t; SPX.revoiceDue = false;
-  } else if (kind === 'gliss' || kind === 'magnet' || kind === 'slide') v.glideTo(hm, t, 0.03);
-  else v.stepTo(hm, t);
+  } else { if (kind === 'gliss' || kind === 'magnet' || kind === 'slide') v.glideTo(hm, t, 0.03); else v.stepTo(hm, t); spRetune(v, m, hm, t); }
 }
 function spVoiceStop(t, rel = 0.06, flick = null) {
   const v = SPX.voice2; SPX.voice2 = null; SPX.revoiceDue = false;
@@ -7608,6 +7618,9 @@ function spUpdate(dt) {
     }
   }
   if (SPX.held && !SPX.active) SPX.held = false;
+  // 두 대를 부는 동안은 트럼펫 전체를 살짝 내림 (두 소리를 합친 크기가 한 대일 때와 비슷하게)
+  const duck = SPX.active ? SP_DUCK : 1;
+  if (SPX.duck !== duck && TP.in && AE.ctx) { SPX.duck = duck; TP.in.gain.setTargetAtTime(duck, now, 0.04); }
   // 손가락이 멈춰도 보류한 샘플 교체는 마무리. 소리를 끈 뒤에는 다시 만들지 않음.
   if (SPX.active && playing && TP.blowing && SPX.revoiceDue && now + 0.003 - SPX.lastRevoiceT >= (TP.mode === 'free' ? 0.1 : 0.08)) spVoiceMove(now + 0.003, TP.cur, 'slide');
   SPX.k = damp(SPX.k, SPX.active ? 1 : 0, SPX.active ? 7 : 5, dt);
